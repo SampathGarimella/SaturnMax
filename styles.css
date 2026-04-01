@@ -1040,3 +1040,73 @@ ul   { list-style: none; }
   .hero-cta        { flex-direction: column; }
   .hero-cta .btn   { text-align: center; }
 }
+
+/* =========================================================
+   Under Construction Banner (feature flag: WEBSITE_LIVE = false)
+   ========================================================= */
+body:has(#under-construction-banner) {
+  margin: 0;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a1f3c 0%, #1a3a5c 60%, #2d7dd2 100%);
+  font-family: 'Inter', sans-serif;
+}
+
+#under-construction-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 2rem;
+}
+
+.uc-inner {
+  text-align: center;
+  color: #fff;
+  max-width: 600px;
+}
+
+.uc-inner .uc-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 1.5rem;
+}
+
+.uc-inner .uc-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  animation: uc-spin 6s linear infinite;
+}
+
+@keyframes uc-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.uc-inner h1 {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.uc-inner p {
+  font-size: 1.05rem;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.7;
+  margin-bottom: 0.75rem;
+}
+
+.uc-inner .uc-contact a {
+  color: #7ec8e3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.uc-inner .uc-contact a:hover {
+  text-decoration: underline;
+}

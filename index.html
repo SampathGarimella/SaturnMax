@@ -605,5 +605,33 @@
   <a href="#home" class="back-to-top" id="backToTop" aria-label="Back to top">&#8679;</a>
 
   <script src="script.js"></script>
+
+  <!-- ===== FEATURE FLAG ===== -->
+  <script src="feature-flags.js"></script>
+  <script>
+    (function () {
+      if (!FEATURE_FLAGS.WEBSITE_LIVE) {
+        // Hide all page content
+        document.querySelectorAll('body > *:not(#under-construction-banner)').forEach(function (el) {
+          el.style.display = 'none';
+        });
+
+        // Create and show the "Currently Building" banner
+        var banner = document.createElement('div');
+        banner.id = 'under-construction-banner';
+        banner.innerHTML = [
+          '<div class="uc-inner">',
+          '  <div class="uc-logo"><span class="logo-sa">SA</span><span class="logo-turn"> Turn</span><span class="logo-max"> Max</span></div>',
+          '  <div class="uc-icon">&#9881;</div>',
+          '  <h1>We\'re Currently Building Something Great</h1>',
+          '  <p>Our new website is under construction. We\'ll be launching soon with a fresh look and exciting new content.</p>',
+          '  <p class="uc-contact">In the meantime, reach us at <a href="mailto:hello@saturnmax.com">hello@saturnmax.com</a></p>',
+          '</div>'
+        ].join('');
+        document.body.appendChild(banner);
+        document.body.style.display = 'flex';
+      }
+    })();
+  </script>
 </body>
 </html>
