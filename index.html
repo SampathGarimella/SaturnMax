@@ -9,6 +9,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
+
+  <!-- Feature flag: hides page before paint when WEBSITE_LIVE = false -->
+  <script src="feature-flags.js"></script>
+  <script>
+    if (!FEATURE_FLAGS.WEBSITE_LIVE) {
+      document.documentElement.classList.add('site-offline');
+    }
+  </script>
+  <style>
+    html.site-offline body > *:not(#under-construction-banner) { display: none !important; }
+    html.site-offline body { display: flex; min-height: 100vh; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, #0a1f3c 0%, #1a3a5c 60%, #2d7dd2 100%); }
+  </style>
 </head>
 <body>
 
@@ -606,32 +619,22 @@
 
   <script src="script.js"></script>
 
-  <!-- ===== FEATURE FLAG ===== -->
-  <script src="feature-flags.js"></script>
+  <!-- ===== FEATURE FLAG: banner injection ===== -->
   <script>
-    (function () {
-      if (!FEATURE_FLAGS.WEBSITE_LIVE) {
-        // Hide all page content
-        document.querySelectorAll('body > *:not(#under-construction-banner)').forEach(function (el) {
-          el.style.display = 'none';
-        });
-
-        // Create and show the "Currently Building" banner
-        var banner = document.createElement('div');
-        banner.id = 'under-construction-banner';
-        banner.innerHTML = [
-          '<div class="uc-inner">',
-          '  <div class="uc-logo"><span class="logo-sa">SA</span><span class="logo-turn"> Turn</span><span class="logo-max"> Max</span></div>',
-          '  <div class="uc-icon">&#9881;</div>',
-          '  <h1>We\'re Currently Building Something Great</h1>',
-          '  <p>Our new website is under construction. We\'ll be launching soon with a fresh look and exciting new content.</p>',
-          '  <p class="uc-contact">In the meantime, reach us at <a href="mailto:hello@saturnmax.com">hello@saturnmax.com</a></p>',
-          '</div>'
-        ].join('');
-        document.body.appendChild(banner);
-        document.body.style.display = 'flex';
-      }
-    })();
+    if (!FEATURE_FLAGS.WEBSITE_LIVE) {
+      var banner = document.createElement('div');
+      banner.id = 'under-construction-banner';
+      banner.innerHTML = [
+        '<div class="uc-inner">',
+        '  <div class="uc-logo"><span class="logo-sa">SA</span><span class="logo-turn"> Turn</span><span class="logo-max"> Max</span></div>',
+        '  <div class="uc-icon">&#9881;</div>',
+        '  <h1>We\'re Currently Building Something Great</h1>',
+        '  <p>Our new website is under construction. We\'ll be launching soon with a fresh look and exciting new content.</p>',
+        '  <p class="uc-contact">In the meantime, reach us at <a href="mailto:hello@saturnmax.com">hello@saturnmax.com</a></p>',
+        '</div>'
+      ].join('');
+      document.body.appendChild(banner);
+    }
   </script>
 </body>
 </html>
