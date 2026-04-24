@@ -5,7 +5,6 @@ import {
   CalendarCheck,
   Eye,
   UserCircle2,
-  ArrowRight,
   Check,
   CircleDot,
 } from "lucide-react";

@@ -3,62 +3,68 @@
 ## Original problem statement
 > "implement home page, implement Candidate login page, implement candidate dashboard page and push. make it interactive if i miss anything add it to link page to page link it and i will add firebase for all login and all and let me know how to setup emails and setup everything for dashboard and all."
 
-## User-selected build choices
-1. **Full-stack** — FastAPI + MongoDB (not static)
-2. **Login UI only** — Google/LinkedIn + email/password are placeholders, ready for Firebase wiring
-3. **Real data** — dashboard pulls applications the candidate actually submitted
-4. **Persist contact messages** — every "Send us a message" saved to MongoDB for review
-5. **Real emails** — Resend provider, recipient `careers@saturnmaxtech.com`, key blank on day one (documented graceful fallback)
-
 ## Architecture
 
 | Layer | Tech |
-|------|------|
-| Frontend | React 19 + React Router 7 + Tailwind CSS 3.4 + Lucide icons + Sonner toasts + axios |
-| Backend  | FastAPI + Motor (MongoDB async) + Resend SDK |
-| Database | MongoDB collections: `jobs`, `applications`, `candidates`, `activities`, `contact_messages` |
-| Email    | Resend (graceful fallback when `RESEND_API_KEY` blank) |
+|---|---|
+| Frontend | React 19 + React Router 7 + Tailwind 3.4 + Lucide + Sonner + axios + **Firebase SDK 12** |
+| Backend | FastAPI + Motor (MongoDB async) + Resend (graceful fallback) |
+| Auth | **Firebase Auth** (email/password, Google, LinkedIn OIDC) with localStorage fallback for demo |
+| Messaging | **Firestore** real-time `messages/{uid}/thread/{messageId}` |
+| Resume storage | **Firebase Storage** `resumes/{uid}/resume.pdf` with progress UI |
+| Email | Resend with graceful fallback (key blank → log warning, skip send) |
 
 ## User personas
-- **Candidate (Rahul Sharma persona)** — browses jobs, applies, tracks application status, reads messages, completes profile.
-- **Hiring team (careers@saturnmaxtech.com)** — receives application + contact emails, reads stored submissions.
-- **US client lead** — reaches out through contact form.
+- **Candidate** — browses jobs, applies, tracks status, chats with HR, uploads resume.
+- **HR / Hiring team** (`careers@saturnmaxtech.com`) — receives applications + contact emails, replies via Firestore messages.
+- **US client** — reaches out via contact form.
 
-## Core requirements (static)
-- Home page: hero, services grid, open positions, application form, how-it-works steps, contact form, footer CTA.
-- Candidate login page: sign in / create account tabs, Google & LinkedIn OAuth placeholder buttons, email+password form, forgot password link, keep-me-signed-in toggle.
-- Candidate dashboard: sidebar nav, 4 stat cards, My applications, Recent activity, Complete your profile, sub-pages for Browse jobs / My applications / Messages / My profile / Settings.
+## What's been implemented
 
-## What's been implemented (2026-04-24)
-- ✅ FastAPI backend with seed-on-startup (5 jobs, demo candidate, 4 applications, 5 activity rows)
-- ✅ Endpoints: `/api/health`, `/api/jobs`, `/api/jobs/{id}`, `POST /api/applications`, `GET /api/applications`, `POST /api/contact`, `GET /api/contact`, `/api/candidates/{email}`, `/api/dashboard/{email}`
-- ✅ Resend integration with `asyncio.to_thread` + fire-and-forget + graceful fallback
-- ✅ React Home page matching the mockup (hero, 6 services, 5 live job rows, application form wired, contact form wired, how-it-works, footer CTA)
-- ✅ Candidate login (Sign in / Create account tabs, Google + LinkedIn OAuth placeholders, email form placeholder, "Enter demo" CTA that seeds session)
-- ✅ Candidate dashboard with live data: sidebar, greeting, 4 stat cards, applications list, activity feed, profile checklist
-- ✅ Dashboard sub-pages: Browse jobs, My applications, Messages, My profile, Settings
-- ✅ Linting green (ruff + eslint) · testing subagent: 12/12 backend + full Playwright E2E passed with zero console errors
-- ✅ `/app/EMAIL_SETUP.md` — Resend setup guide
-- ✅ `/app/memory/test_credentials.md` — demo candidate documented
+### 2026-04-24 · Iteration 1 — MVP
+- FastAPI backend with 5 jobs, demo candidate, 4 applications, 5 activity rows seeded on startup.
+- Endpoints: `/api/health`, `/api/jobs`, `/api/jobs/{id}`, `POST /api/applications`, `GET /api/applications`, `POST /api/contact`, `GET /api/contact`, `/api/candidates/{email}`, `/api/dashboard/{email}`.
+- Resend email integration with graceful fallback (fire-and-forget `asyncio.create_task`, `asyncio.to_thread` wrapping the sync SDK).
+- React Home page: hero, services grid, open positions from backend, application form wired, contact form wired, how-it-works, footer CTA.
+- Candidate login (UI-only placeholder at this stage).
+- Candidate dashboard with live data from backend: sidebar, stats, applications, activity, profile checklist.
+- Dashboard sub-pages: Browse jobs, My applications, Messages (preview), My profile, Settings.
+- Lint + pytest (12/12) + Playwright E2E all green.
 
-## Backlog / prioritized next steps
+### 2026-04-24 · Iteration 2 — Firebase wiring + content edits + git safety
+- **`.gitignore`** added at repo root (never commit `.env`, `node_modules/`, `__pycache__/`, logs).
+- **`backend/.env.example`** and **`frontend/.env.example`** committed as safe templates.
+- **Firebase SDK** (`firebase@^12`) installed.
+- **`src/lib/firebase.js`** — bootstraps Firebase from `REACT_APP_FIREBASE_*` env vars with an `isFirebaseConfigured` boolean so the app never crashes when config is missing.
+- **`src/context/AuthContext.js`** — `AuthProvider` that unifies Firebase Auth + demo mode under a single `useAuth()` hook. Provides `signIn`, `signUp`, `signInWithGoogle`, `signInWithLinkedIn` (custom OIDC `oidc.linkedin`), `sendReset`, `signOut`, `enterDemo`, plus `mode` = `"firebase" | "demo" | "guest"`.
+- **`LoginPage.js`** — real Firebase Auth when configured; falls back to an info toast + amber "Firebase not configured yet" banner when not. Google + LinkedIn buttons trigger `signInWithPopup`. Forgot password sends a real reset email.
+- **`DashboardLayout.js`** — uses `useAuth()`, shows `Demo` / `Live` pills next to user name, handles real Firebase users with empty dashboards (404 → empty shell).
+- **`Messages.js`** — real-time Firestore messaging (`onSnapshot` subscribe + `addDoc` send with `serverTimestamp`). Falls back to seeded preview + read-only composer when not signed in with Firebase.
+- **`MyProfile.js`** — Firebase Storage resume upload with live progress bar (`uploadBytesResumable` → `getDownloadURL`). 5MB limit, PDF/DOC/DOCX. Disabled with a clear hint in demo mode.
+- **Home page content edits**:
+  - Removed "Trusted by teams at" block and sample brands
+  - Removed "Est. 2024" badge; replaced with "US–India IT consulting & contract staffing"
+  - Metrics strip → `3x / 48hr / 10+ Projects delivered / 20+ Consultants placed with clients`
+  - Hero subtitle updated to highlight "vetted consultants on contract"
+  - Services grid reordered with new flagship "Consultants on contract" card (replaces Cybersecurity)
+  - Candidate login button promoted to a bordered CTA in the header
+- **`FIREBASE_SETUP.md`** — complete 8-step walkthrough including Firestore + Storage security rules ready to paste.
+- **`EMAIL_SETUP.md`** — Resend setup guide from iteration 1.
 
-### P0 (blocking full "real" experience)
-- Wire **Firebase Auth** (email/password + Google + LinkedIn). Replace placeholders in `LoginPage.js`. Replace localStorage session helper with Firebase user context.
-- Add `RESEND_API_KEY` to `/app/backend/.env` and verify `saturnmaxtech.com` domain in Resend.
+## Backlog
 
-### P1 (polish + activation)
-- Persist profile edits from `/dashboard/profile` (currently read-only).
-- Real messaging: Firestore thread per candidate ↔ HR team (`/dashboard/messages` is preview).
-- File upload for resumes on the profile page → S3/Firebase Storage.
-- Application status updates (admin view to move `pending → under_review → interview → offer/not_shortlisted`).
-- Real "applied_ago" computed from `created_at` on dashboard render.
+### P0
+- Add real `REACT_APP_FIREBASE_*` config + `RESEND_API_KEY` to respective `.env` files (pending user).
+- Verify Firebase Console: Auth providers enabled, Firestore rules pasted, Storage rules pasted, authorized domains set.
+- Decide final domain — `saturnmax.com` vs `saturnmaxtech.com` (pending user). Email addresses will need one-liner update once confirmed.
 
-### P2 (nice to have)
-- Admin dashboard for HR to browse all applications + contacts.
+### P1
+- Persist profile edits (name/phone/portfolio) to Firestore under `candidates/{uid}` once Firebase is live.
+- HR admin view to manage applications and send Firestore messages.
+- Real "applied X ago" computed from `created_at`.
+- "Thanks for applying" confirmation email to the candidate (not just HR).
+
+### P2
 - Job detail pages (`/jobs/:slug`) with SEO metadata.
-- Analytics on profile views (currently hardcoded 18/+5).
-- Email templates for candidate-facing confirmations.
-
-## Enhancement idea
-> **Why don't you add an "application success" email back to the candidate?** Right now HR gets notified but the candidate just sees a toast. Sending a branded "thanks for applying — here's what happens next" email doubles your perceived professionalism and cuts the "did my application go through?" support questions. The pipeline is already in place — just add a second `send_email_async` call targeting `payload.email` inside `POST /api/applications`.
+- Real analytics on profile views.
+- Rate-limit the application/contact endpoints.
