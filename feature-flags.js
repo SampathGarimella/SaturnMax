@@ -4,5 +4,5 @@
 // Set to false to show the "Currently Building" banner only.
 // ============================================================
 const FEATURE_FLAGS = {
-  WEBSITE_LIVE: false
+  WEBSITE_LIVE: true
 };
