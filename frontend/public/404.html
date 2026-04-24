@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!--
+  GitHub Pages 404 → SPA redirect.
+  GitHub Pages only serves `index.html` at the root by default. When someone
+  hits /login or /dashboard directly, Pages returns this 404 page, which we
+  hijack to redirect back to `/?/login` (preserved path) so React Router can
+  pick it up. The index.html has a matching snippet that restores the URL.
+  Credit: https://github.com/rafgraph/spa-github-pages
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Saturn Max Technologies</title>
+    <script>
+      (function () {
+        var pathSegmentsToKeep = 0; // 0 when using a root CNAME (saturnmax.com)
+        var l = window.location;
+        l.replace(
+          l.protocol +
+            "//" +
+            l.hostname +
+            (l.port ? ":" + l.port : "") +
+            l.pathname
+              .split("/")
+              .slice(0, 1 + pathSegmentsToKeep)
+              .join("/") +
+            "/?/" +
+            l.pathname
+              .slice(1)
+              .split("/")
+              .slice(pathSegmentsToKeep)
+              .join("/")
+              .replace(/&/g, "~and~") +
+            (l.search ? "&" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+            l.hash
+        );
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

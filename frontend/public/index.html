@@ -15,9 +15,30 @@
       rel="stylesheet"
     />
     <title>Saturn Max Technologies — World-class tech teams for US businesses</title>
+    <script type="text/javascript">
+      // SPA GitHub Pages: restore a URL that was sent through 404.html
+      // (matches the query-string shape set by /public/404.html).
+      (function (l) {
+        if (l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) {
+              return s.replace(/~and~/g, "&");
+            })
+            .join("?");
+          window.history.replaceState(
+            null,
+            null,
+            l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      })(window.location);
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>
 </html>
+
