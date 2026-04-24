@@ -4,5 +4,5 @@
 // WEBSITE_LIVE: true  → shows the full website
 // ============================================================
 const FEATURE_FLAGS = {
-  WEBSITE_LIVE: false
+  WEBSITE_LIVE: true
 };
