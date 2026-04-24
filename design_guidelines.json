@@ -1,0 +1,114 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast) tailored for Corporate Premium (Old Money Tech)",
+  "brand_name": "Saturn Max Technologies Pvt Ltd",
+  "design_philosophy": "Clean, professional B2B aesthetic with high-contrast typography, deep navy structural elements, and vibrant blue accents for interaction. Seamlessly bridges an artful marketing presence with a highly functional, data-dense candidate dashboard.",
+  "colors": {
+    "brand_primary": "#0A192F",
+    "brand_accent": "#2563EB",
+    "background_marketing": "#FFFFFF",
+    "background_dashboard": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "text_heading": "#0F172A",
+    "text_body": "#475569",
+    "text_muted": "#64748B",
+    "border": "#E2E8F0",
+    "status": {
+      "success": { "bg": "#DCFCE7", "text": "#166534" },
+      "warning": { "bg": "#FEF3C7", "text": "#92400E" },
+      "error": { "bg": "#FEE2E2", "text": "#991B1B" },
+      "info": { "bg": "#DBEAFE", "text": "#1E40AF" }
+    }
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Cabinet Grotesk', 'Outfit', sans-serif",
+      "body": "'IBM Plex Sans', 'Inter', sans-serif"
+    },
+    "scales": {
+      "h1": "text-5xl md:text-6xl tracking-tighter font-bold text-[#0F172A]",
+      "h2": "text-3xl md:text-4xl tracking-tight font-semibold text-[#0F172A]",
+      "h3": "text-xl md:text-2xl font-semibold text-[#0F172A]",
+      "h4": "text-lg font-medium text-[#0F172A]",
+      "body": "text-base leading-relaxed text-[#475569]",
+      "small": "text-sm text-[#64748B]",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-[#2563EB]"
+    }
+  },
+  "spacing_and_layout": {
+    "marketing_page": {
+      "section_padding": "py-24",
+      "container": "max-w-7xl mx-auto px-6 md:px-12",
+      "grid_strategy": "Tetris Bento Grid (grid-cols-1 md:grid-cols-12 gap-8). Use asymmetry for visual tension."
+    },
+    "dashboard": {
+      "sidebar_width": "w-64",
+      "page_padding": "p-8",
+      "grid_strategy": "Control Room Grid (grid-cols-1 lg:grid-cols-4 gap-6). Dense, utilitarian layout."
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-[#2563EB] text-white hover:bg-[#1D4ED8] hover:text-white rounded-md px-6 py-2.5 font-medium transition-colors shadow-sm",
+      "secondary": "bg-white text-[#0A192F] border border-[#E2E8F0] hover:bg-[#F8FAFC] rounded-md px-6 py-2.5 font-medium transition-colors",
+      "ghost": "text-[#475569] hover:text-[#0A192F] hover:bg-[#F1F5F9] rounded-md px-4 py-2 transition-colors"
+    },
+    "badges": {
+      "default": "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-[#DBEAFE] text-[#1E40AF]",
+      "outline": "inline-flex items-center rounded-full border border-[#E2E8F0] px-2.5 py-0.5 text-xs font-semibold text-[#475569]"
+    },
+    "cards": {
+      "dashboard_widget": "bg-white border border-[#E2E8F0] rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow",
+      "marketing_bento": "bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-8 overflow-hidden relative group"
+    },
+    "inputs": {
+      "default": "flex h-10 w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "surfaces": {
+      "header_glass": "bg-white/80 backdrop-blur-xl border-b border-[#E2E8F0]",
+      "footer_dark": "bg-[#0A192F] text-white py-20"
+    }
+  },
+  "media": {
+    "images": {
+      "hero_team": {
+        "url": "https://images.pexels.com/photos/7163372/pexels-photo-7163372.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "alt": "Diverse tech team collaborating in a modern office",
+        "placement": "Marketing Home Page - Hero Section or 'How it works' section"
+      },
+      "abstract_network": {
+        "url": "https://images.unsplash.com/photo-1746470427657-eb0b0115455f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhdGElMjBuZXR3b3JrJTIwYmx1ZXxlbnwwfHx8fDE3NzcwMDM0OTh8MA&ixlib=rb-4.1.0&q=85",
+        "alt": "Abstract blue data network lines",
+        "placement": "Marketing Home Page - Background texture for CTA or Tech Stack section"
+      },
+      "candidate_avatar": {
+        "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBoZWFkc2hvdCUyMHBvcnRyYWl0fGVufDB8fHx8MTc3NzAwMzQ5OHww&ixlib=rb-4.1.0&q=85",
+        "alt": "Rahul Sharma - Candidate Profile",
+        "placement": "Dashboard - Sidebar Profile & Top Right Nav"
+      }
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "instructions": "Use lucide-react for all UI icons. Keep stroke width consistent (default 2px). For dashboard sidebar, use 20px icons."
+  },
+  "testing": {
+    "instructions": "ALL interactive elements MUST include a descriptive data-testid attribute in kebab-case format.",
+    "examples": [
+      "data-testid='nav-login-button'",
+      "data-testid='hero-apply-cta'",
+      "data-testid='login-email-input'",
+      "data-testid='dashboard-sidebar-messages'"
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Build the marketing page using custom HTML/Tailwind to allow for fluid bento layouts and overlapping elements. Avoid rigid Shadcn wrappers here.",
+    "For the Candidate Login and Dashboard, utilize Shadcn UI components heavily (Inputs, Cards, Badges, Tabs, Dropdowns) for maximum accessibility and standard SaaS UX.",
+    "Do NOT use pure black (#000000). Use the provided Deep Navy (#0A192F) or Slate 900 (#0F172A) for high-contrast dark elements.",
+    "Ensure the application form on the home page and login forms are completely functional in UI (mocked Firebase logic is fine for now, but UI states must exist).",
+    "On the dashboard, implement the 'Control Room Grid' with 4 stat cards at the top, a main 'My Applications' table/list, and a 'Recent Activity' / 'Profile Completion' sidebar.",
+    "Incorporate pill-shaped badges for job tags (Full-time, Remote) and application statuses (Under review, Interview) as requested by the user.",
+    "Mocked interactive elements (like Google/LinkedIn OAuth buttons) must look fully polished with proper hover states.",
+    "Use standard `.js` files for React components, not `.tsx`."
+  ]
+}
