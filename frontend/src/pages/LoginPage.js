@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Shield } from "lucide-react";
 import Logo from "../components/Logo";
-import { setSession, DEMO_EMAIL } from "../lib/session";
+import { useAuth } from "../context/AuthContext";
 
 const TABS = [
   { id: "signin", label: "Sign in" },
@@ -17,29 +17,112 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [keepSignedIn, setKeepSignedIn] = useState(false);
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const {
+    signIn,
+    signUp,
+    signInWithGoogle,
+    signInWithLinkedIn,
+    sendReset,
+    enterDemo,
+    isFirebaseConfigured,
+  } = useAuth();
 
-  const handleOAuth = (provider) => {
-    toast.info(
-      `${provider} sign-in is wired for Firebase — add your config in src/firebase.js to enable.`
-    );
+  const handleError = (err) => {
+    // Firebase error codes → friendly messages
+    const code = err?.code || "";
+    const map = {
+      "auth/invalid-credential": "Wrong email or password.",
+      "auth/invalid-email": "That email address isn't valid.",
+      "auth/user-not-found": "No account found with that email.",
+      "auth/wrong-password": "Wrong email or password.",
+      "auth/email-already-in-use": "An account with that email already exists.",
+      "auth/weak-password": "Password must be at least 6 characters.",
+      "auth/popup-blocked": "Browser blocked the sign-in popup — please allow popups.",
+      "auth/popup-closed-by-user": "Sign-in popup closed before completing.",
+      "auth/unauthorized-domain":
+        "This domain isn't allowed in Firebase Console → Auth → Settings → Authorized domains.",
+    };
+    toast.error(map[code] || err?.message || "Something went wrong. Try again.");
   };
 
-  const handleEmailSubmit = (e) => {
+  const handleEmailSubmit = async (e) => {
     e.preventDefault();
-    toast.info(
-      "Email/password auth is a UI placeholder — connect Firebase Auth (or your preferred provider) to enable real sign-in."
-    );
+    if (!isFirebaseConfigured) {
+      toast.info(
+        "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars to /app/frontend/.env and restart the frontend — or hit 'Enter demo' to preview the dashboard."
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      if (tab === "signin") {
+        await signIn({ email, password, keepSignedIn });
+        toast.success("Welcome back!");
+      } else {
+        await signUp({ email, password, name, keepSignedIn });
+        toast.success("Account created. Welcome to Saturn Max!");
+      }
+      navigate("/dashboard");
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleForgot = (e) => {
-    e.preventDefault();
-    toast.info("Forgot password flow is stubbed. Hook up Firebase reset email to enable.");
+  const handleOAuth = async (provider) => {
+    if (!isFirebaseConfigured) {
+      toast.info(
+        `${provider} sign-in needs Firebase config. Paste REACT_APP_FIREBASE_* into /app/frontend/.env and restart the frontend.`
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      if (provider === "Google") {
+        await signInWithGoogle();
+      } else {
+        await signInWithLinkedIn();
+      }
+      toast.success(`Signed in with ${provider}`);
+      navigate("/dashboard");
+    } catch (err) {
+      if (err?.code === "auth/operation-not-allowed" && provider === "LinkedIn") {
+        toast.error(
+          "LinkedIn needs to be set up as a custom OIDC provider (id 'oidc.linkedin') in Firebase Console."
+        );
+      } else {
+        handleError(err);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleForgot = async () => {
+    if (!isFirebaseConfigured) {
+      toast.info(
+        "Password reset needs Firebase Auth configured. Add your Firebase config and try again."
+      );
+      return;
+    }
+    if (!email) {
+      toast.error("Enter your email first, then click Forgot password.");
+      return;
+    }
+    try {
+      await sendReset(email);
+      toast.success(`Reset link sent to ${email}`);
+    } catch (err) {
+      handleError(err);
+    }
   };
 
   const handleDemoLogin = () => {
-    setSession({ email: DEMO_EMAIL, name: "Rahul Sharma" });
-    toast.success("Entering demo dashboard as Rahul Sharma (rahul@email.com)");
+    enterDemo();
+    toast.success("Entering demo dashboard as Rahul Sharma");
     navigate("/dashboard");
   };
 
@@ -61,7 +144,6 @@ export default function LoginPage() {
 
       <main className="flex-1 flex items-start justify-center px-6 py-10 md:py-16">
         <div className="w-full max-w-md">
-          {/* tab switcher */}
           <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-lg mb-6" role="tablist">
             {TABS.map((t) => (
               <button
@@ -103,18 +185,20 @@ export default function LoginPage() {
 
             <div className="mt-6 grid grid-cols-2 gap-3">
               <OAuthButton
-                provider="Google"
                 onClick={() => handleOAuth("Google")}
                 dataTestId="oauth-google"
+                disabled={busy}
               >
                 <GoogleGlyph />
+                Google
               </OAuthButton>
               <OAuthButton
-                provider="LinkedIn"
                 onClick={() => handleOAuth("LinkedIn")}
                 dataTestId="oauth-linkedin"
+                disabled={busy}
               >
                 <LinkedInGlyph />
+                LinkedIn
               </OAuthButton>
             </div>
 
@@ -148,6 +232,7 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   className={inputClass}
                   data-testid="login-email"
+                  autoComplete="email"
                 />
               </div>
               <div>
@@ -160,6 +245,7 @@ export default function LoginPage() {
                     placeholder="Your password"
                     className={`${inputClass} pr-11`}
                     data-testid="login-password"
+                    autoComplete={tab === "signin" ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
@@ -207,10 +293,17 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0A192F] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0e2445] transition-colors"
+                disabled={busy}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0A192F] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0e2445] transition-colors disabled:opacity-60"
                 data-testid={tab === "signin" ? "signin-submit" : "signup-submit"}
               >
-                {tab === "signin" ? "Sign in to Saturn Max" : "Create account"}
+                {busy
+                  ? tab === "signin"
+                    ? "Signing in…"
+                    : "Creating account…"
+                  : tab === "signin"
+                  ? "Sign in to Saturn Max"
+                  : "Create account"}
               </button>
             </form>
 
@@ -241,13 +334,31 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Firebase status banner */}
+          {!isFirebaseConfigured && (
+            <div
+              className="mt-5 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4 text-sm text-amber-900 flex items-start gap-3"
+              data-testid="firebase-status-banner"
+            >
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-semibold">Firebase not configured yet</div>
+                <div className="text-xs mt-0.5">
+                  Paste your Firebase web config into <code>/app/frontend/.env</code>{" "}
+                  and restart the frontend to enable real sign-in. See{" "}
+                  <code>FIREBASE_SETUP.md</code> for the 2-minute walkthrough.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Demo access banner */}
           <div className="mt-5 rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-slate-700">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="font-semibold text-slate-900">Preview the candidate dashboard</div>
                 <p className="mt-0.5 text-xs text-slate-600">
-                  Firebase auth isn't wired yet — jump into the live demo dashboard as Rahul Sharma.
+                  Jump into the live demo dashboard as Rahul Sharma — no Firebase needed.
                 </p>
               </div>
               <button
@@ -269,16 +380,16 @@ export default function LoginPage() {
 const inputClass =
   "w-full h-11 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent";
 
-function OAuthButton({ provider, onClick, children, dataTestId }) {
+function OAuthButton({ onClick, children, dataTestId, disabled }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       data-testid={dataTestId}
-      className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors"
+      className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors disabled:opacity-60"
     >
       {children}
-      {provider}
     </button>
   );
 }
@@ -286,22 +397,10 @@ function OAuthButton({ provider, onClick, children, dataTestId }) {
 function GoogleGlyph() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4">
-      <path
-        fill="#4285F4"
-        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.54 5.54 0 0 1-2.4 3.62v3h3.86c2.26-2.08 3.56-5.14 3.56-8.86Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.24 0 5.95-1.08 7.93-2.87l-3.86-3c-1.07.72-2.44 1.16-4.07 1.16-3.12 0-5.76-2.11-6.7-4.94H1.3v3.1A11.99 11.99 0 0 0 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.3 14.35a7.2 7.2 0 0 1 0-4.7V6.55H1.3a12 12 0 0 0 0 10.9l4-3.1Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.75c1.76 0 3.34.6 4.58 1.8l3.43-3.43C17.95 1.19 15.24 0 12 0A11.99 11.99 0 0 0 1.3 6.55l4 3.1C6.24 6.86 8.88 4.75 12 4.75Z"
-      />
+      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.54 5.54 0 0 1-2.4 3.62v3h3.86c2.26-2.08 3.56-5.14 3.56-8.86Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.87l-3.86-3c-1.07.72-2.44 1.16-4.07 1.16-3.12 0-5.76-2.11-6.7-4.94H1.3v3.1A11.99 11.99 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.3 14.35a7.2 7.2 0 0 1 0-4.7V6.55H1.3a12 12 0 0 0 0 10.9l4-3.1Z" />
+      <path fill="#EA4335" d="M12 4.75c1.76 0 3.34.6 4.58 1.8l3.43-3.43C17.95 1.19 15.24 0 12 0A11.99 11.99 0 0 0 1.3 6.55l4 3.1C6.24 6.86 8.88 4.75 12 4.75Z" />
     </svg>
   );
 }

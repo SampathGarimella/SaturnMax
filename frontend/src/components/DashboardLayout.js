@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
@@ -12,8 +12,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Logo from "./Logo";
-import { clearSession, getSession, setSession, DEMO_EMAIL } from "../lib/session";
 import { fetchDashboard } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 
 const NAV_MAIN = [
@@ -32,28 +32,47 @@ export default function DashboardLayout() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, loading: authLoading, mode, enterDemo, signOut } = useAuth();
 
+  // If user is a guest and we're hitting the dashboard directly, auto-bootstrap
+  // the demo session so the preview always has data. Real Firebase users use
+  // their actual uid/email.
   useEffect(() => {
-    // Auto-bootstrap a demo session so the dashboard never shows a broken state.
-    let session = getSession();
-    if (!session) {
-      session = { email: DEMO_EMAIL, name: "Rahul Sharma" };
-      setSession(session);
+    if (authLoading) return;
+    if (!user && mode === "guest") {
+      enterDemo();
     }
+  }, [authLoading, user, mode, enterDemo]);
 
-    fetchDashboard(session.email)
-      .then((payload) => setData(payload))
+  // Fetch dashboard data from the FastAPI backend keyed by candidate email.
+  useEffect(() => {
+    if (authLoading || !user?.email) return;
+    setLoading(true);
+    fetchDashboard(user.email)
+      .then(setData)
       .catch((err) => {
         console.error(err);
-        toast.error("Couldn't load your dashboard data.");
+        // For real Firebase users who haven't submitted any applications yet, the
+        // backend will return 404. Build an empty shell so the UI stays usable.
+        if (err?.response?.status === 404) {
+          setData(emptyDashboard(user));
+        } else {
+          toast.error("Couldn't load your dashboard data.");
+        }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [authLoading, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSignOut = () => {
-    clearSession();
+  const handleSignOut = async () => {
+    await signOut();
     toast.success("Signed out.");
     navigate("/");
+  };
+
+  const reload = () => {
+    if (!user?.email) return;
+    fetchDashboard(user.email).then(setData).catch(() => {});
   };
 
   return (
@@ -71,15 +90,25 @@ export default function DashboardLayout() {
             <div className="flex items-center gap-3">
               <div className="avatar-ring">
                 <div className="h-10 w-10 rounded-full bg-[#2563EB] text-white grid place-items-center text-sm font-semibold">
-                  {initials(data?.candidate?.name || "Rahul Sharma")}
+                  {initials(user?.name || data?.candidate?.name || "Candidate")}
                 </div>
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-slate-900 truncate">
-                  {data?.candidate?.name || "Rahul Sharma"}
+                  {user?.name || data?.candidate?.name || "Candidate"}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-slate-500 flex items-center gap-1.5">
                   {data?.candidate?.role_label || "Job Candidate"}
+                  {mode === "demo" && (
+                    <span className="rounded-full bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider">
+                      Demo
+                    </span>
+                  )}
+                  {mode === "firebase" && (
+                    <span className="rounded-full bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider">
+                      Live
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -109,16 +138,15 @@ export default function DashboardLayout() {
         </aside>
 
         <div className="flex flex-col">
-          {/* Top bar */}
           <header
             className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-5 md:px-10 h-20 flex items-center justify-between gap-4"
             data-testid="dashboard-topbar"
           >
             <div className="min-w-0">
               <h1 className="font-heading text-xl md:text-2xl font-semibold tracking-tight text-slate-900 truncate">
-                {loading
+                {loading || authLoading
                   ? "Loading your dashboard…"
-                  : `${greeting()}, ${firstName(data?.candidate?.name || "there")}`}
+                  : `${greeting()}, ${firstName(user?.name || "there")}`}
               </h1>
               <p className="text-xs md:text-sm text-slate-500">
                 Here's what's happening with your account today.
@@ -144,13 +172,8 @@ export default function DashboardLayout() {
             </div>
           </header>
 
-          {/* Main area — children via Outlet with context */}
-          <main className="p-5 md:p-10">
-            <Outlet context={{ data, loading, reload: () => {
-              const session = getSession();
-              if (!session) return;
-              fetchDashboard(session.email).then(setData).catch(() => {});
-            } }} />
+          <main className="p-5 md:p-10" key={location.pathname}>
+            <Outlet context={{ data, loading: loading || authLoading, reload, user, mode }} />
           </main>
         </div>
       </div>
@@ -174,9 +197,40 @@ function initials(name) {
   return name
     .split(" ")
     .map((p) => p[0])
+    .filter(Boolean)
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function emptyDashboard(user) {
+  return {
+    candidate: {
+      id: "new",
+      email: user.email,
+      name: user.name,
+      role_label: "Job Candidate",
+      profile_complete_percent: 20,
+      profile_checklist: {
+        basic_info: true,
+        work_preference: false,
+        portfolio_url: false,
+        resume_uploaded: false,
+      },
+    },
+    stats: {
+      applications_sent: 0,
+      applications_delta_week: 0,
+      interviews_scheduled: 0,
+      next_interview: null,
+      profile_views: 0,
+      profile_views_delta_week: 0,
+      profile_complete_percent: 20,
+    },
+    applications: [],
+    activity: [],
+    unread_messages: 0,
+  };
 }
 
 /* ---- Side nav pieces --------------------------------------------------- */

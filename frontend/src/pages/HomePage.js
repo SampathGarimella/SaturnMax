@@ -7,7 +7,6 @@ import {
   Users,
   Cloud,
   BarChart3,
-  ShieldCheck,
   Bot,
   Compass,
   Handshake,
@@ -22,25 +21,31 @@ import Logo from "../components/Logo";
 import { fetchJobs, submitApplication, submitContact } from "../lib/api";
 
 const SERVICE_ICONS = {
-  "AI & agent automation": Bot,
+  "Consultants on contract": Handshake,
   "Dedicated dev squads": Users,
+  "AI & agent automation": Bot,
   "Fractional CTO": Compass,
   "Cloud cost optimization": Cloud,
   "Data engineering": BarChart3,
-  "Cybersecurity & compliance": ShieldCheck,
 };
 
 const SERVICES = [
   {
-    title: "AI & agent automation",
-    blurb: "LLM integrations, AI agents, RAG pipelines for your workflows.",
-    tag: { label: "Hottest now", color: "bg-blue-50 text-blue-700" },
+    title: "Consultants on contract",
+    blurb:
+      "Place vetted senior engineers on your team on 3–12 month contracts. Scale up or down on demand.",
+    tag: { label: "Flagship offer", color: "bg-blue-50 text-blue-700" },
   },
   {
     title: "Dedicated dev squads",
     blurb:
       "2–5 person teams embedded in your product org on long-term contracts.",
     tag: { label: "Steady demand", color: "bg-emerald-50 text-emerald-700" },
+  },
+  {
+    title: "AI & agent automation",
+    blurb: "LLM integrations, AI agents, RAG pipelines for your workflows.",
+    tag: { label: "Hottest now", color: "bg-amber-50 text-amber-700" },
   },
   {
     title: "Fractional CTO",
@@ -52,18 +57,12 @@ const SERVICES = [
     title: "Cloud cost optimization",
     blurb:
       "AWS/GCP/Azure FinOps audits. Cut your cloud bill by 30–50%.",
-    tag: { label: "Quick ROI", color: "bg-amber-50 text-amber-700" },
+    tag: { label: "Quick ROI", color: "bg-sky-50 text-sky-700" },
   },
   {
     title: "Data engineering",
     blurb: "Modern data stack — dbt, Snowflake, Databricks pipelines.",
     tag: { label: "Emerging", color: "bg-rose-50 text-rose-700" },
-  },
-  {
-    title: "Cybersecurity & compliance",
-    blurb:
-      "SOC 2, HIPAA, PCI readiness for US-regulated businesses.",
-    tag: { label: "Niche premium", color: "bg-sky-50 text-sky-700" },
   },
 ];
 
@@ -244,7 +243,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <Link
               to="/login"
-              className="hidden md:inline-flex items-center px-4 py-2 text-sm text-slate-700 hover:text-slate-900 font-medium"
+              className="hidden md:inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors"
               data-testid="nav-login-link"
             >
               Candidate login
@@ -268,15 +267,15 @@ export default function HomePage() {
           <div className="stagger text-center max-w-4xl mx-auto">
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
               <Sparkles className="h-3.5 w-3.5" />
-              US-India IT Consulting · Est. 2024
+              US–India IT consulting & contract staffing
             </span>
             <h1 className="mt-6 font-heading text-5xl md:text-7xl font-bold tracking-tighter leading-[1.02] text-slate-900">
               World-class tech teams for{" "}
               <span className="text-[#2563EB]">US businesses</span>
             </h1>
             <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed">
-              AI automation, cloud engineering, and dedicated dev squads —
-              delivered from India at a fraction of the cost.
+              Dedicated dev squads, AI automation, and vetted consultants on
+              contract — delivered from India at a fraction of the cost.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
@@ -296,20 +295,6 @@ export default function HomePage() {
               </a>
             </div>
 
-            {/* trusted by */}
-            <div className="mt-16 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-sm">
-              <span className="text-[11px] tracking-[0.2em] uppercase text-slate-400">
-                Trusted by teams at
-              </span>
-              {["Acme Corp", "Buildfast", "Stackly", "NovaHQ"].map((brand) => (
-                <span
-                  key={brand}
-                  className="font-heading font-semibold text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  {brand}
-                </span>
-              ))}
-            </div>
           </div>
 
           {/* metric strip */}
@@ -320,8 +305,8 @@ export default function HomePage() {
             {[
               { v: "3x", l: "Cost savings vs US hiring" },
               { v: "48hr", l: "Pilot kickoff time" },
-              { v: "US LLC", l: "USD contracts ready", accent: true },
-              { v: "50+", l: "Projects delivered" },
+              { v: "10+", l: "Projects delivered" },
+              { v: "20+", l: "Consultants placed with clients", accent: true },
             ].map((m, i) => (
               <div
                 key={m.l}
