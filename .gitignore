@@ -1,0 +1,59 @@
+# -----------------------------------------------------------------------------
+# Environment variables — NEVER commit these. Keep all secrets out of the repo.
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# -----------------------------------------------------------------------------
+# Node / React
+# -----------------------------------------------------------------------------
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.cache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# -----------------------------------------------------------------------------
+# MacOS / Windows / Editor cruft
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# -----------------------------------------------------------------------------
+# Logs & reports
+# -----------------------------------------------------------------------------
+*.log
+logs/
+test_reports/
