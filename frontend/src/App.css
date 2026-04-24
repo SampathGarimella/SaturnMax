@@ -1,0 +1,45 @@
+/* App-level overrides (kept lean; most styling lives in Tailwind + index.css) */
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--surface);
+}
+
+/* Delightful stagger for hero content */
+.stagger > * {
+  opacity: 0;
+  animation: fade-in-up 0.7s ease-out forwards;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.25s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.35s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.45s;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Gradient ring used on the avatar medallion */
+.avatar-ring {
+  background: conic-gradient(from 180deg, #2563eb, #0a192f, #2563eb);
+  padding: 2px;
+  border-radius: 9999px;
+}
