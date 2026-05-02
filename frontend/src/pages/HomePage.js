@@ -17,11 +17,15 @@ import {
   Clock,
   Check,
   Building2,
+  ClipboardCheck,
   FileText,
+  IndianRupee,
   ShieldCheck,
   Target,
+  UploadCloud,
 } from "lucide-react";
 import Logo from "../components/Logo";
+import LoginMenu from "../components/LoginMenu";
 import { fetchJobs, submitApplication, submitContact } from "../lib/api";
 
 const SERVICE_ICONS = {
@@ -102,7 +106,7 @@ const CASE_STUDIES = [
     client: "US SaaS platform",
     result: "Launched an AI support workflow in 21 days",
     detail:
-      "A two-person Saturn Max squad connected product docs, CRM data, and ticket history into a RAG assistant for customer operations.",
+      "A two-person SaturnMax Technologies Pvt Ltd squad connected product docs, CRM data, and ticket history into a RAG assistant for customer operations.",
   },
   {
     client: "Fintech data team",
@@ -124,6 +128,27 @@ const DELIVERY_PROMISES = [
   "Weekly demos, written status updates, and clear ownership",
   "Start with a scoped pilot before committing to a team",
 ];
+
+const APPLICATION_STEPS = [
+  "Candidate login / profile",
+  "Resume and CTC details",
+  "HR screening",
+  "Technical interview",
+  "Client discussion",
+  "Offer and onboarding",
+];
+
+const NOTICE_PERIODS = [
+  "Immediate",
+  "15 days",
+  "30 days",
+  "45 days",
+  "60 days",
+  "90 days",
+  "Serving notice",
+];
+
+const WORK_MODES = ["Remote", "Hybrid", "On-site", "Flexible"];
 
 const TAG_STYLES = {
   "Full-time": "bg-slate-100 text-slate-700",
@@ -156,6 +181,14 @@ export default function HomePage() {
     years_experience: "0–1",
     position_title: "",
     portfolio_url: "",
+    resume_url: "",
+    current_location: "",
+    current_company: "",
+    notice_period: "30 days",
+    current_ctc_lpa: "",
+    expected_ctc_lpa: "",
+    preferred_work_mode: "Remote",
+    primary_skills: "",
     introduction: "",
   });
   const [applicationLoading, setApplicationLoading] = useState(false);
@@ -208,7 +241,7 @@ export default function HomePage() {
   const handleApplicationSubmit = async (e) => {
     e.preventDefault();
     if (!applicationForm.full_name || !applicationForm.email || !applicationForm.phone) {
-      toast.error("Please fill in name, email and phone.");
+      toast.error("Please fill in name, email, and phone.");
       return;
     }
     setApplicationLoading(true);
@@ -225,6 +258,14 @@ export default function HomePage() {
         full_name: "",
         phone: "",
         portfolio_url: "",
+        resume_url: "",
+        current_location: "",
+        current_company: "",
+        notice_period: "30 days",
+        current_ctc_lpa: "",
+        expected_ctc_lpa: "",
+        preferred_work_mode: "Remote",
+        primary_skills: "",
         introduction: "",
       }));
     } catch (err) {
@@ -261,10 +302,10 @@ export default function HomePage() {
   return (
     <div className="app-shell bg-white">
       {/* ---- Header --------------------------------------------------- */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
-          <Logo />
-          <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 min-h-16 py-2 flex items-center justify-between gap-3">
+          <Logo className="min-w-0" />
+          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm text-slate-600">
             <a href="#services" className="link-underline hover:text-slate-900" data-testid="nav-services">
               Services
             </a>
@@ -281,20 +322,15 @@ export default function HomePage() {
               Contact
             </a>
           </nav>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/login"
-              className="hidden md:inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors"
-              data-testid="nav-login-link"
-            >
-              Candidate login
-            </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <LoginMenu />
             <a
               href="#contact"
-              className="inline-flex items-center gap-2 rounded-md bg-[#0A192F] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0e2445] transition-colors shadow-sm"
+              className="hidden sm:inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e2445]"
               data-testid="nav-book-call"
             >
-              Book a free call
+              <span className="hidden md:inline">Book a free call</span>
+              <span className="md:hidden">Contact</span>
               <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -321,7 +357,7 @@ export default function HomePage() {
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
                 href="#contact"
-                className="inline-flex items-center gap-2 rounded-md bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors shadow-sm"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1D4ED8] sm:w-auto"
                 data-testid="hero-discovery-cta"
               >
                 Start a free discovery call
@@ -329,7 +365,7 @@ export default function HomePage() {
               </a>
               <a
                 href="#careers"
-                className="inline-flex items-center gap-2 rounded-md bg-white border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 transition-colors"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50 sm:w-auto"
                 data-testid="hero-view-positions"
               >
                 View open positions
@@ -416,7 +452,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-14 items-start">
             <div>
               <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
-                Why Saturn Max
+                Why SaturnMax Technologies Pvt Ltd
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
                 India-based engineering with US-ready operating rhythm
@@ -470,7 +506,7 @@ export default function HomePage() {
               Careers
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Open positions at Saturn Max
+              Open positions at SaturnMax Technologies Pvt Ltd
             </h2>
           </div>
 
@@ -505,7 +541,7 @@ export default function HomePage() {
                 </div>
                 <button
                   onClick={() => handleApplyToJob(job)}
-                  className="shrink-0 rounded-md border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-900 hover:bg-[#0A192F] hover:text-white hover:border-[#0A192F] transition-colors inline-flex items-center gap-2"
+                  className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-900 transition-colors hover:border-[#0A192F] hover:bg-[#0A192F] hover:text-white md:w-auto"
                   data-testid={`job-apply-${job.id}`}
                 >
                   Apply now
@@ -519,21 +555,60 @@ export default function HomePage() {
 
       {/* ---- Application form ---------------------------------------- */}
       <section id="apply-section" className="py-20 md:py-28 bg-slate-50/50 border-y border-slate-200">
-        <div className="max-w-4xl mx-auto px-6 md:px-10">
-          <div className="mb-10">
-            <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
-              Register
+        <div className="max-w-6xl mx-auto px-6 md:px-10">
+          <div className="mb-10 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-8 items-end">
+            <div>
+              <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
+                Application process
+              </div>
+              <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
+                Apply with a complete India tech profile
+              </h2>
+              <p className="mt-4 text-sm md:text-base text-slate-600 leading-relaxed">
+                Login before applying to track status, interviews, documents, and offer updates.
+                The form captures the details Indian tech recruiters usually need for screening.
+              </p>
+              <Link
+                to="/login"
+                className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#0A192F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0e2445]"
+              >
+                Login to track applications
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-            <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Apply for a position
-            </h2>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <ClipboardCheck className="h-4 w-4 text-[#2563EB]" />
+                Hiring flow
+              </div>
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {APPLICATION_STEPS.map((step, index) => (
+                  <div
+                    key={step}
+                    className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
+                  >
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563EB] text-[11px] font-bold text-white">
+                      {index + 1}
+                    </span>
+                    {step}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <form
             onSubmit={handleApplicationSubmit}
-            className="bg-white rounded-2xl border border-slate-200 p-6 md:p-10 shadow-sm"
+            className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-10 shadow-sm"
             data-testid="application-form"
           >
+            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-950">
+              <div className="font-semibold">Candidate profile</div>
+              <p className="mt-1 text-xs leading-relaxed text-blue-900/80">
+                Resume upload is available after Firebase Storage is connected. Until then,
+                paste a Google Drive, LinkedIn, or portfolio URL so HR can review your profile.
+              </p>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <Field label="Full name">
                 <input
@@ -572,6 +647,28 @@ export default function HomePage() {
                   data-testid="application-phone"
                 />
               </Field>
+              <Field label="Current location">
+                <input
+                  value={applicationForm.current_location}
+                  onChange={(e) =>
+                    setApplicationForm((f) => ({ ...f, current_location: e.target.value }))
+                  }
+                  placeholder="Guntur, Andhra Pradesh"
+                  className={inputClass}
+                  data-testid="application-current-location"
+                />
+              </Field>
+              <Field label="Current company">
+                <input
+                  value={applicationForm.current_company}
+                  onChange={(e) =>
+                    setApplicationForm((f) => ({ ...f, current_company: e.target.value }))
+                  }
+                  placeholder="Company name or Fresher"
+                  className={inputClass}
+                  data-testid="application-current-company"
+                />
+              </Field>
               <Field label="Years of experience">
                 <select
                   value={applicationForm.years_experience}
@@ -584,7 +681,7 @@ export default function HomePage() {
                   className={inputClass}
                   data-testid="application-experience"
                 >
-                  {["0–1", "1–3", "3–5", "5–8", "8+"].map((y) => (
+                  {["0-1", "1-3", "3-5", "5-8", "8+"].map((y) => (
                     <option key={y} value={y}>
                       {y} years
                     </option>
@@ -605,6 +702,62 @@ export default function HomePage() {
                   ))}
                 </select>
               </Field>
+              <Field label="Notice period">
+                <select
+                  value={applicationForm.notice_period}
+                  onChange={(e) =>
+                    setApplicationForm((f) => ({ ...f, notice_period: e.target.value }))
+                  }
+                  className={inputClass}
+                  data-testid="application-notice-period"
+                >
+                  {NOTICE_PERIODS.map((period) => (
+                    <option key={period}>{period}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Preferred work mode">
+                <select
+                  value={applicationForm.preferred_work_mode}
+                  onChange={(e) =>
+                    setApplicationForm((f) => ({ ...f, preferred_work_mode: e.target.value }))
+                  }
+                  className={inputClass}
+                  data-testid="application-work-mode"
+                >
+                  {WORK_MODES.map((mode) => (
+                    <option key={mode}>{mode}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Current CTC (LPA)">
+                <div className="relative">
+                  <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={applicationForm.current_ctc_lpa}
+                    onChange={(e) =>
+                      setApplicationForm((f) => ({ ...f, current_ctc_lpa: e.target.value }))
+                    }
+                    placeholder="8.5"
+                    className={`${inputClass} pl-9`}
+                    data-testid="application-current-ctc"
+                  />
+                </div>
+              </Field>
+              <Field label="Expected CTC (LPA)">
+                <div className="relative">
+                  <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={applicationForm.expected_ctc_lpa}
+                    onChange={(e) =>
+                      setApplicationForm((f) => ({ ...f, expected_ctc_lpa: e.target.value }))
+                    }
+                    placeholder="12"
+                    className={`${inputClass} pl-9`}
+                    data-testid="application-expected-ctc"
+                  />
+                </div>
+              </Field>
               <Field label="LinkedIn / Portfolio URL">
                 <input
                   value={applicationForm.portfolio_url}
@@ -619,7 +772,32 @@ export default function HomePage() {
                   data-testid="application-portfolio"
                 />
               </Field>
+              <Field label="Resume URL">
+                <div className="relative">
+                  <UploadCloud className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={applicationForm.resume_url}
+                    onChange={(e) =>
+                      setApplicationForm((f) => ({ ...f, resume_url: e.target.value }))
+                    }
+                    placeholder="Google Drive / Dropbox resume link"
+                    className={`${inputClass} pl-9`}
+                    data-testid="application-resume-url"
+                  />
+                </div>
+              </Field>
             </div>
+            <Field label="Primary skills" className="mt-5">
+              <input
+                value={applicationForm.primary_skills}
+                onChange={(e) =>
+                  setApplicationForm((f) => ({ ...f, primary_skills: e.target.value }))
+                }
+                placeholder="React, Node.js, AWS, Python, LLMs"
+                className={inputClass}
+                data-testid="application-primary-skills"
+              />
+            </Field>
             <Field label="Brief introduction" className="mt-5">
               <textarea
                 rows={5}
@@ -630,21 +808,21 @@ export default function HomePage() {
                     introduction: e.target.value,
                   }))
                 }
-                placeholder="Tell us about your skills and why you want to join Saturn Max…"
+                placeholder="Tell us about your skills and why you want to join SaturnMax Technologies Pvt Ltd..."
                 className={`${inputClass} resize-none`}
                 data-testid="application-introduction"
               />
             </Field>
-            <div className="mt-6 flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-xs text-slate-500">
+            <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <p className="max-w-2xl text-xs leading-relaxed text-slate-500">
                 By applying you agree to our careers privacy policy. We'll email{" "}
                 <span className="font-semibold text-slate-700">{applicationForm.email || "you"}</span>{" "}
-                with next steps.
+                with next steps and show status in the candidate dashboard after login.
               </p>
               <button
                 type="submit"
                 disabled={applicationLoading}
-                className="inline-flex items-center gap-2 rounded-md bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
                 data-testid="application-submit"
               >
                 {applicationLoading ? "Submitting…" : "Submit application"}
@@ -701,7 +879,7 @@ export default function HomePage() {
               Get in touch
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Contact Saturn Max
+              Contact SaturnMax Technologies Pvt Ltd
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -715,7 +893,7 @@ export default function HomePage() {
                   <InfoRow
                     Icon={MapPin}
                     label="Address"
-                    value="Saturn Max Technologies Pvt Ltd, Bangalore, Karnataka, India"
+                    value="SaturnMax Technologies Pvt Ltd, Guntur, India"
                   />
                   <InfoRow
                     Icon={Mail}
@@ -731,19 +909,6 @@ export default function HomePage() {
                     Icon={Mail}
                     label="US client partnerships"
                     value="us@saturnmaxtech.com"
-                  />
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-7">
-                <div className="text-sm font-semibold text-slate-900">
-                  US office (Delaware LLC)
-                </div>
-                <div className="mt-4 space-y-4">
-                  <InfoRow Icon={Phone} label="US enquiries" value="+1 (302) 555-0199" />
-                  <InfoRow
-                    Icon={Clock}
-                    label="Working hours (IST)"
-                    value="Mon–Fri, 6pm–10pm IST (US EST morning overlap)"
                   />
                 </div>
               </div>
@@ -897,12 +1062,12 @@ export default function HomePage() {
               Ready to build your US tech team?
             </h3>
             <p className="mt-2 text-sm text-white/70">
-              No commitment. Just a 30-min call with our advisor.
+              No commitment. Just a 30-min discovery call.
             </p>
           </div>
           <a
             href="#contact"
-            className="inline-flex items-center gap-2 rounded-md bg-[#2563EB] px-6 py-3 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors shadow-sm"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#1D4ED8] md:w-auto"
             data-testid="footer-cta-book-call"
           >
             Book free discovery call
@@ -914,9 +1079,9 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} Saturn Max Technologies Pvt Ltd · Bangalore, India
+            © {new Date().getFullYear()} SaturnMax Technologies Pvt Ltd · Guntur, India
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>
             <a href="#contact" className="hover:text-slate-800">Terms</a>
             <a href="#careers" className="hover:text-slate-800">Careers</a>

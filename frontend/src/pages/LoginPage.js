@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Shield } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, Shield, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 
@@ -62,7 +62,7 @@ export default function LoginPage() {
         toast.success("Welcome back!");
       } else {
         await signUp({ email, password, name, keepSignedIn });
-        toast.success("Account created. Welcome to Saturn Max!");
+        toast.success("Account created. Welcome to SaturnMax Technologies Pvt Ltd!");
       }
       navigate("/dashboard");
     } catch (err) {
@@ -122,7 +122,7 @@ export default function LoginPage() {
 
   const handleDemoLogin = () => {
     enterDemo();
-    toast.success("Entering demo dashboard as Rahul Sharma");
+    toast.success("Entering candidate demo dashboard as Rahul Sharma");
     navigate("/dashboard");
   };
 
@@ -169,7 +169,7 @@ export default function LoginPage() {
                   Welcome back
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Sign in to your Saturn Max account to manage jobs, projects, and more.
+                  Sign in to your SaturnMax Technologies Pvt Ltd account to manage jobs, projects, and more.
                 </p>
               </>
             ) : (
@@ -178,7 +178,7 @@ export default function LoginPage() {
                   Create your account
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Join Saturn Max as a candidate. Track applications, interviews, and messages in one place.
+                  Join SaturnMax Technologies Pvt Ltd as a candidate. Track applications, interviews, and messages in one place.
                 </p>
               </>
             )}
@@ -302,7 +302,7 @@ export default function LoginPage() {
                     ? "Signing in…"
                     : "Creating account…"
                   : tab === "signin"
-                  ? "Sign in to Saturn Max"
+                  ? "Sign in to SaturnMax"
                   : "Create account"}
               </button>
             </form>
@@ -370,6 +370,21 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <PortalLink
+              to="/consultant-login"
+              Icon={BriefcaseBusiness}
+              title="Consultant login"
+              body="Project, pay, tax, onboarding, and documents."
+            />
+            <PortalLink
+              to="/employee-login"
+              Icon={UserCog}
+              title="Employee login"
+              body="Candidates, consultants, client projects, and records."
+            />
+          </div>
         </div>
       </main>
     </div>
@@ -410,5 +425,20 @@ function LinkedInGlyph() {
     <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-[#0A66C2] text-white text-[10px] font-bold">
       in
     </span>
+  );
+}
+
+function PortalLink({ to, Icon, title, body }) {
+  return (
+    <Link
+      to={to}
+      className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-[#2563EB]/40 hover:shadow-sm transition-all"
+    >
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="mt-3 text-sm font-semibold text-slate-900">{title}</div>
+      <p className="mt-1 text-xs text-slate-500 leading-relaxed">{body}</p>
+    </Link>
   );
 }

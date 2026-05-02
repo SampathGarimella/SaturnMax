@@ -17,7 +17,7 @@ const PLACEHOLDER_PREVIEW = [
   {
     id: "m1",
     author: "hr",
-    authorName: "HR team — Saturn Max",
+    authorName: "HR team - SaturnMax Technologies Pvt Ltd",
     text: "Hi Rahul — we've scheduled your interview for Monday 10am IST. Please confirm your availability 🙏",
     time: "Today, 9:42 am",
     unread: true,
@@ -33,7 +33,7 @@ const PLACEHOLDER_PREVIEW = [
   {
     id: "m3",
     author: "hr",
-    authorName: "Saturn Max Careers",
+    authorName: "SaturnMax Technologies Pvt Ltd Careers",
     text: "Thanks for applying to AI/ML Engineer. We've received your application and the hiring team is reviewing it — we'll be in touch within 3 business days.",
     time: "2 days ago",
     unread: true,
@@ -132,7 +132,7 @@ export default function Messages() {
           Messages
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Conversations with the Saturn Max hiring team.{" "}
+          Conversations with the SaturnMax Technologies Pvt Ltd hiring team.{" "}
           {live ? (
             <span className="text-emerald-600 font-medium">Live · Firestore</span>
           ) : (
@@ -184,7 +184,7 @@ export default function Messages() {
                       <span className="h-2 w-2 rounded-full bg-[#2563EB] shrink-0" />
                     )}
                     <div className="font-semibold text-sm text-slate-900 truncate">
-                      {mine ? "You" : m.authorName || "Saturn Max"}
+                      {mine ? "You" : m.authorName || "SaturnMax Technologies Pvt Ltd"}
                     </div>
                     <span className="ml-auto text-xs text-slate-400 shrink-0">
                       {m.time}

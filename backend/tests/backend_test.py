@@ -1,4 +1,4 @@
-"""Saturn Max Technologies backend API tests.
+"""SaturnMax Technologies Pvt Ltd backend API tests.
 
 Covers:
 - /api/health (RESEND key blank -> email_configured=false)

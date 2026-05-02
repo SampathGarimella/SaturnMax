@@ -1,6 +1,6 @@
-# Email setup — Saturn Max Technologies
+# Email setup - SaturnMax Technologies Pvt Ltd
 
-Saturn Max uses **Resend** for transactional email (job-application notifications + contact-form messages). The backend code is already wired — you just need to provide an API key.
+SaturnMax Technologies Pvt Ltd uses **Resend** for transactional email (job-application notifications + contact-form messages). The backend code is already wired - you just need to provide an API key.
 
 ---
 

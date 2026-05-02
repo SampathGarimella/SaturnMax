@@ -39,7 +39,7 @@ export default function BrowseJobs() {
           Browse jobs
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Open positions curated for you by Saturn Max.
+          Open positions curated for you by SaturnMax Technologies Pvt Ltd.
         </p>
       </div>
       {loading ? (

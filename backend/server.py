@@ -1,4 +1,4 @@
-"""Saturn Max Technologies — FastAPI backend.
+"""SaturnMax Technologies Pvt Ltd - FastAPI backend.
 
 Provides:
 - Job listings (seeded on startup)
@@ -130,6 +130,14 @@ class ApplicationCreate(BaseModel):
     position_id: Optional[str] = None
     position_title: str
     portfolio_url: Optional[str] = None
+    resume_url: Optional[str] = None
+    current_location: Optional[str] = Field(default=None, max_length=160)
+    current_company: Optional[str] = Field(default=None, max_length=160)
+    notice_period: Optional[str] = Field(default=None, max_length=80)
+    current_ctc_lpa: Optional[str] = Field(default=None, max_length=40)
+    expected_ctc_lpa: Optional[str] = Field(default=None, max_length=40)
+    preferred_work_mode: Optional[str] = Field(default=None, max_length=80)
+    primary_skills: Optional[str] = Field(default=None, max_length=500)
     introduction: Optional[str] = Field(default="", max_length=2000)
 
 
@@ -142,6 +150,14 @@ class Application(BaseModel):
     position_id: Optional[str] = None
     position_title: str
     portfolio_url: Optional[str] = None
+    resume_url: Optional[str] = None
+    current_location: Optional[str] = None
+    current_company: Optional[str] = None
+    notice_period: Optional[str] = None
+    current_ctc_lpa: Optional[str] = None
+    expected_ctc_lpa: Optional[str] = None
+    preferred_work_mode: Optional[str] = None
+    primary_skills: Optional[str] = None
     introduction: Optional[str] = ""
     status: Literal["pending", "under_review", "interview", "not_shortlisted", "offer"] = "pending"
     applied_ago: Optional[str] = None  # rendered on dashboard
@@ -448,7 +464,7 @@ async def seed_database() -> None:
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
-app = FastAPI(title="Saturn Max Technologies API", version="1.0.0")
+app = FastAPI(title="SaturnMax Technologies Pvt Ltd API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -502,7 +518,7 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
               <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                 <tr>
                   <td style="background:#0a192f;padding:24px 28px;">
-                    <div style="color:#ffffff;font-size:18px;font-weight:700;">Saturn Max Technologies</div>
+                    <div style="color:#ffffff;font-size:18px;font-weight:700;">SaturnMax Technologies Pvt Ltd</div>
                     <div style="color:#94a3b8;font-size:12px;margin-top:4px;">New candidate application</div>
                   </td>
                 </tr>
@@ -519,6 +535,14 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
                       <tr><td style="color:#64748b;">Position</td><td>{data.position_title}</td></tr>
                       <tr><td style="color:#64748b;">Years of experience</td><td>{data.years_experience}</td></tr>
                       <tr><td style="color:#64748b;">Portfolio</td><td>{data.portfolio_url or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Resume</td><td>{data.resume_url or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Current location</td><td>{data.current_location or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Current company</td><td>{data.current_company or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Notice period</td><td>{data.notice_period or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Current CTC</td><td>{data.current_ctc_lpa or '—'} LPA</td></tr>
+                      <tr><td style="color:#64748b;">Expected CTC</td><td>{data.expected_ctc_lpa or '—'} LPA</td></tr>
+                      <tr><td style="color:#64748b;">Work mode</td><td>{data.preferred_work_mode or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Primary skills</td><td>{data.primary_skills or '—'}</td></tr>
                     </table>
                     <h3 style="margin:24px 0 8px 0;font-size:15px;">Introduction</h3>
                     <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;white-space:pre-wrap;">{(data.introduction or '—')}</p>
@@ -546,6 +570,14 @@ async def submit_application(payload: ApplicationCreate) -> Application:
         "position_id": payload.position_id,
         "position_title": payload.position_title,
         "portfolio_url": payload.portfolio_url,
+        "resume_url": payload.resume_url,
+        "current_location": payload.current_location,
+        "current_company": payload.current_company,
+        "notice_period": payload.notice_period,
+        "current_ctc_lpa": payload.current_ctc_lpa,
+        "expected_ctc_lpa": payload.expected_ctc_lpa,
+        "preferred_work_mode": payload.preferred_work_mode,
+        "primary_skills": payload.primary_skills,
         "introduction": payload.introduction or "",
         "status": "pending",
         "applied_ago": "just now",
@@ -625,7 +657,7 @@ def contact_email_html(data: ContactCreate, msg_id: str) -> str:
               <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                 <tr>
                   <td style="background:#0a192f;padding:24px 28px;">
-                    <div style="color:#ffffff;font-size:18px;font-weight:700;">Saturn Max Technologies</div>
+                    <div style="color:#ffffff;font-size:18px;font-weight:700;">SaturnMax Technologies Pvt Ltd</div>
                     <div style="color:#94a3b8;font-size:12px;margin-top:4px;">New contact message</div>
                   </td>
                 </tr>

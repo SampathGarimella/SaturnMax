@@ -1,4 +1,4 @@
-# Firebase setup — Saturn Max Technologies
+# Firebase setup - SaturnMax Technologies Pvt Ltd
 
 This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code is already wired — you just need to provide config and enable the services in the Firebase Console.
 
@@ -47,21 +47,85 @@ Firebase Console → **Build → Authentication → Sign-in method**:
 
 Firebase Console → **Build → Firestore Database → Create database** → choose your region → start in **production mode**.
 
-Paste these **security rules** under the **Rules** tab:
+Paste these **security rules** under the **Rules** tab. This version supports
+candidate, consultant, and employee portals. Employee users can manage operating
+records; candidates and consultants can only read/write their own private areas.
 
 ```js
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Each candidate's private message thread
-    match /messages/{uid}/thread/{messageId} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Optional: candidate profile docs keyed by uid
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function role() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? userDoc().data.role
+        : null;
+    }
+
+    function isEmployee() {
+      return role() == "employee" || role() == "admin";
+    }
+
+    function isConsultant() {
+      return role() == "consultant";
+    }
+
+    function isCandidate() {
+      return role() == "candidate";
+    }
+
+    // User profile and role document keyed by Firebase Auth uid.
+    // Create the first employee/admin document manually from Firebase Console.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update, delete: if isEmployee() || request.auth.uid == uid;
+    }
+
+    // Each user's private message thread
+    match /messages/{uid}/thread/{messageId} {
+      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
+    // Candidate profile docs keyed by uid
     match /candidates/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
+    // Consultant profile, pay metadata, KYC/tax status, onboarding status
+    match /consultants/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow create, update, delete: if isEmployee();
+    }
+
+    // Employee-managed application and lead queues
+    match /applications/{applicationId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isEmployee();
+    }
+
+    match /leads/{leadId} {
+      allow create: if true;
+      allow read, update, delete: if isEmployee();
+    }
+
+    // Client/project records created by employees
+    match /projects/{projectId} {
+      allow read, write: if isEmployee();
+    }
+
+    // Optional audit trail for role portal logins
+    match /loginEvents/{eventId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isEmployee();
     }
 
     // Deny everything else by default
@@ -76,16 +140,55 @@ service cloud.firestore {
 
 Firebase Console → **Build → Storage → Get started** → use the default bucket → production mode.
 
-Paste these **storage rules**:
+Paste these **storage rules**. Resumes and consultant documents can live fully in
+Firebase Storage as long as the metadata and role assignments are protected in
+Firestore.
 
 ```js
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Resumes: only the signed-in user can read/write their own file
-    match /resumes/{uid}/{fileName} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function role() {
+      return signedIn() && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        ? userDoc().data.role
+        : null;
+    }
+
+    function isEmployee() {
+      return role() == "employee" || role() == "admin";
+    }
+
+    // Candidate resumes: candidate owns their folder; employees can review.
+    match /resumes/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
+    // Consultant India KYC, tax, onboarding, and client documents.
+    match /consultant-documents/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
+    }
+
+    // Internal employee/admin files.
+    match /employee-documents/{uid}/{fileName} {
+      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
+    // Client/project documents should usually stay employee-only until you add
+    // explicit project membership rules.
+    match /project-documents/{projectId}/{fileName} {
+      allow read, write: if isEmployee();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
@@ -109,11 +212,31 @@ Once Firebase is configured:
 - ✅ Forgot password sends a real reset email
 - ✅ `/dashboard/messages` becomes **real-time Firestore** (send & receive)
 - ✅ `/dashboard/profile` resume upload writes to Firebase Storage with a progress bar
+- ✅ `/consultant-login` and `/employee-login` can use Firebase Auth accounts
+- ✅ Consultant resumes/KYC/tax documents can be stored under protected Storage folders
 - ✅ `isFirebaseConfigured === true` — no more placeholder toasts
 
 Until the config is set, the app keeps running in **demo mode** (localStorage session + seeded placeholder messages + upload preview) so previews never break.
 
-## 8. Sending yourself a test message (real-time)
+## 8. Is a backend needed?
+
+Firebase can store the normal app data:
+
+- Auth users and roles: Firestore `users/{uid}`
+- Candidates and resumes: Firestore `candidates/{uid}` + Storage `resumes/{uid}/...`
+- Consultants: Firestore `consultants/{uid}` + Storage `consultant-documents/{uid}/...`
+- Leads, applications, projects, and messages: Firestore collections
+
+A backend is still recommended for trusted operations:
+
+- Setting employee/admin custom claims
+- Sending emails from a protected sender
+- Resume parsing, virus scanning, and document verification
+- Payroll, payouts, invoices, or tax forms
+- Any integration that uses private API keys
+- Scheduled reminders, audit logs, or signed document generation
+
+## 9. Sending yourself a test message (real-time)
 
 1. Sign in as your test user.
 2. Open `/dashboard/messages` → type in the composer → send.

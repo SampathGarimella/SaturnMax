@@ -4,6 +4,9 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
+import RoleLoginPage from "./pages/RoleLoginPage";
+import ConsultantDashboard from "./pages/ConsultantDashboard";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
 import DashboardLayout from "./components/DashboardLayout";
 import DashboardHome from "./pages/DashboardHome";
 import BrowseJobs from "./pages/BrowseJobs";
@@ -30,6 +33,10 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/consultant-login" element={<RoleLoginPage role="consultant" />} />
+          <Route path="/employee-login" element={<RoleLoginPage role="employee" />} />
+          <Route path="/consultant-dashboard" element={<ConsultantDashboard />} />
+          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<DashboardHome />} />
             <Route path="jobs" element={<BrowseJobs />} />

@@ -8,17 +8,18 @@ export default function Logo({ compact = false, to = "/", className = "" }) {
       className={`flex items-center gap-3 group ${className}`}
       data-testid="brand-logo-link"
     >
-      <div className="relative h-11 w-11 rounded-lg bg-[#0A192F] text-white grid place-items-center shadow-sm transition-transform group-hover:-rotate-3">
-        <span className="font-heading font-bold text-sm tracking-wide">SM</span>
-        <span className="pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#2563EB] ring-2 ring-white" />
-      </div>
+      <img
+        src="/logo.png"
+        alt="SaturnMax Technologies Pvt Ltd"
+        className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-lg object-cover shadow-sm transition-transform group-hover:-rotate-3"
+      />
       {!compact && (
-        <div className="leading-tight">
-          <div className="font-heading font-semibold text-[15px] text-slate-900">
-            Saturn Max Technologies
+        <div className="hidden sm:block min-w-0 leading-tight">
+          <div className="font-heading font-semibold text-[14px] md:text-[15px] text-slate-900 truncate">
+            SaturnMax Technologies Pvt Ltd
           </div>
-          <div className="text-[11px] text-slate-500 tracking-wide">
-            Pvt Ltd · India
+          <div className="hidden md:block text-[11px] text-slate-500 tracking-wide">
+            Guntur, India
           </div>
         </div>
       )}

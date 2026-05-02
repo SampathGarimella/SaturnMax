@@ -1,4 +1,4 @@
-# Deploying Saturn Max Technologies to GitHub Pages
+# Deploying SaturnMax Technologies Pvt Ltd to GitHub Pages
 
 This repo ships with a GitHub Actions workflow (`.github/workflows/deploy.yml`) that builds the React app on every push to `main` and publishes it to GitHub Pages. Your `saturnmax.com` domain keeps working via the `CNAME` file inside `frontend/public/`.
 

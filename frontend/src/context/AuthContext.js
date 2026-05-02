@@ -14,7 +14,13 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth, isFirebaseConfigured } from "../lib/firebase";
-import { getSession, setSession, clearSession, DEMO_EMAIL } from "../lib/session";
+import {
+  getSession,
+  setSession,
+  clearSession,
+  DEMO_PROFILES,
+  recordLogin,
+} from "../lib/session";
 
 const AuthContext = createContext(null);
 
@@ -50,7 +56,12 @@ export function AuthProvider({ children }) {
           // No Firebase user — check demo session for the dashboard preview.
           const demo = getSession();
           if (demo?.email) {
-            setUser({ email: demo.email, name: demo.name || "Candidate" });
+            setUser({
+              email: demo.email,
+              name: demo.name || "Candidate",
+              role: demo.role || "candidate",
+              title: demo.title,
+            });
             setMode("demo");
           } else {
             setUser(null);
@@ -63,7 +74,12 @@ export function AuthProvider({ children }) {
       // Firebase not configured at all → demo-only mode
       const demo = getSession();
       if (demo?.email) {
-        setUser({ email: demo.email, name: demo.name || "Candidate" });
+        setUser({
+          email: demo.email,
+          name: demo.name || "Candidate",
+          role: demo.role || "candidate",
+          title: demo.title,
+        });
         setMode("demo");
       } else {
         setUser(null);
@@ -174,10 +190,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Preview-mode entry so reviewers can see the dashboard without real auth.
-  const enterDemo = useCallback(() => {
-    const session = { email: DEMO_EMAIL, name: "Rahul Sharma" };
+  const enterDemo = useCallback((role = "candidate") => {
+    const profile = DEMO_PROFILES[role] || DEMO_PROFILES.candidate;
+    const session = { ...profile, mode: "demo" };
     setSession(session);
-    setUser({ email: session.email, name: session.name });
+    recordLogin(session);
+    setUser({
+      email: session.email,
+      name: session.name,
+      role: session.role,
+      title: session.title,
+    });
     setMode("demo");
   }, []);
 

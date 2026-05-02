@@ -39,7 +39,7 @@ const CLIENT_WORKSPACE = [
     Icon: MessageSquare,
     title: "Account messages",
     value: "3 unread",
-    body: "Keep hiring and delivery conversations in one Saturn Max thread.",
+    body: "Keep hiring and delivery conversations in one SaturnMax Technologies Pvt Ltd thread.",
   },
   {
     Icon: FileText,

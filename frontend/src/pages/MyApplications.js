@@ -25,13 +25,14 @@ export default function MyApplications() {
         </p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] px-6 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50 border-b border-slate-200">
-          <div>Position</div>
-          <div>Applied</div>
-          <div>Experience</div>
-          <div className="text-right">Status</div>
-        </div>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+        <div className="min-w-[680px]">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] px-6 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50 border-b border-slate-200">
+            <div>Position</div>
+            <div>Applied</div>
+            <div>Experience</div>
+            <div className="text-right">Status</div>
+          </div>
         {data.applications.length === 0 && (
           <div className="px-6 py-10 text-center text-sm text-slate-500">
             You haven't applied to any roles yet.{" "}
@@ -61,6 +62,7 @@ export default function MyApplications() {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

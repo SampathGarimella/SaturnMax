@@ -139,7 +139,7 @@ export default function DashboardLayout() {
 
         <div className="flex flex-col">
           <header
-            className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-5 md:px-10 h-20 flex items-center justify-between gap-4"
+            className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 sm:px-5 md:px-10 min-h-20 py-3 flex items-center justify-between gap-4"
             data-testid="dashboard-topbar"
           >
             <div className="min-w-0">
@@ -163,7 +163,7 @@ export default function DashboardLayout() {
               </button>
               <Link
                 to="/dashboard/jobs"
-                className="hidden md:inline-flex items-center gap-2 rounded-md bg-[#0A192F] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0e2445] transition-colors shadow-sm"
+                className="hidden md:inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-4 text-sm font-medium text-white hover:bg-[#0e2445] transition-colors shadow-sm"
                 data-testid="view-open-jobs"
               >
                 View open jobs
@@ -172,7 +172,18 @@ export default function DashboardLayout() {
             </div>
           </header>
 
-          <main className="p-5 md:p-10" key={location.pathname}>
+          <nav
+            className="lg:hidden border-b border-slate-200 bg-white px-3 py-2 overflow-x-auto"
+            aria-label="Dashboard mobile navigation"
+          >
+            <div className="flex min-w-max gap-2">
+              {[...NAV_MAIN, ...NAV_ACCOUNT].map((item) => (
+                <MobileNavLink key={item.to} {...item} />
+              ))}
+            </div>
+          </nav>
+
+          <main className="p-4 sm:p-5 md:p-10" key={location.pathname}>
             <Outlet context={{ data, loading: loading || authLoading, reload, user, mode }} />
           </main>
         </div>
@@ -273,6 +284,26 @@ function SideNavLink({ to, icon: Icon, label, testId, badge, exact }) {
           ) : null}
         </>
       )}
+    </NavLink>
+  );
+}
+
+function MobileNavLink({ to, icon: Icon, label, testId, exact }) {
+  return (
+    <NavLink
+      to={to}
+      end={exact}
+      data-testid={`${testId}-mobile`}
+      className={({ isActive }) =>
+        `inline-flex h-10 items-center gap-2 rounded-md px-3 text-xs font-semibold transition-colors ${
+          isActive
+            ? "bg-[#2563EB] text-white"
+            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        }`
+      }
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="whitespace-nowrap">{label}</span>
     </NavLink>
   );
 }
