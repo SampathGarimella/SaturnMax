@@ -99,7 +99,7 @@ export default function Messages() {
         </p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col h-[560px]">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col min-h-[420px] max-h-[72vh]">
         <div
           ref={scrollerRef}
           className="flex-1 overflow-y-auto divide-y divide-slate-100"

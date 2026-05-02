@@ -18,8 +18,8 @@ export const ROLE_STATUS = Object.freeze({
 export const ROLE_HOME = Object.freeze({
   [ROLES.CANDIDATE]: "/dashboard",
   [ROLES.CONSULTANT]: "/consultant-dashboard",
-  [ROLES.EMPLOYEE]: "/employee-dashboard",
-  [ROLES.ADMIN]: "/employee-dashboard",
+  [ROLES.EMPLOYEE]: "/employee-dashboard/applications",
+  [ROLES.ADMIN]: "/employee-dashboard/applications",
 });
 
 export const ROLE_PORTAL_LABEL = Object.freeze({

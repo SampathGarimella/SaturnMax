@@ -18,6 +18,7 @@ import {
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 import { fetchConsultantDashboard, submitBankReview } from "../lib/api";
+import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
 
 const EMPTY_BANK = {
   account_holder: "",
@@ -75,6 +76,26 @@ export default function ConsultantDashboard() {
     ],
     [consultant, data.documents, data.reviews]
   );
+  const priorityTasks = useMemo(
+    () => [
+      {
+        label: "Complete bank payout review",
+        done: consultant.bankStatus === "approved",
+        action: consultant.bankStatus === "approved" ? "Approved" : "Submit or wait for review",
+      },
+      {
+        label: "Confirm signed offer approval",
+        done: onboarding.find((item) => item.label === "Offer accepted")?.done,
+        action: "Review documents section",
+      },
+      {
+        label: "Project assignment",
+        done: Boolean(consultant.project && consultant.client),
+        action: consultant.project && consultant.client ? "Assigned" : "Waiting for operations",
+      },
+    ],
+    [consultant, onboarding]
+  );
 
   const handleBankSubmit = async (e) => {
     e.preventDefault();
@@ -103,6 +124,41 @@ export default function ConsultantDashboard() {
           <div className="text-sm text-slate-500">Loading consultant workspace...</div>
         ) : (
           <>
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-7">
+              <SectionHeader
+                eyebrow="Consultant priorities"
+                title="Finish the items that unblock payroll and project readiness"
+                description="These tasks update from documents, reviews, and employee-created consultant details."
+              />
+              <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_0.85fr]">
+                <div className="space-y-3">
+                  {priorityTasks.map((task) => (
+                    <div key={task.label} className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900">{task.label}</div>
+                        <div className="mt-1 text-xs text-slate-500">{task.action}</div>
+                      </div>
+                      <StatusBadge value={task.done ? "approved" : "pending_review"} type="review" />
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm font-semibold text-slate-900">Pending approvals</div>
+                  <div className="mt-3 space-y-2">
+                    {pendingReviews.length === 0 && (
+                      <EmptyState title="No pending approvals" body="New document or bank reviews will appear here." />
+                    )}
+                    {pendingReviews.map((review) => (
+                      <div key={review.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                        <div className="font-semibold text-slate-900">{review.title || review.type}</div>
+                        <div className="mt-1 text-xs text-slate-500">{review.details || "Waiting for employee review"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-2xl bg-[#0A192F] text-white p-7 md:p-9 overflow-hidden relative">
               <div className="absolute inset-y-0 right-0 w-1/2 bg-[#2563EB]/15" />
               <div className="relative grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8">
@@ -179,28 +235,26 @@ export default function ConsultantDashboard() {
 
             <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
               <Panel title="Documents" subtitle="Offer, onboarding, compliance, and payroll files">
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
-                  <div className="min-w-[680px]">
-                    <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] bg-slate-50 px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">
-                      <div>Name</div>
-                      <div>Type</div>
-                      <div>Status</div>
-                      <div>File</div>
-                    </div>
-                    {data.documents.length === 0 && (
-                      <div className="px-4 py-8 text-center text-sm text-slate-500">No documents assigned yet.</div>
-                    )}
-                    {data.documents.map((doc) => (
-                      <div key={doc.id} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr] px-4 py-3 text-sm border-t border-slate-100 bg-white">
-                        <div className="font-medium text-slate-900">{doc.title || doc.file_name}</div>
-                        <div className="capitalize text-slate-600">{String(doc.type || "").replace(/_/g, " ")}</div>
-                        <div className="capitalize text-slate-600">{String(doc.status || "uploaded").replace(/_/g, " ")}</div>
-                        <a href={doc.file_url} target="_blank" rel="noreferrer" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
-                          Open
-                        </a>
+                <div className="space-y-3">
+                  {data.documents.length === 0 && (
+                    <EmptyState title="No documents assigned yet" body="Offer, onboarding, compliance, and payroll documents will appear here." />
+                  )}
+                  {data.documents.map((doc) => (
+                    <div key={doc.id} className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900">{doc.title || doc.file_name}</div>
+                          <div className="mt-1 capitalize text-slate-500">{String(doc.type || "").replace(/_/g, " ")}</div>
+                        </div>
+                        <StatusBadge value={doc.status || "uploaded"} type="review" />
                       </div>
-                    ))}
-                  </div>
+                      {doc.file_url && (
+                        <a href={doc.file_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                          Open document
+                        </a>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </Panel>
 

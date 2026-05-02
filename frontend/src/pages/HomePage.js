@@ -357,6 +357,15 @@ export default function HomePage() {
             <a href="#contact" className="link-underline hover:text-slate-900" data-testid="nav-contact">
               Contact
             </a>
+            <Link to="/dashboard" className="link-underline hover:text-slate-900" data-testid="nav-candidate-portal">
+              Candidate portal
+            </Link>
+            <Link to="/consultant-dashboard" className="link-underline hover:text-slate-900" data-testid="nav-consultant-portal">
+              Consultant portal
+            </Link>
+            <Link to="/employee-dashboard/applications" className="link-underline hover:text-slate-900" data-testid="nav-operations-portal">
+              Operations portal
+            </Link>
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <LoginMenu />

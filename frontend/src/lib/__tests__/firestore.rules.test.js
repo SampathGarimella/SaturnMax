@@ -147,6 +147,22 @@ describe("Firestore security rules", () => {
     await assertSucceeds(deleteDoc(doc(db, "jobs", "draft-job")));
   });
 
+  test("activity logs are writable by signed-in users and readable by employees", async () => {
+    const candidate = authedDb("candidate-1");
+    const employee = authedDb("employee-1");
+    const anon = anonDb();
+    await assertSucceeds(
+      setDoc(doc(candidate, "activityLogs", "activity-1"), {
+        action: "application_status_transition",
+        outcome: "blocked",
+        actorUid: "candidate-1",
+        createdAt: 2,
+      })
+    );
+    await assertSucceeds(getDoc(doc(employee, "activityLogs", "activity-1")));
+    await assertFails(getDoc(doc(anon, "activityLogs", "activity-1")));
+  });
+
   test("messages are restricted to candidate owner or employee", async () => {
     const candidate = authedDb("candidate-1");
     const otherCandidate = authedDb("candidate-2");

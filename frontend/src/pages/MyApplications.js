@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { useOutletContext, Link } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import { FileText, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { uploadSignedCandidateDocument } from "../lib/api";
 import { getApplicationStatusMeta, isWorkflowTransitionError } from "../lib/workflow";
+import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
 
 export default function MyApplications() {
   const { data, loading, reload } = useOutletContext();
@@ -48,32 +49,20 @@ export default function MyApplications() {
 
   return (
     <div className="space-y-5" data-testid="my-applications-page">
-      <div>
-        <h2 className="font-heading text-2xl font-semibold tracking-tight text-slate-900">
-          My applications
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Track the status of every role you've applied to.
-        </p>
-      </div>
+      <SectionHeader
+        title="My applications"
+        description="Track each role, see what the current status means, and complete document requests from the hiring team."
+      />
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
-        <div className="min-w-[680px]">
-          <div className="grid grid-cols-[1.35fr_0.8fr_0.8fr_0.9fr_1.1fr] px-6 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500 bg-slate-50 border-b border-slate-200">
-            <div>Position</div>
-            <div>Applied</div>
-            <div>Experience</div>
-            <div>Status</div>
-            <div>Documents</div>
-          </div>
         {data.applications.length === 0 && (
-          <div className="px-6 py-10 text-center text-sm text-slate-500">
-            You haven't applied to any roles yet.{" "}
-            <Link to="/dashboard/jobs" className="text-[#2563EB] font-medium hover:text-[#1D4ED8]">
-              Browse open jobs →
-            </Link>
-          </div>
+          <EmptyState
+            title="No applications yet"
+            body="Browse open jobs and apply with your candidate profile."
+            action="Browse open jobs"
+            to="/dashboard/jobs"
+          />
         )}
+      <div className="grid grid-cols-1 gap-4">
         {data.applications.map((a) => {
           const meta = getApplicationStatusMeta(a.status);
           const docs = documentsByApplication[a.id] || [];
@@ -83,22 +72,24 @@ export default function MyApplications() {
             ["requested", "sent", "uploaded"].includes(doc.status || "uploaded")
           );
           return (
-            <div
+            <article
               key={a.id}
-              className="grid grid-cols-[1.35fr_0.8fr_0.8fr_0.9fr_1.1fr] gap-3 px-6 py-4 items-start text-sm border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60"
+              className="rounded-2xl border border-slate-200 bg-white p-5"
               data-testid={`app-row-${a.id}`}
             >
-              <div className="font-semibold text-slate-900">{a.position_title}</div>
-              <div className="text-slate-600">{a.applied_ago || "recently"}</div>
-              <div className="text-slate-600">{a.years_experience} yrs</div>
-              <div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.className}`}
-                >
-                  {meta.label}
-                </span>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="font-heading text-lg font-semibold text-slate-900">{a.position_title}</h2>
+                  <div className="mt-1 text-sm text-slate-500">
+                    Applied {a.applied_ago || "recently"} / {a.years_experience || "0"} yrs
+                  </div>
+                  <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-600">
+                    {meta.nextAction}
+                  </p>
+                </div>
+                <StatusBadge value={a.status} />
               </div>
-              <div className="space-y-2 text-xs">
+              <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
                 {offer ? (
                   <a
                     href={offer.file_url}
@@ -168,10 +159,9 @@ export default function MyApplications() {
                   <div className="text-slate-400">No onboarding documents yet</div>
                 )}
               </div>
-            </div>
+            </article>
           );
         })}
-        </div>
       </div>
     </div>
   );

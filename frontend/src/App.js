@@ -7,6 +7,11 @@ import LoginPage from "./pages/LoginPage";
 import RoleLoginPage from "./pages/RoleLoginPage";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
+import OperationsApplications from "./pages/operations/OperationsApplications";
+import OperationsConsultants from "./pages/operations/OperationsConsultants";
+import OperationsJobs from "./pages/operations/OperationsJobs";
+import OperationsMessages from "./pages/operations/OperationsMessages";
+import OperationsReviews from "./pages/operations/OperationsReviews";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardHome from "./pages/DashboardHome";
@@ -51,7 +56,14 @@ function App() {
                 <EmployeeDashboard />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<Navigate to="applications" replace />} />
+            <Route path="jobs" element={<OperationsJobs />} />
+            <Route path="applications" element={<OperationsApplications />} />
+            <Route path="messages" element={<OperationsMessages />} />
+            <Route path="consultants" element={<OperationsConsultants />} />
+            <Route path="reviews" element={<OperationsReviews />} />
+          </Route>
           <Route
             path="/dashboard"
             element={

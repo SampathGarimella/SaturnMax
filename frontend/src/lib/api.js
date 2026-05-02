@@ -11,6 +11,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where,
   writeBatch,
@@ -273,7 +274,7 @@ export async function fetchJobs({ includeAll = false } = {}) {
   if (!isFirebaseConfigured || !db) return [];
   const base = collection(db, COLLECTIONS.JOBS);
   const snap = includeAll
-    ? await getDocs(base)
+    ? await getDocs(query(base, limit(120)))
     : await getDocs(query(base, where("status", "==", "published")));
   return snap.docs
     .map(mapDoc)
@@ -523,15 +524,16 @@ export async function markResumeUploaded({ file, candidateUid }) {
 
 export async function fetchOperationsData() {
   requireFirestore();
-  const [jobs, apps, usersSnap, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap] = await Promise.all([
+  const [jobs, apps, usersSnap, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap, activitySnap] = await Promise.all([
     fetchJobs({ includeAll: true }),
-    getDocs(collection(db, COLLECTIONS.APPLICATIONS)),
-    getDocs(collection(db, COLLECTIONS.USERS)),
-    getDocs(collection(db, COLLECTIONS.CANDIDATES)),
-    getDocs(collection(db, COLLECTIONS.CONSULTANTS)),
-    getDocs(collection(db, COLLECTIONS.REVIEWS)),
-    getDocs(collection(db, COLLECTIONS.DOCUMENTS)),
-    getDocs(collection(db, COLLECTIONS.LEADS)),
+    getDocs(query(collection(db, COLLECTIONS.APPLICATIONS), orderBy("updatedAt", "desc"), limit(150))),
+    getDocs(query(collection(db, COLLECTIONS.USERS), limit(250))),
+    getDocs(query(collection(db, COLLECTIONS.CANDIDATES), limit(250))),
+    getDocs(query(collection(db, COLLECTIONS.CONSULTANTS), limit(250))),
+    getDocs(query(collection(db, COLLECTIONS.REVIEWS), orderBy("updatedAt", "desc"), limit(150))),
+    getDocs(query(collection(db, COLLECTIONS.DOCUMENTS), orderBy("updatedAt", "desc"), limit(200))),
+    getDocs(query(collection(db, COLLECTIONS.LEADS), limit(120))),
+    getDocs(query(collection(db, "activityLogs"), orderBy("createdAt", "desc"), limit(60))),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
   const users = usersSnap.docs.map(mapDoc);
@@ -595,7 +597,20 @@ export async function fetchOperationsData() {
     reviews: reviewsSnap.docs.map(mapDoc),
     documents: docsSnap.docs.map(mapDoc),
     leads: leadsSnap.docs.map(mapDoc),
+    activityLogs: activitySnap.docs.map(mapDoc),
     messageThreads: buildMessageThreads(messageDocs, candidateByUid),
+  };
+}
+
+export async function fetchOperationsPage({ collectionName, pageSize = 25, cursor = null, orderField = "updatedAt" }) {
+  requireFirestore();
+  const constraints = [orderBy(orderField, "desc"), limit(pageSize)];
+  if (cursor) constraints.splice(1, 0, startAfter(cursor));
+  const snap = await getDocs(query(collection(db, collectionName), ...constraints));
+  return {
+    items: snap.docs.map(mapDoc),
+    cursor: snap.docs[snap.docs.length - 1] || null,
+    hasMore: snap.docs.length === pageSize,
   };
 }
 
@@ -605,15 +620,37 @@ export async function updateApplicationStatus(application, status, context = {})
   if (!APPLICATION_STATUS_VALUES.includes(normalizeApplicationStatus(status))) {
     throw new Error("Invalid application status.");
   }
-  const transition = assertApplicationTransition(application.status || application.lifecycle_stage, status, {
-    ...context,
-    application,
-  });
+  let transition;
+  try {
+    transition = assertApplicationTransition(application.status || application.lifecycle_stage, status, {
+      ...context,
+      application,
+    });
+  } catch (err) {
+    await safeRecordActivityLog({
+      action: "application_status_transition",
+      outcome: "blocked",
+      targetCollection: COLLECTIONS.APPLICATIONS,
+      targetId: application.id,
+      before: { status: normalizeApplicationStatus(application.status || application.lifecycle_stage) },
+      after: { status: normalizeApplicationStatus(status) },
+      reason: err?.message || "Transition blocked",
+    });
+    throw err;
+  }
   const nextStatus = transition.to;
   await updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
     status: nextStatus,
     lifecycle_stage: nextStatus,
     ...updateMeta(user),
+  });
+  await safeRecordActivityLog({
+    action: "application_status_transition",
+    outcome: "success",
+    targetCollection: COLLECTIONS.APPLICATIONS,
+    targetId: application.id,
+    before: { status: transition.from },
+    after: { status: nextStatus },
   });
   if (nextStatus === "onboarding") {
     const onboardingRef = doc(db, COLLECTIONS.ONBOARDING, application.id);
@@ -717,6 +754,22 @@ const REVIEW_TASK_BY_TYPE = {
   uan: "uan",
   bank_details: "bank",
 };
+
+async function safeRecordActivityLog(payload) {
+  if (!isFirebaseConfigured || !db || !auth?.currentUser?.uid) return;
+  const actor = auth.currentUser;
+  try {
+    await addDoc(collection(db, "activityLogs"), {
+      actorUid: actor.uid,
+      actorEmail: actor.email || "",
+      actorRole: actor.role || "",
+      createdAt: serverTimestamp(),
+      ...payload,
+    });
+  } catch (err) {
+    console.warn("Could not record activity log:", err);
+  }
+}
 
 function reviewDocumentStatus(status) {
   if (status === "approved") return "approved";
@@ -844,6 +897,14 @@ export async function resolveReview(review, status) {
     );
   }
   await updateApplicationForReview(review, status);
+  await safeRecordActivityLog({
+    action: "review_resolution",
+    outcome: "success",
+    targetCollection: COLLECTIONS.REVIEWS,
+    targetId: review.id,
+    before: { status: review.status || "pending_review", type: review.type },
+    after: { status },
+  });
 }
 
 export async function updateConsultantProfile(uid, profile) {
@@ -865,10 +926,23 @@ export async function convertToConsultant(application, profile = {}, context = {
   const user = requireAuthUser();
   const uid = application.candidate_uid;
   if (!uid) throw new Error("Application is missing candidate UID.");
-  assertApplicationTransition(application.status || application.lifecycle_stage, "consultant_active", {
-    ...context,
-    application,
-  });
+  try {
+    assertApplicationTransition(application.status || application.lifecycle_stage, "consultant_active", {
+      ...context,
+      application,
+    });
+  } catch (err) {
+    await safeRecordActivityLog({
+      action: "consultant_activation",
+      outcome: "blocked",
+      targetCollection: COLLECTIONS.APPLICATIONS,
+      targetId: application.id,
+      before: { status: normalizeApplicationStatus(application.status || application.lifecycle_stage) },
+      after: { status: "consultant_active" },
+      reason: err?.message || "Activation blocked",
+    });
+    throw err;
+  }
   const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
   const consultantSnap = await getDoc(consultantRef);
   const consultant = {
@@ -902,6 +976,14 @@ export async function convertToConsultant(application, profile = {}, context = {
     { merge: true }
   );
   await updateApplicationStatus(application, "consultant_active", context);
+  await safeRecordActivityLog({
+    action: "consultant_activation",
+    outcome: "success",
+    targetCollection: COLLECTIONS.CONSULTANTS,
+    targetId: uid,
+    before: { applicationId: application.id },
+    after: { status: "consultant_active" },
+  });
   return consultant;
 }
 

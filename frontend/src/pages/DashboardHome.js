@@ -59,9 +59,65 @@ export default function DashboardHome() {
   }
 
   const { candidate, stats, applications, activity } = data;
+  const latestApplication = applications[0];
+  const latestMeta = latestApplication ? getApplicationStatusMeta(latestApplication.status) : null;
 
   return (
     <div className="space-y-6" data-testid="dashboard-home">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2563EB]">
+              Candidate journey
+            </div>
+            <h2 className="mt-1 font-heading text-xl font-semibold text-slate-900">
+              Profile readiness, applications, status tracking, and messaging in one flow.
+            </h2>
+            {latestMeta && (
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                Current next action: {latestMeta.nextAction}
+              </p>
+            )}
+          </div>
+          <Link
+            to="/dashboard/jobs"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+          >
+            Continue journey
+          </Link>
+        </div>
+        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+          <JourneyStep
+            n="01"
+            title="Profile readiness"
+            body={`${stats.profile_complete_percent}% complete`}
+            done={stats.profile_complete_percent >= 80}
+            to="/dashboard/profile"
+          />
+          <JourneyStep
+            n="02"
+            title="Apply"
+            body={`${stats.applications_sent} submitted`}
+            done={stats.applications_sent > 0}
+            to="/dashboard/jobs"
+          />
+          <JourneyStep
+            n="03"
+            title="Track status"
+            body={latestApplication ? latestMeta.label : "No active application"}
+            done={Boolean(latestApplication)}
+            to="/dashboard/applications"
+          />
+          <JourneyStep
+            n="04"
+            title="Messaging"
+            body="Hiring team updates"
+            done={false}
+            to="/dashboard/messages"
+          />
+        </div>
+      </section>
+
       {/* stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
@@ -153,10 +209,13 @@ export default function DashboardHome() {
                     <div className="text-sm font-semibold text-slate-900">
                       {a.position_title}
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Applied {a.applied_ago || "recently"}
-                    </div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    Applied {a.applied_ago || "recently"}
                   </div>
+                  <div className="mt-1 max-w-md text-xs text-slate-500">
+                    {meta.nextAction}
+                  </div>
+                </div>
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${meta.className}`}
                   >
@@ -285,6 +344,22 @@ export default function DashboardHome() {
         </div>
       </section>
     </div>
+  );
+}
+
+function JourneyStep({ n, title, body, done, to }) {
+  return (
+    <Link
+      to={to}
+      className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{n}</span>
+        {done ? <Check className="h-4 w-4 text-emerald-600" /> : <CircleDot className="h-4 w-4 text-amber-500" />}
+      </div>
+      <div className="mt-3 text-sm font-semibold text-slate-900">{title}</div>
+      <div className="mt-1 text-xs text-slate-500">{body}</div>
+    </Link>
   );
 }
 
