@@ -68,6 +68,7 @@ export default function EmployeeDashboard() {
   const [data, setData] = useState({
     jobs: [],
     applications: [],
+    users: [],
     candidates: [],
     consultants: [],
     reviews: [],

@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
@@ -509,9 +510,10 @@ export async function markResumeUploaded({ file, candidateUid }) {
 
 export async function fetchOperationsData() {
   requireFirestore();
-  const [jobs, apps, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap] = await Promise.all([
+  const [jobs, apps, usersSnap, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap] = await Promise.all([
     fetchJobs({ includeAll: true }),
     getDocs(collection(db, "applications")),
+    getDocs(collection(db, "users")),
     getDocs(collection(db, "candidates")),
     getDocs(collection(db, "consultants")),
     getDocs(collection(db, "reviews")),
@@ -519,26 +521,62 @@ export async function fetchOperationsData() {
     getDocs(collection(db, "leads")),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
+  const users = usersSnap.docs.map(mapDoc);
   const candidates = candidatesSnap.docs.map(mapDoc);
-  const candidateByUid = candidates.reduce((acc, candidate) => {
+  const candidateByUid = [...users, ...candidates].reduce((acc, candidate) => {
     acc[candidate.uid || candidate.id] = candidate;
     return acc;
   }, {});
+  applications.forEach((application) => {
+    if (!application.candidate_uid) return;
+    candidateByUid[application.candidate_uid] = {
+      ...(candidateByUid[application.candidate_uid] || {}),
+      uid: application.candidate_uid,
+      name: application.full_name || application.candidate_name,
+      email: application.email,
+    };
+  });
+  const messageOwnerUids = Array.from(
+    new Set(
+      [
+        ...candidates.map((candidate) => candidate.uid || candidate.id),
+        ...users
+          .filter((user) => ["candidate", "consultant"].includes(user.role))
+          .map((user) => user.uid || user.id),
+        ...applications.map((application) => application.candidate_uid),
+      ].filter(Boolean)
+    )
+  );
   const messageSnaps = await Promise.all(
-    candidates.map((candidate) =>
+    messageOwnerUids.map((uid) =>
       getDocs(
         query(
-          collection(db, "messages", candidate.uid || candidate.id, "thread"),
+          collection(db, "messages", uid, "thread"),
           orderBy("createdAt", "desc"),
           limit(50)
         )
       )
     )
   );
-  const messageDocs = messageSnaps.flatMap((snap) => snap.docs);
+  let groupMessageDocs = [];
+  try {
+    const groupSnap = await getDocs(query(collectionGroup(db, "thread"), limit(300)));
+    groupMessageDocs = groupSnap.docs;
+  } catch (err) {
+    console.warn("Could not load fallback message index:", err);
+  }
+  const messageDocsByPath = [...messageSnaps.flatMap((snap) => snap.docs), ...groupMessageDocs].reduce(
+    (acc, snap) => {
+      acc.set(snap.ref.path, snap);
+      return acc;
+    },
+    new Map()
+  );
+  const messageDocs = Array.from(messageDocsByPath.values());
   return {
     jobs,
     applications: applications.sort((a, b) => tsValue(b.createdAt || b.created_at) - tsValue(a.createdAt || a.created_at)),
+    users,
     candidates,
     consultants: consultantsSnap.docs.map(mapDoc),
     reviews: reviewsSnap.docs.map(mapDoc),
@@ -802,6 +840,12 @@ export async function sendCandidateMessage({ text, user }) {
   const current = requireAuthUser();
   const body = text?.trim();
   if (!body) throw new Error("Enter a message.");
+  await ensureCandidateUser({
+    uid: current.uid,
+    email: current.email || user?.email,
+    displayName: current.displayName,
+    name: user?.name,
+  });
   await addDoc(collection(db, "messages", current.uid, "thread"), {
     author: "candidate",
     authorRole: "candidate",
