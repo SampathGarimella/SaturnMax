@@ -623,8 +623,8 @@ export default function HomePage() {
             <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-950">
               <div className="font-semibold">Candidate profile</div>
               <p className="mt-1 text-xs leading-relaxed text-blue-900/80">
-                Resume upload is available after Firebase Storage is connected. Until then,
-                paste a Google Drive, LinkedIn, or portfolio URL so HR can review your profile.
+                Share your latest resume and profile links so the hiring team can
+                review your profile quickly.
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -673,7 +673,7 @@ export default function HomePage() {
                   onChange={(e) =>
                     setApplicationForm((f) => ({ ...f, current_location: e.target.value }))
                   }
-                  placeholder="Guntur, Andhra Pradesh"
+                  placeholder="India"
                   className={inputClass}
                   data-testid="application-current-location"
                 />
@@ -917,7 +917,7 @@ export default function HomePage() {
                   <InfoRow
                     Icon={MapPin}
                     label="Address"
-                    value="SaturnMax Technologies Pvt Ltd, Guntur, India"
+                    value="SaturnMax Technologies Pvt Ltd, India"
                   />
                   <InfoRow
                     Icon={Mail}
@@ -1103,7 +1103,7 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} SaturnMax Technologies Pvt Ltd · Guntur, India
+            © {new Date().getFullYear()} SaturnMax Technologies Pvt Ltd · India
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>

@@ -19,7 +19,7 @@ export default function Logo({ compact = false, to = "/", className = "" }) {
             SaturnMax Technologies Pvt Ltd
           </div>
           <div className="hidden md:block text-[11px] text-slate-500 tracking-wide">
-            Guntur, India
+            India
           </div>
         </div>
       )}

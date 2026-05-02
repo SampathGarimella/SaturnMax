@@ -3,7 +3,7 @@ export const consultantProfile = {
   email: "ananya.consultant@saturnmaxtech.com",
   consultantId: "SMC-1042",
   role: "Senior Cloud Consultant",
-  location: "Guntur, India",
+  location: "India",
   client: "Northstar Health Systems",
   project: "AWS modernization and cost governance",
   status: "Active project",
@@ -137,7 +137,7 @@ export const employeeProjects = [
     client: "US SaaS platform",
     owner: "Divya Nair",
     health: "Green",
-    nextStep: "Sprint demo on Friday",
+    nextStep: "Sprint review on Friday",
   },
 ];
 

@@ -33,17 +33,7 @@ export default function DashboardLayout() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading, mode, enterDemo, signOut } = useAuth();
-
-  // If user is a guest and we're hitting the dashboard directly, auto-bootstrap
-  // the demo session so the preview always has data. Real Firebase users use
-  // their actual uid/email.
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user && mode === "guest") {
-      enterDemo();
-    }
-  }, [authLoading, user, mode, enterDemo]);
+  const { user, loading: authLoading, mode, signOut } = useAuth();
 
   // Fetch dashboard data from the FastAPI backend keyed by candidate email.
   useEffect(() => {
@@ -99,14 +89,9 @@ export default function DashboardLayout() {
                 </div>
                 <div className="text-xs text-slate-500 flex items-center gap-1.5">
                   {data?.candidate?.role_label || "Job Candidate"}
-                  {mode === "demo" && (
-                    <span className="rounded-full bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider">
-                      Demo
-                    </span>
-                  )}
                   {mode === "firebase" && (
                     <span className="rounded-full bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider">
-                      Live
+                      Verified
                     </span>
                   )}
                 </div>

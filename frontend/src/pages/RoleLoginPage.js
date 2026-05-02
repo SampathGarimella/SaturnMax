@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, EyeOff, Shield, UserCog, BriefcaseBusiness } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, UserCog, BriefcaseBusiness } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
-import { DEMO_PROFILES, recordLogin } from "../lib/session";
+import { recordLogin } from "../lib/session";
 
 const CONFIG = {
   consultant: {
@@ -13,8 +13,6 @@ const CONFIG = {
     description:
       "View project, client, payout, onboarding, tax, and document details assigned by the operations team.",
     destination: "/consultant-dashboard",
-    demoLabel: "Enter consultant demo",
-    demoRole: "consultant",
     Icon: BriefcaseBusiness,
   },
   employee: {
@@ -23,8 +21,6 @@ const CONFIG = {
     description:
       "Manage candidates, consultants, projects, documents, and recent login activity for the team.",
     destination: "/employee-dashboard",
-    demoLabel: "Enter employee demo",
-    demoRole: "employee",
     Icon: UserCog,
   },
 };
@@ -36,13 +32,13 @@ export default function RoleLoginPage({ role = "consultant" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { signIn, enterDemo, isFirebaseConfigured } = useAuth();
+  const { signIn, isFirebaseConfigured } = useAuth();
   const Icon = config.Icon;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
-      toast.info("Firebase is not configured yet. Use demo access for now.");
+      toast.error("Sign-in is temporarily unavailable.");
       return;
     }
     setBusy(true);
@@ -58,17 +54,10 @@ export default function RoleLoginPage({ role = "consultant" }) {
       toast.success(`Welcome to the ${config.eyebrow.toLowerCase()}.`);
       navigate(config.destination);
     } catch (err) {
-      toast.error(err?.message || "Sign-in failed. Check Firebase Auth setup.");
+      toast.error(err?.message || "Sign-in failed. Please verify your credentials.");
     } finally {
       setBusy(false);
     }
-  };
-
-  const handleDemo = () => {
-    const profile = DEMO_PROFILES[config.demoRole];
-    enterDemo(config.demoRole);
-    toast.success(`Signed in as ${profile.name}`);
-    navigate(config.destination);
   };
 
   return (
@@ -101,10 +90,10 @@ export default function RoleLoginPage({ role = "consultant" }) {
               {config.description}
             </p>
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PortalPoint label="Firebase Auth" value="Email/password ready" />
-              <PortalPoint label="Firestore role" value={`users/{uid}.role = ${role}`} />
-              <PortalPoint label="Storage" value={role === "consultant" ? "consultant-documents/{uid}" : "employee-documents/{uid}"} />
-              <PortalPoint label="Demo mode" value="Local preview enabled" />
+              <PortalPoint label="Secure access" value="Protected work accounts" />
+              <PortalPoint label="Role workspace" value="Personalized portal" />
+              <PortalPoint label="Operations visibility" value="Live work tracking" />
+              <PortalPoint label="Compliance" value="India-ready workflow" />
             </div>
           </div>
         </section>
@@ -114,7 +103,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
             Sign in
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Use Firebase Auth when configured, or preview the role dashboard with demo access.
+            Use your assigned work credentials to access this portal.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -124,7 +113,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={DEMO_PROFILES[config.demoRole].email}
+                placeholder="name@company.com"
                 className={inputClass}
                 autoComplete="email"
               />
@@ -136,7 +125,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Firebase password"
+                  placeholder="Enter password"
                   className={`${inputClass} pr-11`}
                   autoComplete="current-password"
                 />
@@ -156,29 +145,24 @@ export default function RoleLoginPage({ role = "consultant" }) {
               disabled={busy}
               className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0A192F] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0e2445] transition-colors disabled:opacity-60"
             >
-              {busy ? "Signing in..." : `Sign in as ${role}`}
+              {busy ? "Signing in..." : `Sign in to ${config.eyebrow.toLowerCase()}`}
             </button>
           </form>
 
           {!isFirebaseConfigured && (
             <div className="mt-5 rounded-xl border border-dashed border-amber-300 bg-amber-50/70 p-4 text-sm text-amber-900 flex items-start gap-3">
-              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <div className="font-semibold">Firebase not configured yet</div>
+                <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
-                  Use demo access now. Later, store role data in Firestore and protect it with
-                  the rules in FIREBASE_SETUP.md.
+                  Please contact{" "}
+                  <a href="mailto:hello@saturnmaxtech.com" className="font-semibold underline">
+                    hello@saturnmaxtech.com
+                  </a>{" "}
+                  for access support.
                 </div>
               </div>
             </div>
           )}
-
-          <button
-            onClick={handleDemo}
-            className="mt-5 w-full rounded-md border border-[#2563EB]/30 bg-blue-50 px-5 py-3 text-sm font-semibold text-[#1D4ED8] hover:bg-blue-100 transition-colors"
-          >
-            {config.demoLabel}
-          </button>
         </section>
       </main>
     </div>

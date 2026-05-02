@@ -85,7 +85,7 @@ export default function Settings() {
           ))}
         </div>
         <p className="text-xs text-slate-500 mt-3">
-          Dark mode is coming — we're tuning the palette first.
+          System mode follows your device preference.
         </p>
       </section>
 
@@ -98,15 +98,11 @@ export default function Settings() {
             <div>
               <div className="text-slate-900 font-medium">Change password</div>
               <div className="text-slate-500 text-xs">
-                We'll email you a reset link once Firebase Auth is connected.
+                We'll send a secure reset link to your registered email.
               </div>
             </div>
             <button
-              onClick={() =>
-                toast.info(
-                  "Password reset will be enabled once Firebase Auth is configured."
-                )
-              }
+              onClick={() => toast.info("Password reset support is available via account services.")}
               className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
               data-testid="change-password"
             >

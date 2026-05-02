@@ -104,7 +104,7 @@ export default function ConsultantDashboard() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-5">
-          <Panel title="Documents" subtitle="Store these in Firebase Storage under consultant-documents/{uid}">
+          <Panel title="Documents" subtitle="Managed by operations for secure project delivery">
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <div className="min-w-[620px]">
                 <div className="grid grid-cols-[1.3fr_0.8fr_0.8fr] bg-slate-50 px-4 py-3 text-[11px] uppercase tracking-wider font-semibold text-slate-500">
@@ -134,8 +134,8 @@ export default function ConsultantDashboard() {
               <MiniCard Icon={Banknote} label="Hours" value={`${consultantProfile.billableHours} billed`} />
             </div>
             <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-              Firebase can store consultant profiles and tax metadata in Firestore.
-              Actual payout processing should stay behind a trusted payroll/admin backend or provider.
+              Payroll and statutory compliance are handled through secure finance and
+              operations workflows.
             </div>
           </Panel>
         </section>

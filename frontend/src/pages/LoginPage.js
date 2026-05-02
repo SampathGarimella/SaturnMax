@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, Shield, UserCog } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 
@@ -25,12 +25,10 @@ export default function LoginPage() {
     signInWithGoogle,
     signInWithLinkedIn,
     sendReset,
-    enterDemo,
     isFirebaseConfigured,
   } = useAuth();
 
   const handleError = (err) => {
-    // Firebase error codes → friendly messages
     const code = err?.code || "";
     const map = {
       "auth/invalid-credential": "Wrong email or password.",
@@ -41,8 +39,7 @@ export default function LoginPage() {
       "auth/weak-password": "Password must be at least 6 characters.",
       "auth/popup-blocked": "Browser blocked the sign-in popup — please allow popups.",
       "auth/popup-closed-by-user": "Sign-in popup closed before completing.",
-      "auth/unauthorized-domain":
-        "This domain isn't allowed in Firebase Console → Auth → Settings → Authorized domains.",
+      "auth/unauthorized-domain": "This sign-in domain is not authorized.",
     };
     toast.error(map[code] || err?.message || "Something went wrong. Try again.");
   };
@@ -50,9 +47,7 @@ export default function LoginPage() {
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
-      toast.info(
-        "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars to /app/frontend/.env and restart the frontend — or hit 'Enter demo' to preview the dashboard."
-      );
+      toast.error("Sign in is temporarily unavailable. Please contact support.");
       return;
     }
     setBusy(true);
@@ -74,9 +69,7 @@ export default function LoginPage() {
 
   const handleOAuth = async (provider) => {
     if (!isFirebaseConfigured) {
-      toast.info(
-        `${provider} sign-in needs Firebase config. Paste REACT_APP_FIREBASE_* into /app/frontend/.env and restart the frontend.`
-      );
+      toast.error(`${provider} sign-in is temporarily unavailable.`);
       return;
     }
     setBusy(true);
@@ -90,9 +83,7 @@ export default function LoginPage() {
       navigate("/dashboard");
     } catch (err) {
       if (err?.code === "auth/operation-not-allowed" && provider === "LinkedIn") {
-        toast.error(
-          "LinkedIn needs to be set up as a custom OIDC provider (id 'oidc.linkedin') in Firebase Console."
-        );
+        toast.error("LinkedIn sign-in is not enabled for this account.");
       } else {
         handleError(err);
       }
@@ -103,9 +94,7 @@ export default function LoginPage() {
 
   const handleForgot = async () => {
     if (!isFirebaseConfigured) {
-      toast.info(
-        "Password reset needs Firebase Auth configured. Add your Firebase config and try again."
-      );
+      toast.error("Password reset is temporarily unavailable.");
       return;
     }
     if (!email) {
@@ -118,12 +107,6 @@ export default function LoginPage() {
     } catch (err) {
       handleError(err);
     }
-  };
-
-  const handleDemoLogin = () => {
-    enterDemo();
-    toast.success("Entering candidate demo dashboard as Rahul Sharma");
-    navigate("/dashboard");
   };
 
   return (
@@ -334,42 +317,23 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Firebase status banner */}
           {!isFirebaseConfigured && (
             <div
               className="mt-5 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4 text-sm text-amber-900 flex items-start gap-3"
               data-testid="firebase-status-banner"
             >
-              <Shield className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                <div className="font-semibold">Firebase not configured yet</div>
+                <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
-                  Paste your Firebase web config into <code>/app/frontend/.env</code>{" "}
-                  and restart the frontend to enable real sign-in. See{" "}
-                  <code>FIREBASE_SETUP.md</code> for the 2-minute walkthrough.
+                  Please contact{" "}
+                  <a href="mailto:hello@saturnmaxtech.com" className="font-semibold underline">
+                    hello@saturnmaxtech.com
+                  </a>{" "}
+                  for immediate access support.
                 </div>
               </div>
             </div>
           )}
-
-          {/* Demo access banner */}
-          <div className="mt-5 rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-slate-700">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="font-semibold text-slate-900">Preview the candidate dashboard</div>
-                <p className="mt-0.5 text-xs text-slate-600">
-                  Jump into the live demo dashboard as Rahul Sharma — no Firebase needed.
-                </p>
-              </div>
-              <button
-                onClick={handleDemoLogin}
-                className="shrink-0 rounded-md bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1D4ED8] transition-colors"
-                data-testid="demo-login-cta"
-              >
-                Enter demo
-              </button>
-            </div>
-          </div>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PortalLink

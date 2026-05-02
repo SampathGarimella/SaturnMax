@@ -29,9 +29,7 @@ export default function MyProfile() {
     if (!file) return;
 
     if (!canUpload) {
-      toast.info(
-        "Resume upload needs Firebase Storage + signed-in auth. Configure Firebase in /app/frontend/.env and sign in to enable."
-      );
+      toast.info("Resume upload will be enabled after account verification.");
       return;
     }
     if (file.size > MAX_BYTES) {
@@ -55,17 +53,13 @@ export default function MyProfile() {
         console.error(err);
         setUploading(false);
         setUploadProgress(null);
-        toast.error(
-          err.code === "storage/unauthorized"
-            ? "Upload blocked by Storage rules. Paste the rules from FIREBASE_SETUP.md."
-            : "Upload failed. Try again."
-        );
+        toast.error("Upload failed. Try again.");
       },
       async () => {
         try {
           const url = await getDownloadURL(task.snapshot.ref);
           setResumeUrl(url);
-          toast.success("Resume uploaded to Firebase Storage.");
+          toast.success("Resume uploaded successfully.");
         } catch (err) {
           console.error(err);
           toast.error("Uploaded but couldn't fetch download URL.");
@@ -110,7 +104,7 @@ export default function MyProfile() {
             <InfoRow
               Icon={Link2}
               label="Portfolio"
-              value={candidate.portfolio_url || "Add your LinkedIn / portfolio"}
+              value={candidate.portfolio_url || "Add your LinkedIn or portfolio URL"}
             />
             <InfoRow
               Icon={FileUp}
@@ -143,8 +137,7 @@ export default function MyProfile() {
                   Upload resume
                 </div>
                 <div className="text-xs text-slate-500 mt-1">
-                  PDF, DOC, or DOCX · max 5MB · stored privately in Firebase Storage under{" "}
-                  <code className="text-[11px]">resumes/{user?.uid || "{uid}"}</code>
+                  PDF, DOC, or DOCX · max 5MB
                 </div>
               </div>
               <label
@@ -203,8 +196,7 @@ export default function MyProfile() {
             )}
             {!canUpload && (
               <div className="mt-3 text-xs text-amber-700">
-                Upload is disabled in demo mode. Sign in with Firebase Auth to enable — see{" "}
-                <code>FIREBASE_SETUP.md</code>.
+                Upload access is currently unavailable for this account.
               </div>
             )}
           </div>

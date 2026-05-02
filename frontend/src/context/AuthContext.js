@@ -16,27 +16,14 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import {
-  getSession,
-  setSession,
   clearSession,
-  DEMO_PROFILES,
-  recordLogin,
 } from "../lib/session";
 
 const AuthContext = createContext(null);
 
-/**
- * Auth provider covering both real Firebase Auth (when configured) AND the
- * localStorage demo session (when not). Consumers always get a consistent API:
- *
- *   const { user, loading, mode, signIn, signUp, signInWithGoogle, signInWithLinkedIn,
- *           sendReset, signOut, enterDemo } = useAuth();
- *
- *   mode is "firebase" | "demo" | "guest"
- */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}
-  const [mode, setMode] = useState("guest"); // firebase | demo | guest
+  const [mode, setMode] = useState("guest"); // firebase | guest
   const [loading, setLoading] = useState(true);
 
   const loadRoleForUid = useCallback(async (uid) => {
@@ -52,7 +39,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Bootstrap: prefer Firebase onAuthStateChanged; fall back to localStorage session.
+  // Bootstrap authentication state.
   useEffect(() => {
     let unsub = null;
 
@@ -69,38 +56,14 @@ export function AuthProvider({ children }) {
           });
           setMode("firebase");
         } else {
-          // No Firebase user — check demo session for the dashboard preview.
-          const demo = getSession();
-          if (demo?.email) {
-            setUser({
-              email: demo.email,
-              name: demo.name || "Candidate",
-              role: demo.role || "candidate",
-              title: demo.title,
-            });
-            setMode("demo");
-          } else {
-            setUser(null);
-            setMode("guest");
-          }
+          setUser(null);
+          setMode("guest");
         }
         setLoading(false);
       });
     } else {
-      // Firebase not configured at all → demo-only mode
-      const demo = getSession();
-      if (demo?.email) {
-        setUser({
-          email: demo.email,
-          name: demo.name || "Candidate",
-          role: demo.role || "candidate",
-          title: demo.title,
-        });
-        setMode("demo");
-      } else {
-        setUser(null);
-        setMode("guest");
-      }
+      setUser(null);
+      setMode("guest");
       setLoading(false);
     }
 
@@ -205,21 +168,6 @@ export function AuthProvider({ children }) {
     setMode("guest");
   }, []);
 
-  // Preview-mode entry so reviewers can see the dashboard without real auth.
-  const enterDemo = useCallback((role = "candidate") => {
-    const profile = DEMO_PROFILES[role] || DEMO_PROFILES.candidate;
-    const session = { ...profile, mode: "demo" };
-    setSession(session);
-    recordLogin(session);
-    setUser({
-      email: session.email,
-      name: session.name,
-      role: session.role,
-      title: session.title,
-    });
-    setMode("demo");
-  }, []);
-
   const value = {
     user,
     loading,
@@ -231,7 +179,6 @@ export function AuthProvider({ children }) {
     signInWithLinkedIn,
     sendReset,
     signOut,
-    enterDemo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

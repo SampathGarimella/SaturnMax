@@ -28,32 +28,32 @@ const DOT_COLORS = {
   red: "bg-rose-500",
 };
 
-const CLIENT_WORKSPACE = [
+const SUPPORT_CENTER = [
   {
     Icon: Building2,
-    title: "Project requests",
-    value: "2 active drafts",
-    body: "Scope AI automation, cloud, or dedicated squad needs before a discovery call.",
+    title: "Interview coordination",
+    value: "Scheduling support",
+    body: "Track interviews, confirmations, and follow-ups in one place.",
   },
   {
     Icon: MessageSquare,
-    title: "Account messages",
-    value: "3 unread",
-    body: "Keep hiring and delivery conversations in one SaturnMax Technologies Pvt Ltd thread.",
+    title: "Hiring messages",
+    value: "Direct recruiter updates",
+    body: "Stay in touch with recruiters and get timely status updates.",
   },
   {
     Icon: FileText,
     title: "Documents",
-    value: "Pilot SOW ready",
-    body: "Store resumes, proposals, SOWs, and delivery notes as the client portal matures.",
+    value: "Profile and resume",
+    body: "Keep your documents updated for faster shortlisting.",
   },
 ];
 
-const ADMIN_QUEUE = [
-  "Review new leads from the homepage intake form",
-  "Shortlist candidates by role and experience",
-  "Publish or pause public job listings",
-  "Update case studies and delivery metrics",
+const CAREER_ACTIONS = [
+  "Complete your portfolio and resume details",
+  "Apply to roles matching your strongest skills",
+  "Respond to recruiter messages within 24 hours",
+  "Keep notice period and CTC details updated",
 ];
 
 export default function DashboardHome() {
@@ -253,19 +253,19 @@ export default function DashboardHome() {
           <div className="flex items-center justify-between gap-4 mb-5">
             <div>
               <h2 className="font-heading text-lg font-semibold text-slate-900">
-                Client workspace v1
+                Career support
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                The next portal layer for US clients and delivery teams.
+                Everything you need to keep your hiring journey moving smoothly.
               </p>
             </div>
             <span className="hidden sm:inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Planned
+              Active
             </span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {CLIENT_WORKSPACE.map((item) => (
+            {SUPPORT_CENTER.map((item) => (
               <WorkspaceItem key={item.title} {...item} />
             ))}
           </div>
@@ -275,12 +275,12 @@ export default function DashboardHome() {
           className="bg-[#0A192F] text-white rounded-2xl p-6 md:p-7"
           data-testid="admin-queue-card"
         >
-          <h2 className="font-heading text-lg font-semibold">Admin command queue</h2>
+          <h2 className="font-heading text-lg font-semibold">Your next actions</h2>
           <p className="mt-1 text-sm text-white/65">
-            Build this after the public lead funnel is verified.
+            These steps improve response speed and interview conversion.
           </p>
           <ul className="mt-5 space-y-3">
-            {ADMIN_QUEUE.map((item) => (
+            {CAREER_ACTIONS.map((item) => (
               <li key={item} className="flex items-start gap-3 text-sm text-white/85">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
                 {item}

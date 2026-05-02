@@ -90,8 +90,8 @@ export default function EmployeeDashboard() {
               Candidates, consultants, clients, and documents in one place.
             </h1>
             <p className="mt-4 text-sm text-white/65 leading-relaxed">
-              This demo shows the employee view you can back with Firebase Auth,
-              Firestore role documents, and Storage folders for resumes and consultant files.
+              Manage candidates, consultants, project activity, and compliance documents
+              from a single operations workspace.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -110,7 +110,7 @@ export default function EmployeeDashboard() {
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-[0.95fr_1.05fr] gap-5">
-          <Panel title="Manual add" subtitle="Create candidate or consultant records before Firebase forms are live">
+          <Panel title="Manual add" subtitle="Create candidate, consultant, or employee records">
             <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Field label="Type">
                 <select
@@ -157,7 +157,7 @@ export default function EmployeeDashboard() {
             </form>
           </Panel>
 
-          <Panel title="Recently logged in" subtitle="Demo audit trail from local preview sessions">
+          <Panel title="Recently logged in" subtitle="Recent sign-ins across all role portals">
             <div className="flex flex-col justify-between gap-3 mb-4 sm:flex-row sm:items-center">
               <div className="inline-flex items-center gap-2 text-sm text-slate-500">
                 <Search className="h-4 w-4" />
@@ -174,7 +174,7 @@ export default function EmployeeDashboard() {
             <div className="space-y-3 max-h-72 overflow-y-auto">
               {loginEvents.length === 0 && (
                 <div className="rounded-lg border border-dashed border-slate-300 p-5 text-sm text-slate-500">
-                  No demo login events yet.
+                  No login events yet.
                 </div>
               )}
               {loginEvents.map((event) => (
@@ -255,9 +255,9 @@ export default function EmployeeDashboard() {
         </section>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <OpsCard Icon={Users} title="Candidates" body="Store resumes in Storage and application data in Firestore." />
+          <OpsCard Icon={Users} title="Candidates" body="Track resumes, screenings, interviews, and offers." />
           <OpsCard Icon={BriefcaseBusiness} title="Consultants" body="Track pay, projects, client assignments, KYC, tax, and onboarding." />
-          <OpsCard Icon={FileText} title="Documents" body="Use role-based folders and Firestore metadata for every uploaded file." />
+          <OpsCard Icon={FileText} title="Documents" body="Maintain agreements, tax docs, and onboarding records." />
         </section>
       </main>
     </div>

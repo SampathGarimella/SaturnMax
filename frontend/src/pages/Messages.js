@@ -13,33 +13,6 @@ import {
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 
-const PLACEHOLDER_PREVIEW = [
-  {
-    id: "m1",
-    author: "hr",
-    authorName: "HR team - SaturnMax Technologies Pvt Ltd",
-    text: "Hi Rahul — we've scheduled your interview for Monday 10am IST. Please confirm your availability 🙏",
-    time: "Today, 9:42 am",
-    unread: true,
-  },
-  {
-    id: "m2",
-    author: "hr",
-    authorName: "Priya (Recruiter)",
-    text: "Loved your portfolio! Would you be open to a quick 15-min call this week?",
-    time: "Yesterday, 3:15 pm",
-    unread: true,
-  },
-  {
-    id: "m3",
-    author: "hr",
-    authorName: "SaturnMax Technologies Pvt Ltd Careers",
-    text: "Thanks for applying to AI/ML Engineer. We've received your application and the hiring team is reviewing it — we'll be in touch within 3 business days.",
-    time: "2 days ago",
-    unread: true,
-  },
-];
-
 export default function Messages() {
   const { user, mode } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -53,7 +26,7 @@ export default function Messages() {
   // Live Firestore subscription
   useEffect(() => {
     if (!live) {
-      setMessages(PLACEHOLDER_PREVIEW);
+      setMessages([]);
       setLiveLoading(false);
       return undefined;
     }
@@ -76,11 +49,7 @@ export default function Messages() {
       },
       (err) => {
         console.error("Firestore subscribe failed:", err);
-        toast.error(
-          err.code === "permission-denied"
-            ? "Firestore rules blocked this query. Paste the rules from FIREBASE_SETUP.md."
-            : "Couldn't connect to real-time messages."
-        );
+        toast.error("Couldn't connect to real-time messages.");
         setLiveLoading(false);
       }
     );
@@ -99,9 +68,7 @@ export default function Messages() {
     const text = input.trim();
     if (!text) return;
     if (!live) {
-      toast.info(
-        "Real-time messaging needs Firebase configured + signed-in auth. You're in demo mode — see FIREBASE_SETUP.md."
-      );
+      toast.info("Messaging will be available after your account is activated.");
       return;
     }
     setSending(true);
@@ -115,11 +82,7 @@ export default function Messages() {
       setInput("");
     } catch (err) {
       console.error(err);
-      toast.error(
-        err.code === "permission-denied"
-          ? "Firestore rules blocked this write. Paste the rules from FIREBASE_SETUP.md."
-          : "Couldn't send. Try again."
-      );
+      toast.error("Couldn't send. Try again.");
     } finally {
       setSending(false);
     }
@@ -134,9 +97,9 @@ export default function Messages() {
         <p className="text-sm text-slate-500 mt-1">
           Conversations with the SaturnMax Technologies Pvt Ltd hiring team.{" "}
           {live ? (
-            <span className="text-emerald-600 font-medium">Live · Firestore</span>
+            <span className="text-emerald-600 font-medium">Live</span>
           ) : (
-            <span className="text-amber-600 font-medium">Preview mode</span>
+            <span className="text-amber-600 font-medium">Inactive</span>
           )}
         </p>
       </div>
@@ -207,11 +170,7 @@ export default function Messages() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              live
-                ? "Type a message…"
-                : "Preview mode — configure Firebase to send live messages"
-            }
+            placeholder={live ? "Type a message…" : "Messaging becomes available after activation"}
             className="flex-1 h-11 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
             data-testid="message-input"
           />
@@ -231,9 +190,8 @@ export default function Messages() {
         <div className="flex gap-2 items-start rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-600">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <div>
-            You're viewing seeded preview messages. To enable real-time messaging via Firestore:
-            sign in with Firebase Auth on <code>/login</code>, or paste your Firebase config into{" "}
-            <code>/app/frontend/.env</code>. Full walkthrough in <code>FIREBASE_SETUP.md</code>.
+            Messaging for this account is not active yet. Please contact the operations team to
+            enable secure message access.
           </div>
         </div>
       )}
