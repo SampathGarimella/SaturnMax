@@ -54,42 +54,71 @@ export const FALLBACK_JOBS = [
 
 export const api = axios.create({
   baseURL: API_BASE,
+  timeout: 15000,
   headers: { "Content-Type": "application/json" },
 });
 
+function normalizeApiError(err, fallback) {
+  if (!err) return fallback;
+  if (err.response?.data?.detail) return err.response.data.detail;
+  if (err.code === "ECONNABORTED") return "Request timed out. Please try again.";
+  if (err.message) return err.message;
+  return fallback;
+}
+
 export async function fetchJobs() {
   if (!BACKEND_CONFIGURED) return FALLBACK_JOBS;
-  const { data } = await api.get("/jobs");
-  return data;
+  try {
+    const { data } = await api.get("/jobs");
+    return data;
+  } catch (err) {
+    throw new Error(normalizeApiError(err, "Could not load jobs."));
+  }
 }
 
 export async function submitApplication(payload) {
   if (!BACKEND_CONFIGURED) {
     throw new Error("Backend is not configured yet. Please email careers@saturnmaxtech.com.");
   }
-  const { data } = await api.post("/applications", payload);
-  return data;
+  try {
+    const { data } = await api.post("/applications", payload);
+    return data;
+  } catch (err) {
+    throw new Error(normalizeApiError(err, "Application submission failed."));
+  }
 }
 
 export async function submitContact(payload) {
   if (!BACKEND_CONFIGURED) {
     throw new Error("Backend is not configured yet. Please email us@saturnmaxtech.com.");
   }
-  const { data } = await api.post("/contact", payload);
-  return data;
+  try {
+    const { data } = await api.post("/contact", payload);
+    return data;
+  } catch (err) {
+    throw new Error(normalizeApiError(err, "Message could not be sent."));
+  }
 }
 
 export async function fetchDashboard(email) {
   if (!BACKEND_CONFIGURED) {
     throw new Error("Backend is not configured yet.");
   }
-  const { data } = await api.get(`/dashboard/${encodeURIComponent(email)}`);
-  return data;
+  try {
+    const { data } = await api.get(`/dashboard/${encodeURIComponent(email)}`);
+    return data;
+  } catch (err) {
+    throw new Error(normalizeApiError(err, "Could not load dashboard data."));
+  }
 }
 
 export async function fetchApplications(email) {
   if (!BACKEND_CONFIGURED) return [];
   const params = email ? { email } : {};
-  const { data } = await api.get("/applications", { params });
-  return data;
+  try {
+    const { data } = await api.get("/applications", { params });
+    return data;
+  } catch (err) {
+    throw new Error(normalizeApiError(err, "Could not load applications."));
+  }
 }

@@ -8,6 +8,7 @@ import RoleLoginPage from "./pages/RoleLoginPage";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import DashboardLayout from "./components/DashboardLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardHome from "./pages/DashboardHome";
 import BrowseJobs from "./pages/BrowseJobs";
 import MyApplications from "./pages/MyApplications";
@@ -35,9 +36,30 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/consultant-login" element={<RoleLoginPage role="consultant" />} />
           <Route path="/employee-login" element={<RoleLoginPage role="employee" />} />
-          <Route path="/consultant-dashboard" element={<ConsultantDashboard />} />
-          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
-          <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route
+            path="/consultant-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["consultant", "employee", "admin"]}>
+                <ConsultantDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employee-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["employee", "admin"]}>
+                <EmployeeDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["candidate", "employee", "admin"]}>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<DashboardHome />} />
             <Route path="jobs" element={<BrowseJobs />} />
             <Route path="applications" element={<MyApplications />} />

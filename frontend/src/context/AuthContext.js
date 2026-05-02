@@ -13,7 +13,8 @@ import {
   browserSessionPersistence,
   updateProfile,
 } from "firebase/auth";
-import { auth, isFirebaseConfigured } from "../lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import {
   getSession,
   setSession,
@@ -38,18 +39,33 @@ export function AuthProvider({ children }) {
   const [mode, setMode] = useState("guest"); // firebase | demo | guest
   const [loading, setLoading] = useState(true);
 
+  const loadRoleForUid = useCallback(async (uid) => {
+    if (!db || !uid) return "candidate";
+    try {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (!snap.exists()) return "candidate";
+      const data = snap.data() || {};
+      return data.role || "candidate";
+    } catch (err) {
+      console.warn("Could not load user role from Firestore:", err);
+      return "candidate";
+    }
+  }, []);
+
   // Bootstrap: prefer Firebase onAuthStateChanged; fall back to localStorage session.
   useEffect(() => {
     let unsub = null;
 
     if (isFirebaseConfigured && auth) {
-      unsub = onAuthStateChanged(auth, (fbUser) => {
+      unsub = onAuthStateChanged(auth, async (fbUser) => {
         if (fbUser) {
+          const role = await loadRoleForUid(fbUser.uid);
           setUser({
             uid: fbUser.uid,
             email: fbUser.email,
             name: fbUser.displayName || fbUser.email?.split("@")[0] || "Candidate",
             photoURL: fbUser.photoURL,
+            role,
           });
           setMode("firebase");
         } else {
@@ -91,7 +107,7 @@ export function AuthProvider({ children }) {
     return () => {
       if (unsub) unsub();
     };
-  }, []);
+  }, [loadRoleForUid]);
 
   const applyPersistence = useCallback(async (keepSignedIn) => {
     if (!isFirebaseConfigured || !auth) return;

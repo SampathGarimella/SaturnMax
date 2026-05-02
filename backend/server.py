@@ -12,16 +12,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
+import time
 import uuid
+from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import JSONResponse
 
 try:
     import resend  # type: ignore
@@ -37,9 +42,38 @@ load_dotenv(ROOT_DIR / ".env")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("saturnmax")
 
+
+def split_csv(value: Optional[str], default: List[str]) -> List[str]:
+    if value is None or value.strip() == "":
+        return default
+    return [chunk.strip() for chunk in value.split(",") if chunk.strip()]
+
+
 MONGO_URL = os.environ["MONGO_URL"]
 DB_NAME = os.environ["DB_NAME"]
-CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
+CORS_ORIGINS = split_csv(
+    os.environ.get("CORS_ORIGINS"),
+    [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://saturnmax.com",
+        "https://www.saturnmax.com",
+    ],
+)
+ALLOW_ALL_ORIGINS = "*" in CORS_ORIGINS
+ALLOWED_HOSTS = split_csv(
+    os.environ.get("ALLOWED_HOSTS"),
+    [
+        "localhost",
+        "127.0.0.1",
+        "saturnmax.com",
+        "www.saturnmax.com",
+        "*.preview.emergentagent.com",
+    ],
+)
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "").strip()
+RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "12"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "careers@saturnmaxtech.com").strip()
@@ -70,12 +104,91 @@ contacts_col = db["contact_messages"]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+INDIA_PHONE_RE = re.compile(r"^(?:\+91[-\s]?|0)?[6-9]\d{9}$")
+CTC_LPA_RE = re.compile(r"^\d{1,3}(?:\.\d{1,2})?$")
+HTTPS_URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
+class MemoryRateLimiter:
+    def __init__(self, window_seconds: int, max_requests: int) -> None:
+        self.window_seconds = max(window_seconds, 1)
+        self.max_requests = max(max_requests, 1)
+        self._hits: defaultdict[str, deque[float]] = defaultdict(deque)
+
+    def allow(self, key: str) -> bool:
+        now = time.time()
+        queue = self._hits[key]
+        cutoff = now - self.window_seconds
+        while queue and queue[0] < cutoff:
+            queue.popleft()
+        if len(queue) >= self.max_requests:
+            return False
+        queue.append(now)
+        return True
+
+
+application_limiter = MemoryRateLimiter(
+    window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    max_requests=RATE_LIMIT_MAX_REQUESTS,
+)
+contact_limiter = MemoryRateLimiter(
+    window_seconds=RATE_LIMIT_WINDOW_SECONDS,
+    max_requests=max(3, RATE_LIMIT_MAX_REQUESTS // 2),
+)
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
 def new_id() -> str:
     return str(uuid.uuid4())
+
+
+def client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def require_admin_key(request: Request) -> None:
+    if not ADMIN_API_KEY:
+        raise HTTPException(status_code=503, detail="Admin API key not configured")
+    key = request.headers.get("x-admin-key", "")
+    if key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def validate_application_payload(payload: "ApplicationCreate") -> None:
+    normalized_phone = re.sub(r"\s+", "", payload.phone or "")
+    if not INDIA_PHONE_RE.match(normalized_phone):
+        raise HTTPException(
+            status_code=422,
+            detail="Phone must be a valid Indian mobile number (for example +91 9876543210).",
+        )
+
+    for field_name, value in [
+        ("current_ctc_lpa", payload.current_ctc_lpa),
+        ("expected_ctc_lpa", payload.expected_ctc_lpa),
+    ]:
+        if value and not CTC_LPA_RE.match(value.strip()):
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field_name} must be a numeric LPA value (for example 8 or 12.5).",
+            )
+
+    for field_name, value in [
+        ("portfolio_url", payload.portfolio_url),
+        ("resume_url", payload.resume_url),
+    ]:
+        if value and not HTTPS_URL_RE.match(value.strip()):
+            raise HTTPException(
+                status_code=422,
+                detail=f"{field_name} must start with http:// or https://",
+            )
 
 
 async def send_email_async(subject: str, html: str, to: Optional[str] = None) -> dict:
@@ -466,17 +579,52 @@ async def seed_database() -> None:
 # ---------------------------------------------------------------------------
 app = FastAPI(title="SaturnMax Technologies Pvt Ltd API", version="1.0.0")
 
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS if not ALLOW_ALL_ORIGINS else ["*"],
+    allow_credentials=not ALLOW_ALL_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def request_envelope(request: Request, call_next):
+    req_id = request.headers.get("x-request-id") or new_id()
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:  # pragma: no cover - network/runtime failure
+        logger.exception("Unhandled error req=%s path=%s err=%s", req_id, request.url.path, exc)
+        response = JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    response.headers["X-Request-ID"] = req_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    logger.info(
+        "req=%s ip=%s %s %s -> %s %.1fms",
+        req_id,
+        client_ip(request),
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
+    await jobs_col.create_index("id", unique=True)
+    await applications_col.create_index("id", unique=True)
+    await applications_col.create_index("email")
+    await candidates_col.create_index("email", unique=True)
+    await activities_col.create_index("candidate_email")
+    await contacts_col.create_index("created_at")
     await seed_database()
 
 
@@ -559,7 +707,12 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
 
 
 @app.post("/api/applications", response_model=Application)
-async def submit_application(payload: ApplicationCreate) -> Application:
+async def submit_application(payload: ApplicationCreate, request: Request) -> Application:
+    validate_application_payload(payload)
+    rate_limit_key = f"application:{client_ip(request)}:{payload.email.lower()}"
+    if not application_limiter.allow(rate_limit_key):
+        raise HTTPException(status_code=429, detail="Too many application attempts. Please retry shortly.")
+
     app_id = new_id()
     doc = {
         "id": app_id,
@@ -633,7 +786,10 @@ async def submit_application(payload: ApplicationCreate) -> Application:
 
 
 @app.get("/api/applications", response_model=List[Application])
-async def list_applications(email: Optional[EmailStr] = None) -> List[Application]:
+async def list_applications(request: Request, email: Optional[EmailStr] = None) -> List[Application]:
+    if email is None:
+        require_admin_key(request)
+
     query: dict = {}
     if email:
         query["email"] = email
@@ -686,7 +842,11 @@ def contact_email_html(data: ContactCreate, msg_id: str) -> str:
 
 
 @app.post("/api/contact", response_model=ContactMessage)
-async def submit_contact(payload: ContactCreate) -> ContactMessage:
+async def submit_contact(payload: ContactCreate, request: Request) -> ContactMessage:
+    rate_limit_key = f"contact:{client_ip(request)}:{payload.email.lower()}"
+    if not contact_limiter.allow(rate_limit_key):
+        raise HTTPException(status_code=429, detail="Too many messages. Please retry after a short wait.")
+
     msg_id = new_id()
     doc = {
         "id": msg_id,
@@ -711,7 +871,9 @@ async def submit_contact(payload: ContactCreate) -> ContactMessage:
 
 
 @app.get("/api/contact", response_model=List[ContactMessage])
-async def list_contacts() -> List[ContactMessage]:
+async def list_contacts(request: Request) -> List[ContactMessage]:
+    require_admin_key(request)
+
     docs = (
         await contacts_col.find({}, {"_id": 0})
         .sort("created_at", -1)

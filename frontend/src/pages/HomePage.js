@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -27,6 +27,7 @@ import {
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import { fetchJobs, submitApplication, submitContact } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 const SERVICE_ICONS = {
   "Consultants on contract": Handshake,
@@ -172,6 +173,8 @@ function tagClass(tag) {
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState("");
   const [applicationForm, setApplicationForm] = useState({
@@ -221,6 +224,16 @@ export default function HomePage() {
       });
   }, []);
 
+  useEffect(() => {
+    if (user?.email) {
+      setApplicationForm((current) => ({
+        ...current,
+        email: current.email || user.email,
+        full_name: current.full_name || user.name || "",
+      }));
+    }
+  }, [user?.email, user?.name]);
+
   const handleApplyToJob = (job) => {
     setSelectedJob(job.id);
     setApplicationForm((f) => ({ ...f, position_title: job.title }));
@@ -240,6 +253,11 @@ export default function HomePage() {
 
   const handleApplicationSubmit = async (e) => {
     e.preventDefault();
+    if (!user?.email) {
+      toast.error("Please login as a candidate before applying.");
+      navigate("/login");
+      return;
+    }
     if (!applicationForm.full_name || !applicationForm.email || !applicationForm.phone) {
       toast.error("Please fill in name, email, and phone.");
       return;
@@ -630,6 +648,8 @@ export default function HomePage() {
                   onChange={(e) =>
                     setApplicationForm((f) => ({ ...f, email: e.target.value }))
                   }
+                  readOnly={Boolean(user?.email)}
+                  aria-readonly={Boolean(user?.email)}
                   placeholder="rahul@email.com"
                   className={inputClass}
                   data-testid="application-email"
@@ -821,11 +841,15 @@ export default function HomePage() {
               </p>
               <button
                 type="submit"
-                disabled={applicationLoading}
+                disabled={applicationLoading || !user?.email}
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
                 data-testid="application-submit"
               >
-                {applicationLoading ? "Submitting…" : "Submit application"}
+                {applicationLoading
+                  ? "Submitting..."
+                  : user?.email
+                  ? "Submit application"
+                  : "Login to apply"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>

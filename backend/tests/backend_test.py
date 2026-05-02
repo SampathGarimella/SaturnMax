@@ -141,9 +141,15 @@ class TestContact:
         assert "id" in data
 
     def test_list_contacts(self, s):
-        r = s.get(f"{BASE_URL}/api/contact", timeout=20)
-        assert r.status_code == 200
-        assert isinstance(r.json(), list)
+        admin_key = os.environ.get("ADMIN_API_KEY", "").strip()
+        headers = {"x-admin-key": admin_key} if admin_key else {}
+        r = s.get(f"{BASE_URL}/api/contact", headers=headers, timeout=20)
+        if admin_key:
+            assert r.status_code == 200
+            assert isinstance(r.json(), list)
+        else:
+            # Production hardening: endpoint is intentionally protected.
+            assert r.status_code == 503
 
 
 # --- Dashboard / Candidate ---
