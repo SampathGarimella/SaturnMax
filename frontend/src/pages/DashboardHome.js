@@ -7,6 +7,10 @@ import {
   UserCircle2,
   Check,
   CircleDot,
+  Building2,
+  FileText,
+  MessageSquare,
+  ShieldCheck,
 } from "lucide-react";
 
 const STATUS_META = {
@@ -23,6 +27,34 @@ const DOT_COLORS = {
   amber: "bg-amber-500",
   red: "bg-rose-500",
 };
+
+const CLIENT_WORKSPACE = [
+  {
+    Icon: Building2,
+    title: "Project requests",
+    value: "2 active drafts",
+    body: "Scope AI automation, cloud, or dedicated squad needs before a discovery call.",
+  },
+  {
+    Icon: MessageSquare,
+    title: "Account messages",
+    value: "3 unread",
+    body: "Keep hiring and delivery conversations in one Saturn Max thread.",
+  },
+  {
+    Icon: FileText,
+    title: "Documents",
+    value: "Pilot SOW ready",
+    body: "Store resumes, proposals, SOWs, and delivery notes as the client portal matures.",
+  },
+];
+
+const ADMIN_QUEUE = [
+  "Review new leads from the homepage intake form",
+  "Shortlist candidates by role and experience",
+  "Publish or pause public job listings",
+  "Update case studies and delivery metrics",
+];
 
 export default function DashboardHome() {
   const { data, loading } = useOutletContext();
@@ -212,6 +244,51 @@ export default function DashboardHome() {
           />
         </div>
       </section>
+
+      <section className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-5">
+        <div
+          className="bg-white border border-slate-200 rounded-2xl p-6 md:p-7"
+          data-testid="client-workspace-card"
+        >
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <div>
+              <h2 className="font-heading text-lg font-semibold text-slate-900">
+                Client workspace v1
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                The next portal layer for US clients and delivery teams.
+              </p>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Planned
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {CLIENT_WORKSPACE.map((item) => (
+              <WorkspaceItem key={item.title} {...item} />
+            ))}
+          </div>
+        </div>
+
+        <div
+          className="bg-[#0A192F] text-white rounded-2xl p-6 md:p-7"
+          data-testid="admin-queue-card"
+        >
+          <h2 className="font-heading text-lg font-semibold">Admin command queue</h2>
+          <p className="mt-1 text-sm text-white/65">
+            Build this after the public lead funnel is verified.
+          </p>
+          <ul className="mt-5 space-y-3">
+            {ADMIN_QUEUE.map((item) => (
+              <li key={item} className="flex items-start gap-3 text-sm text-white/85">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
     </div>
   );
 }
@@ -256,6 +333,19 @@ function ChecklistItem({ label, done, testId }) {
         <CircleDot className="h-4 w-4 text-amber-600" />
       )}
       {label}
+    </div>
+  );
+}
+
+function WorkspaceItem({ Icon, title, value, body }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-white border border-slate-200 text-[#2563EB]">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="mt-3 text-sm font-semibold text-slate-900">{title}</div>
+      <div className="mt-1 text-xs font-semibold text-[#2563EB]">{value}</div>
+      <p className="mt-2 text-xs text-slate-600 leading-relaxed">{body}</p>
     </div>
   );
 }

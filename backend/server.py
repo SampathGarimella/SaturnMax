@@ -152,6 +152,9 @@ class ContactCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
     email: EmailStr
     subject: str
+    company: Optional[str] = Field(default=None, max_length=160)
+    budget_range: Optional[str] = Field(default=None, max_length=80)
+    timeline: Optional[str] = Field(default=None, max_length=80)
     message: str = Field(..., min_length=5, max_length=4000)
 
 
@@ -160,6 +163,9 @@ class ContactMessage(BaseModel):
     name: str
     email: EmailStr
     subject: str
+    company: Optional[str] = None
+    budget_range: Optional[str] = None
+    timeline: Optional[str] = None
     message: str
     created_at: str
 
@@ -629,6 +635,9 @@ def contact_email_html(data: ContactCreate, msg_id: str) -> str:
                     <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
                       <tr><td style="color:#64748b;width:120px;">From</td><td><strong>{data.name}</strong></td></tr>
                       <tr><td style="color:#64748b;">Email</td><td>{data.email}</td></tr>
+                      <tr><td style="color:#64748b;">Company</td><td>{data.company or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Budget</td><td>{data.budget_range or '—'}</td></tr>
+                      <tr><td style="color:#64748b;">Timeline</td><td>{data.timeline or '—'}</td></tr>
                     </table>
                     <h3 style="margin:24px 0 8px 0;font-size:15px;">Message</h3>
                     <p style="margin:0;color:#475569;font-size:14px;line-height:1.6;white-space:pre-wrap;">{data.message}</p>
@@ -652,6 +661,9 @@ async def submit_contact(payload: ContactCreate) -> ContactMessage:
         "name": payload.name,
         "email": payload.email,
         "subject": payload.subject,
+        "company": payload.company,
+        "budget_range": payload.budget_range,
+        "timeline": payload.timeline,
         "message": payload.message,
         "created_at": now_iso(),
     }

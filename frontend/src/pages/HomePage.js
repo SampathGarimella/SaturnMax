@@ -16,6 +16,10 @@ import {
   MapPin,
   Clock,
   Check,
+  Building2,
+  FileText,
+  ShieldCheck,
+  Target,
 } from "lucide-react";
 import Logo from "../components/Logo";
 import { fetchJobs, submitApplication, submitContact } from "../lib/api";
@@ -93,6 +97,34 @@ const STEPS = [
   },
 ];
 
+const CASE_STUDIES = [
+  {
+    client: "US SaaS platform",
+    result: "Launched an AI support workflow in 21 days",
+    detail:
+      "A two-person Saturn Max squad connected product docs, CRM data, and ticket history into a RAG assistant for customer operations.",
+  },
+  {
+    client: "Fintech data team",
+    result: "Reduced cloud data spend by 34%",
+    detail:
+      "We audited warehouse usage, rebuilt dbt models, and added cost guardrails without slowing analyst delivery.",
+  },
+  {
+    client: "Healthcare services group",
+    result: "Staffed a React + Python team in 48 hours",
+    detail:
+      "Senior engineers joined an existing US roadmap with weekly demos, overlap hours, and delivery reporting.",
+  },
+];
+
+const DELIVERY_PROMISES = [
+  "US morning overlap with India evening delivery",
+  "Senior technical screening before every placement",
+  "Weekly demos, written status updates, and clear ownership",
+  "Start with a scoped pilot before committing to a team",
+];
+
 const TAG_STYLES = {
   "Full-time": "bg-slate-100 text-slate-700",
   Remote: "bg-emerald-50 text-emerald-700",
@@ -130,7 +162,10 @@ export default function HomePage() {
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
+    company: "",
     subject: "I want to hire a dev team",
+    budget_range: "$10k-$25k",
+    timeline: "This month",
     message: "",
   });
   const [contactLoading, setContactLoading] = useState(false);
@@ -194,7 +229,7 @@ export default function HomePage() {
       }));
     } catch (err) {
       console.error(err);
-      toast.error(err?.response?.data?.detail || "Submission failed. Try again.");
+      toast.error(err?.response?.data?.detail || err?.message || "Submission failed. Try again.");
     } finally {
       setApplicationLoading(false);
     }
@@ -209,12 +244,15 @@ export default function HomePage() {
       setContactForm({
         name: "",
         email: "",
+        company: "",
         subject: "I want to hire a dev team",
+        budget_range: "$10k-$25k",
+        timeline: "This month",
         message: "",
       });
     } catch (err) {
       console.error(err);
-      toast.error(err?.response?.data?.detail || "Send failed. Try again.");
+      toast.error(err?.response?.data?.detail || err?.message || "Send failed. Try again.");
     } finally {
       setContactLoading(false);
     }
@@ -229,6 +267,9 @@ export default function HomePage() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
             <a href="#services" className="link-underline hover:text-slate-900" data-testid="nav-services">
               Services
+            </a>
+            <a href="#proof" className="link-underline hover:text-slate-900" data-testid="nav-proof">
+              Proof
             </a>
             <a href="#careers" className="link-underline hover:text-slate-900" data-testid="nav-careers">
               Careers
@@ -365,6 +406,58 @@ export default function HomePage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Proof / Credibility ------------------------------------- */}
+      <section id="proof" className="py-20 md:py-28">
+        <div className="max-w-7xl mx-auto px-6 md:px-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-14 items-start">
+            <div>
+              <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
+                Why Saturn Max
+              </div>
+              <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
+                India-based engineering with US-ready operating rhythm
+              </h2>
+              <p className="mt-5 text-base text-slate-600 leading-relaxed">
+                We combine vetted senior talent, practical delivery governance,
+                and clear commercial pilots so US teams can scale without adding
+                hiring drag or permanent overhead.
+              </p>
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DELIVERY_PROMISES.map((promise) => (
+                  <div
+                    key={promise}
+                    className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                  >
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <span className="text-sm text-slate-700 leading-snug">{promise}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              {CASE_STUDIES.map((item) => (
+                <article
+                  key={item.client}
+                  className="rounded-lg border border-slate-200 bg-white p-6 hover:border-[#2563EB]/30 hover:shadow-md transition-all"
+                  data-testid={`case-study-${item.client.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                >
+                  <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-bold text-[#2563EB]">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {item.client}
+                  </div>
+                  <h3 className="mt-3 font-heading text-xl font-semibold text-slate-900">
+                    {item.result}
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                    {item.detail}
+                  </p>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -688,6 +781,17 @@ export default function HomePage() {
                   data-testid="contact-email"
                 />
               </Field>
+              <Field label="Company">
+                <input
+                  value={contactForm.company}
+                  onChange={(e) =>
+                    setContactForm((f) => ({ ...f, company: e.target.value }))
+                  }
+                  placeholder="Acme Inc."
+                  className={inputClass}
+                  data-testid="contact-company"
+                />
+              </Field>
               <Field label="Subject">
                 <select
                   value={contactForm.subject}
@@ -703,6 +807,39 @@ export default function HomePage() {
                   <option>General enquiry</option>
                 </select>
               </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <Field label="Budget range">
+                  <select
+                    value={contactForm.budget_range}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, budget_range: e.target.value }))
+                    }
+                    className={inputClass}
+                    data-testid="contact-budget"
+                  >
+                    <option>Under $10k</option>
+                    <option>$10k-$25k</option>
+                    <option>$25k-$75k</option>
+                    <option>$75k+</option>
+                    <option>Not sure yet</option>
+                  </select>
+                </Field>
+                <Field label="Timeline">
+                  <select
+                    value={contactForm.timeline}
+                    onChange={(e) =>
+                      setContactForm((f) => ({ ...f, timeline: e.target.value }))
+                    }
+                    className={inputClass}
+                    data-testid="contact-timeline"
+                  >
+                    <option>This week</option>
+                    <option>This month</option>
+                    <option>This quarter</option>
+                    <option>Exploring options</option>
+                  </select>
+                </Field>
+              </div>
               <Field label="Message">
                 <textarea
                   required
@@ -725,6 +862,29 @@ export default function HomePage() {
                 {contactLoading ? "Sending…" : "Send message"}
               </button>
             </form>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Operating model ----------------------------------------- */}
+      <section className="py-16 md:py-20 bg-white border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 md:px-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <ModelCard
+              Icon={Building2}
+              title="Client dashboard"
+              body="Project requests, status updates, documents, and account messages are the next production dashboard track."
+            />
+            <ModelCard
+              Icon={FileText}
+              title="Admin workflow"
+              body="Leads, applications, jobs, and homepage content should move into a managed admin queue."
+            />
+            <ModelCard
+              Icon={Target}
+              title="Hiring pipeline"
+              body="Candidates get application status, messages, resume readiness, and interview next steps in one place."
+            />
           </div>
         </div>
       </section>
@@ -791,6 +951,18 @@ function InfoRow({ Icon, label, value }) {
         <div className="text-xs text-slate-500">{label}</div>
         <div className="text-sm text-slate-900 break-words">{value}</div>
       </div>
+    </div>
+  );
+}
+
+function ModelCard({ Icon, title, body }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-6">
+      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB]">
+        <Icon className="h-5 w-5" />
+      </span>
+      <h3 className="mt-4 font-heading text-lg font-semibold text-slate-900">{title}</h3>
+      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{body}</p>
     </div>
   );
 }

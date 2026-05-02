@@ -23,6 +23,17 @@ Click **Save to Github** in the Emergent chat composer (or `git push` locally). 
 ### 2. Enable Pages to use Actions
 Repo → **Settings → Pages** → under **Build and deployment → Source**, pick **GitHub Actions** (not "Deploy from a branch"). Save.
 
+### 2a. Attach the production domain
+In the same **Settings → Pages** screen, set **Custom domain** to:
+
+```text
+saturnmax.com
+```
+
+GitHub should verify that the deployed artifact contains `CNAME`; this repo
+ships it from `frontend/public/CNAME`, so every React build publishes it.
+After the DNS check passes, enable **Enforce HTTPS**.
+
 ### 3. Add your build-time secrets
 Repo → **Settings → Secrets and variables → Actions → New repository secret**. Add:
 
@@ -82,3 +93,13 @@ npx serve -s build    # open http://localhost:3000
 | `saturnmax.com` shows GitHub's default page | `CNAME` file missing from build — should live at `frontend/public/CNAME` with exactly `saturnmax.com` inside. |
 | API calls fail with CORS | Backend's `CORS_ORIGINS` in `backend/.env` must include `https://saturnmax.com`. |
 | Firebase sign-in says "unauthorized domain" | Firebase Console → Authentication → Settings → Authorized domains → add `saturnmax.com`. |
+
+## Current product roadmap
+
+The public site now supports the first version of the sales and hiring funnel:
+
+- Services funnel: AI automation, dedicated squads, cloud optimization, data engineering, contract consultants, and fractional CTO.
+- Lead capture: company, budget, timeline, subject, and message fields on the contact form.
+- Careers funnel: public job cards, application form, and candidate dashboard.
+- Credibility assets: delivery promises, case-study style proof points, and US/India operating model copy.
+- Dashboard roadmap: candidate status today, with visible placeholders for client workspace and admin command queue.
