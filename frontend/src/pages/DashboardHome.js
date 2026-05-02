@@ -14,11 +14,18 @@ import {
 } from "lucide-react";
 
 const STATUS_META = {
+  applied: { label: "Applied", className: "bg-slate-100 text-slate-700" },
+  screening: { label: "Screening", className: "bg-amber-100 text-amber-800" },
   under_review: { label: "Under review", className: "bg-amber-100 text-amber-800" },
   interview: { label: "Interview", className: "bg-emerald-100 text-emerald-800" },
   pending: { label: "Pending", className: "bg-slate-100 text-slate-700" },
   not_shortlisted: { label: "Not shortlisted", className: "bg-rose-100 text-rose-800" },
   offer: { label: "Offer", className: "bg-blue-100 text-blue-800" },
+  selected: { label: "Selected", className: "bg-blue-100 text-blue-800" },
+  offer_sent: { label: "Offer sent", className: "bg-blue-100 text-blue-800" },
+  offer_signed: { label: "Offer signed", className: "bg-emerald-100 text-emerald-800" },
+  onboarding: { label: "Onboarding", className: "bg-violet-100 text-violet-800" },
+  consultant_active: { label: "Consultant active", className: "bg-emerald-100 text-emerald-800" },
 };
 
 const DOT_COLORS = {

@@ -12,7 +12,7 @@ This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code
 ## 2. Register a Web app and grab the config
 
 1. Project Overview → click the **Web (`</>`) icon** → register the app (nickname `saturn-max-web`).
-2. Firebase shows a `firebaseConfig` object. Copy the 6 values into `/app/frontend/.env`:
+2. Firebase shows a `firebaseConfig` object. Copy the values into `frontend/.env` for local testing and into GitHub repository secrets for the Pages build:
 
 ```dotenv
 REACT_APP_FIREBASE_API_KEY=AIzaSy...
@@ -21,13 +21,15 @@ REACT_APP_FIREBASE_PROJECT_ID=saturn-max
 REACT_APP_FIREBASE_STORAGE_BUCKET=saturn-max.appspot.com
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=1234567890
 REACT_APP_FIREBASE_APP_ID=1:1234567890:web:abcdef
+REACT_APP_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
-> These 6 keys are **safe to expose** in the built bundle — Firebase enforces security via rules, not secrecy.
+> These web app keys are **safe to expose** in the built bundle — Firebase enforces security via rules, not secrecy.
 
 Restart the frontend after pasting:
 ```bash
-sudo supervisorctl restart frontend
+cd frontend
+yarn start
 ```
 
 ## 3. Enable Authentication providers
@@ -38,9 +40,8 @@ Firebase Console → **Build → Authentication → Sign-in method**:
 - **Google** → toggle **Enable** → pick a project-level support email → Save.
 - **LinkedIn (optional)** — Firebase no longer has a native LinkedIn provider. If you need it, register a LinkedIn Developer app, then add it here as an **OpenID Connect** provider with provider id `oidc.linkedin`. (The code already calls `new OAuthProvider("oidc.linkedin")`.)
 
-**Authorized domains** → add your GitHub Pages domain, your Emergent preview domain, and `localhost`:
+**Authorized domains** → add your production domain and `localhost`:
 - `localhost`
-- `0f73298b-2489-40e1-b9bc-ca67edc62fc8.preview.emergentagent.com`
 - `saturnmax.com` (once live)
 
 ## 4. Enable Firestore
@@ -78,38 +79,51 @@ service cloud.firestore {
       return role() == "consultant";
     }
 
-    function isCandidate() {
-      return role() == "candidate";
-    }
-
-    // User profile and role document keyed by Firebase Auth uid.
-    // Create the first employee/admin document manually from Firebase Console.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update, delete: if isEmployee() || request.auth.uid == uid;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == "candidate";
+      allow update: if isEmployee()
+        || (signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.role == resource.data.role);
+      allow delete: if isEmployee();
     }
 
-    // Each user's private message thread
     match /messages/{uid}/thread/{messageId} {
       allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
     }
 
-    // Candidate profile docs keyed by uid
     match /candidates/{uid} {
       allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
     }
 
-    // Consultant profile, pay metadata, KYC/tax status, onboarding status
     match /consultants/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
       allow create, update, delete: if isEmployee();
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["bankDetails", "bankStatus", "updatedAt"]);
     }
 
-    // Employee-managed application and lead queues
+    match /jobs/{jobId} {
+      allow read: if resource.data.status == "published" || isEmployee();
+      allow create, update, delete: if isEmployee();
+    }
+
     match /applications/{applicationId} {
-      allow create: if signedIn();
-      allow read, update, delete: if isEmployee();
+      allow create: if signedIn()
+        && request.resource.data.candidate_uid == request.auth.uid;
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow update: if isEmployee()
+        || (signedIn()
+          && resource.data.candidate_uid == request.auth.uid
+          && request.resource.data.candidate_uid == resource.data.candidate_uid
+          && request.resource.data.status in ["offer_signed", "onboarding"]);
+      allow delete: if isEmployee();
     }
 
     match /leads/{leadId} {
@@ -117,12 +131,28 @@ service cloud.firestore {
       allow read, update, delete: if isEmployee();
     }
 
-    // Client/project records created by employees
-    match /projects/{projectId} {
-      allow read, write: if isEmployee();
+    match /onboarding/{applicationId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow create, update, delete: if isEmployee();
     }
 
-    // Optional audit trail for role portal logins
+    match /documents/{documentId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.owner_uid == request.auth.uid);
+      allow create: if isEmployee()
+        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
+      allow update, delete: if isEmployee();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.owner_uid == request.auth.uid);
+      allow create: if isEmployee()
+        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
+      allow update, delete: if isEmployee();
+    }
+
     match /loginEvents/{eventId} {
       allow create: if signedIn();
       allow read, update, delete: if isEmployee();
@@ -166,27 +196,33 @@ service firebase.storage {
       return role() == "employee" || role() == "admin";
     }
 
-    // Candidate resumes: candidate owns their folder; employees can review.
     match /resumes/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
       allow write: if signedIn() && (request.auth.uid == uid || isEmployee());
     }
 
-    // Consultant India KYC, tax, onboarding, and client documents.
+    match /offer-letters/{uid}/{applicationId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
+    }
+
+    match /signed-offers/{uid}/{applicationId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /onboarding-documents/{uid}/{applicationId}/{fileName} {
+      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
     match /consultant-documents/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
       allow write: if isEmployee();
     }
 
-    // Internal employee/admin files.
-    match /employee-documents/{uid}/{fileName} {
-      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
-    }
-
-    // Client/project documents should usually stay employee-only until you add
-    // explicit project membership rules.
-    match /project-documents/{projectId}/{fileName} {
-      allow read, write: if isEmployee();
+    match /payroll-documents/{uid}/{yearMonth}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
     }
 
     match /{allPaths=**} {
@@ -196,13 +232,31 @@ service firebase.storage {
 }
 ```
 
-## 6. Seed your first test user
+## 6. Seed your test users
 
 Authentication → **Users → Add user**:
-- Email: `rahul@email.com`
-- Password: `Test1234!` (any 8+ char password)
 
-Now sign in from `/login` with those credentials — you should land on the dashboard with real Firebase auth.
+```txt
+admin.test@saturnmaxtech.com       role: admin
+employee.test@saturnmaxtech.com    role: employee
+candidate.test@saturnmaxtech.com   role: candidate
+consultant.test@saturnmaxtech.com  role: consultant
+```
+
+For each Auth user, copy the Firebase UID and create Firestore document
+`users/{uid}` with:
+
+```txt
+role: string
+email: string
+name: string
+status: active
+createdAt: timestamp
+```
+
+Candidate sign-up creates `candidate` role documents automatically. Employee,
+admin, and consultant role documents are created manually until you add a
+trusted backend or Cloud Function for privileged account creation.
 
 ## 7. What lights up automatically
 
@@ -210,13 +264,14 @@ Once Firebase is configured:
 - ✅ Login page Google button works (real popup)
 - ✅ Email/password sign in + sign up
 - ✅ Forgot password sends a real reset email
+- ✅ Employees can post, publish, pause, close, and delete jobs
+- ✅ Candidates can apply to published jobs and track lifecycle status
 - ✅ `/dashboard/messages` becomes **real-time Firestore** (send & receive)
-- ✅ `/dashboard/profile` resume upload writes to Firebase Storage with a progress bar
+- ✅ `/dashboard/profile` resume upload writes to Firebase Storage
+- ✅ Employees can send offer letters and onboarding documents
+- ✅ Candidates can upload signed offer/onboarding documents
 - ✅ `/consultant-login` and `/employee-login` can use Firebase Auth accounts
-- ✅ Consultant resumes/KYC/tax documents can be stored under protected Storage folders
-- ✅ `isFirebaseConfigured === true` — no more placeholder toasts
-
-Until the config is set, the app keeps running in **demo mode** (localStorage session + seeded placeholder messages + upload preview) so previews never break.
+- ✅ Consultants can view project/pay/documents and submit bank details for review
 
 ## 8. Is a backend needed?
 
@@ -225,11 +280,11 @@ Firebase can store the normal app data:
 - Auth users and roles: Firestore `users/{uid}`
 - Candidates and resumes: Firestore `candidates/{uid}` + Storage `resumes/{uid}/...`
 - Consultants: Firestore `consultants/{uid}` + Storage `consultant-documents/{uid}/...`
-- Leads, applications, projects, and messages: Firestore collections
+- Jobs, leads, applications, onboarding, documents, reviews, and messages
 
 A backend is still recommended for trusted operations:
 
-- Setting employee/admin custom claims
+- Creating employee/admin/consultant Auth accounts from inside the app
 - Sending emails from a protected sender
 - Resume parsing, virus scanning, and document verification
 - Payroll, payouts, invoices, or tax forms
@@ -252,4 +307,4 @@ A backend is still recommended for trusted operations:
 | Google popup blocked | Unblock popups for the site |
 | `storage/unauthorized` | You forgot to paste the storage rules in step 5 |
 | Firestore `permission-denied` | You forgot the Firestore rules in step 4 |
-| Still seeing placeholder toasts | You forgot to restart frontend after editing `.env` |
+| Firebase service unavailable | You forgot to add Firebase GitHub Actions secrets or re-run the deploy workflow |

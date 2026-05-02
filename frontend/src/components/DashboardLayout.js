@@ -20,7 +20,7 @@ const NAV_MAIN = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", testId: "nav-dashboard", exact: true },
   { to: "/dashboard/jobs", icon: Briefcase, label: "Browse jobs", testId: "nav-jobs" },
   { to: "/dashboard/applications", icon: FileText, label: "My applications", testId: "nav-applications" },
-  { to: "/dashboard/messages", icon: MessageSquare, label: "Messages", testId: "nav-messages", badge: 3 },
+  { to: "/dashboard/messages", icon: MessageSquare, label: "Messages", testId: "nav-messages" },
 ];
 
 const NAV_ACCOUNT = [
@@ -35,24 +35,18 @@ export default function DashboardLayout() {
   const location = useLocation();
   const { user, loading: authLoading, mode, signOut } = useAuth();
 
-  // Fetch dashboard data from the FastAPI backend keyed by candidate email.
   useEffect(() => {
-    if (authLoading || !user?.email) return;
+    if (authLoading || !user?.uid) return;
     setLoading(true);
-    fetchDashboard(user.email)
+    fetchDashboard(user)
       .then(setData)
       .catch((err) => {
         console.error(err);
-        // For real Firebase users who haven't submitted any applications yet, the
-        // backend will return 404. Build an empty shell so the UI stays usable.
-        if (err?.response?.status === 404) {
-          setData(emptyDashboard(user));
-        } else {
-          toast.error("Couldn't load your dashboard data.");
-        }
+        setData(emptyDashboard(user));
+        toast.error("Couldn't load your dashboard data.");
       })
       .finally(() => setLoading(false));
-  }, [authLoading, user?.email]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSignOut = async () => {
     await signOut();
@@ -61,8 +55,8 @@ export default function DashboardLayout() {
   };
 
   const reload = () => {
-    if (!user?.email) return;
-    fetchDashboard(user.email).then(setData).catch(() => {});
+    if (!user?.uid) return;
+    fetchDashboard(user).then(setData).catch(() => {});
   };
 
   return (

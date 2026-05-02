@@ -1,15 +1,16 @@
-// Firebase bootstrap with GRACEFUL fallback.
-// The app must never crash if Firebase env vars are missing — UI falls back
-// to placeholder/demo behavior until the user pastes their config.
+// Firebase bootstrap with a graceful production fallback.
+// The app must never crash if Firebase env vars are missing; feature screens
+// show service-unavailable states until deployment config is present.
 //
-// Paste your web-app config into /app/frontend/.env as:
+// Paste your web-app config into frontend/.env as:
 //   REACT_APP_FIREBASE_API_KEY=...
 //   REACT_APP_FIREBASE_AUTH_DOMAIN=...
 //   REACT_APP_FIREBASE_PROJECT_ID=...
 //   REACT_APP_FIREBASE_STORAGE_BUCKET=...
 //   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=...
 //   REACT_APP_FIREBASE_APP_ID=...
-// Then restart the frontend (sudo supervisorctl restart frontend).
+//   REACT_APP_FIREBASE_MEASUREMENT_ID=... (optional)
+// Then restart the local frontend or rebuild for deployment.
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
@@ -23,6 +24,7 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
 };
 
 export const isFirebaseConfigured = Boolean(
@@ -45,12 +47,12 @@ if (isFirebaseConfigured) {
     storage = getStorage(app);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error("Firebase init failed — running in placeholder mode:", err);
+    console.error("Firebase init failed:", err);
   }
 } else {
   // eslint-disable-next-line no-console
   console.warn(
-    "Firebase config not provided. Auth / Firestore / Storage run in placeholder mode. " +
+    "Firebase config not provided. Auth / Firestore / Storage are unavailable. " +
       "Add REACT_APP_FIREBASE_* env vars and restart the frontend to enable."
   );
 }

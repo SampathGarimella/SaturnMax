@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Mail, Phone, Link2, FileUp, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { storage, isFirebaseConfigured } from "../lib/firebase";
+import { isFirebaseConfigured } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { markResumeUploaded } from "../lib/api";
 
 const ACCEPT = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 export default function MyProfile() {
-  const { data, loading } = useOutletContext();
+  const { data, loading, reload } = useOutletContext();
   const { user, mode } = useAuth();
   const [uploadProgress, setUploadProgress] = useState(null); // 0..100
   const [resumeUrl, setResumeUrl] = useState(null);
@@ -39,37 +39,20 @@ export default function MyProfile() {
 
     setUploading(true);
     setUploadProgress(0);
-    const ext = file.name.split(".").pop() || "pdf";
-    const fileRef = ref(storage, `resumes/${user.uid}/resume.${ext}`);
-    const task = uploadBytesResumable(fileRef, file, { contentType: file.type });
-
-    task.on(
-      "state_changed",
-      (snap) => {
-        const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-        setUploadProgress(pct);
-      },
-      (err) => {
-        console.error(err);
-        setUploading(false);
-        setUploadProgress(null);
-        toast.error("Upload failed. Try again.");
-      },
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          setResumeUrl(url);
-          toast.success("Resume uploaded successfully.");
-        } catch (err) {
-          console.error(err);
-          toast.error("Uploaded but couldn't fetch download URL.");
-        } finally {
-          setUploading(false);
-          // keep progress at 100% for a moment
-          setTimeout(() => setUploadProgress(null), 800);
-        }
-      }
-    );
+    try {
+      setUploadProgress(30);
+      const uploaded = await markResumeUploaded({ file, candidateUid: user.uid });
+      setUploadProgress(100);
+      setResumeUrl(uploaded.file_url);
+      toast.success("Resume uploaded successfully.");
+      reload?.();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.message || "Upload failed. Try again.");
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadProgress(null), 800);
+    }
   };
 
   return (

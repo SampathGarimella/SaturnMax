@@ -15,9 +15,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
-import {
-  clearSession,
-} from "../lib/session";
+import { ensureCandidateUser } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -30,6 +28,9 @@ function mapFirebaseUser(fbUser, role) {
     role,
   };
 }
+
+const AUTH_UNAVAILABLE =
+  "Sign in is temporarily unavailable. Please contact SaturnMax Technologies Pvt Ltd support.";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}
@@ -92,9 +93,7 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(
     async ({ email, password, keepSignedIn }) => {
       if (!isFirebaseConfigured || !auth) {
-        throw new Error(
-          "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars to /app/frontend/.env and restart the frontend."
-        );
+        throw new Error(AUTH_UNAVAILABLE);
       }
       await applyPersistence(keepSignedIn);
       const cred = await signInWithEmailAndPassword(auth, email, password);
@@ -110,9 +109,7 @@ export function AuthProvider({ children }) {
   const signUp = useCallback(
     async ({ email, password, name, keepSignedIn }) => {
       if (!isFirebaseConfigured || !auth) {
-        throw new Error(
-          "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars to /app/frontend/.env and restart the frontend."
-        );
+        throw new Error(AUTH_UNAVAILABLE);
       }
       await applyPersistence(keepSignedIn);
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -124,6 +121,7 @@ export function AuthProvider({ children }) {
           console.warn("updateProfile failed:", e);
         }
       }
+      await ensureCandidateUser({ ...cred.user, name });
       const role = await loadRoleForUid(cred.user.uid);
       const nextUser = mapFirebaseUser(cred.user, role);
       setUser(nextUser);
@@ -135,13 +133,12 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured || !auth) {
-      throw new Error(
-        "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars to /app/frontend/.env and restart the frontend."
-      );
+      throw new Error(AUTH_UNAVAILABLE);
     }
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     const cred = await signInWithPopup(auth, provider);
+    await ensureCandidateUser(cred.user);
     const role = await loadRoleForUid(cred.user.uid);
     const nextUser = mapFirebaseUser(cred.user, role);
     setUser(nextUser);
@@ -154,15 +151,14 @@ export function AuthProvider({ children }) {
     // as a custom OIDC provider in your Firebase project (with id
     // "oidc.linkedin"), this will work. Otherwise we throw a clear error.
     if (!isFirebaseConfigured || !auth) {
-      throw new Error(
-        "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars and restart the frontend."
-      );
+      throw new Error(AUTH_UNAVAILABLE);
     }
     const provider = new OAuthProvider("oidc.linkedin");
     provider.addScope("openid");
     provider.addScope("profile");
     provider.addScope("email");
     const cred = await signInWithPopup(auth, provider);
+    await ensureCandidateUser(cred.user);
     const role = await loadRoleForUid(cred.user.uid);
     const nextUser = mapFirebaseUser(cred.user, role);
     setUser(nextUser);
@@ -172,9 +168,7 @@ export function AuthProvider({ children }) {
 
   const sendReset = useCallback(async (email) => {
     if (!isFirebaseConfigured || !auth) {
-      throw new Error(
-        "Firebase isn't configured yet. Add your REACT_APP_FIREBASE_* env vars and restart the frontend."
-      );
+      throw new Error(AUTH_UNAVAILABLE);
     }
     await sendPasswordResetEmail(auth, email);
   }, []);
@@ -187,7 +181,6 @@ export function AuthProvider({ children }) {
         console.warn("Firebase signOut failed:", e);
       }
     }
-    clearSession();
     setUser(null);
     setMode("guest");
   }, []);

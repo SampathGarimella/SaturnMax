@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, UserCog, BriefcaseBusiness } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
-import { recordLogin } from "../lib/session";
+import { recordLoginEvent } from "../lib/api";
 
 const CONFIG = {
   consultant: {
@@ -60,13 +60,13 @@ export default function RoleLoginPage({ role = "consultant" }) {
         );
         return;
       }
-      recordLogin({
+      recordLoginEvent({
         name: email.split("@")[0],
         email,
         role: signedUser.role,
         title: config.title,
         mode: "firebase",
-      });
+      }).catch(() => {});
       toast.success(`Welcome to the ${config.eyebrow.toLowerCase()}.`);
       navigate(config.destination);
     } catch (err) {

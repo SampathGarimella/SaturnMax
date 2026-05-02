@@ -44,6 +44,10 @@ export default function BrowseJobs() {
       </div>
       {loading ? (
         <div className="text-sm text-slate-500">Loading roles…</div>
+      ) : jobs.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">
+          No open roles are published right now.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {jobs.map((job) => (

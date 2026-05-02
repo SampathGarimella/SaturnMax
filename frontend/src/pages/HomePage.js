@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
-import { fetchJobs, submitApplication, submitContact } from "../lib/api";
+import { fetchJobs, markResumeUploaded, submitApplication, submitContact } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 const SERVICE_ICONS = {
@@ -176,6 +176,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState("");
   const [applicationForm, setApplicationForm] = useState({
     full_name: "",
@@ -194,6 +195,7 @@ export default function HomePage() {
     primary_skills: "",
     introduction: "",
   });
+  const [resumeFile, setResumeFile] = useState(null);
   const [applicationLoading, setApplicationLoading] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -221,7 +223,8 @@ export default function HomePage() {
       .catch((err) => {
         console.error(err);
         toast.error("Couldn't load open positions. Please refresh.");
-      });
+      })
+      .finally(() => setJobsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -258,14 +261,28 @@ export default function HomePage() {
       navigate("/login");
       return;
     }
+    if (user.role && user.role !== "candidate") {
+      toast.error("Please use a candidate account to apply for jobs.");
+      return;
+    }
     if (!applicationForm.full_name || !applicationForm.email || !applicationForm.phone) {
       toast.error("Please fill in name, email, and phone.");
       return;
     }
+    if (!selectedJob || !applicationForm.position_title) {
+      toast.error("Please choose an open position.");
+      return;
+    }
+    if (!resumeFile) {
+      toast.error("Please upload your resume before applying.");
+      return;
+    }
     setApplicationLoading(true);
     try {
+      const resume = await markResumeUploaded({ file: resumeFile, candidateUid: user.uid });
       await submitApplication({
         ...applicationForm,
+        resume_url: resume.file_url,
         position_id: selectedJob || null,
       });
       toast.success(
@@ -286,6 +303,7 @@ export default function HomePage() {
         primary_skills: "",
         introduction: "",
       }));
+      setResumeFile(null);
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.detail || err?.message || "Submission failed. Try again.");
@@ -529,9 +547,14 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-200 bg-white">
-            {jobs.length === 0 && (
+            {jobsLoading && (
               <div className="p-8 text-center text-slate-500 text-sm">
                 Loading roles…
+              </div>
+            )}
+            {!jobsLoading && jobs.length === 0 && (
+              <div className="p-8 text-center text-slate-500 text-sm">
+                No open roles are published right now. Please check back soon or contact careers@saturnmaxtech.com.
               </div>
             )}
             {jobs.map((job) => (
@@ -662,7 +685,7 @@ export default function HomePage() {
                   onChange={(e) =>
                     setApplicationForm((f) => ({ ...f, phone: e.target.value }))
                   }
-                  placeholder="+91 98765 43210"
+                  placeholder="Mobile number"
                   className={inputClass}
                   data-testid="application-phone"
                 />
@@ -714,7 +737,9 @@ export default function HomePage() {
                   onChange={handleSelectPosition}
                   className={inputClass}
                   data-testid="application-position"
+                  disabled={jobs.length === 0}
                 >
+                  {jobs.length === 0 && <option>No published roles available</option>}
                   {jobs.map((j) => (
                     <option key={j.id} value={j.id}>
                       {j.title}
@@ -792,19 +817,20 @@ export default function HomePage() {
                   data-testid="application-portfolio"
                 />
               </Field>
-              <Field label="Resume URL">
-                <div className="relative">
-                  <UploadCloud className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Field label="Resume">
+                <label className="flex h-11 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-700 transition-colors hover:bg-slate-50">
+                  <UploadCloud className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span className="truncate">
+                    {resumeFile ? resumeFile.name : "Upload PDF, DOC, or DOCX"}
+                  </span>
                   <input
-                    value={applicationForm.resume_url}
-                    onChange={(e) =>
-                      setApplicationForm((f) => ({ ...f, resume_url: e.target.value }))
-                    }
-                    placeholder="Google Drive / Dropbox resume link"
-                    className={`${inputClass} pl-9`}
-                    data-testid="application-resume-url"
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                    data-testid="application-resume-file"
                   />
-                </div>
+                </label>
               </Field>
             </div>
             <Field label="Primary skills" className="mt-5">

@@ -18,13 +18,11 @@ const LOGIN_OPTIONS = [
   {
     to: "/consultant-login",
     label: "Consultant login",
-    body: "Projects, pay, tax, onboarding",
     Icon: BriefcaseBusiness,
   },
   {
     to: "/employee-login",
     label: "Employee login",
-    body: "Candidates, consultants, clients",
     Icon: UserCog,
   },
 ];
@@ -84,7 +82,9 @@ export default function LoginMenu() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-slate-900">{label}</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{body}</span>
+                  {body && (
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{body}</span>
+                  )}
                 </span>
               </Link>
             ))}
