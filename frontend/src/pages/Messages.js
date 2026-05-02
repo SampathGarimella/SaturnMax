@@ -3,15 +3,14 @@ import { MessageSquare, Send, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   collection,
-  addDoc,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   limit,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { sendCandidateMessage } from "../lib/api";
 
 export default function Messages() {
   const { user, mode } = useAuth();
@@ -73,12 +72,7 @@ export default function Messages() {
     }
     setSending(true);
     try {
-      await addDoc(collection(db, "messages", user.uid, "thread"), {
-        author: "candidate",
-        authorName: user.name || user.email,
-        text,
-        createdAt: serverTimestamp(),
-      });
+      await sendCandidateMessage({ text, user });
       setInput("");
     } catch (err) {
       console.error(err);
@@ -117,7 +111,7 @@ export default function Messages() {
           )}
           {!liveLoading && messages.length === 0 && (
             <div className="p-10 text-center text-sm text-slate-500">
-              No messages yet. Say hi to the HR team 👋
+              No messages yet. Start a conversation with the HR team.
             </div>
           )}
           {messages.map((m) => {

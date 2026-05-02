@@ -267,6 +267,7 @@ Once Firebase is configured:
 - ✅ Employees can post, publish, pause, close, and delete jobs
 - ✅ Candidates can apply to published jobs and track lifecycle status
 - ✅ `/dashboard/messages` becomes **real-time Firestore** (send & receive)
+- ✅ Employee dashboard can receive and reply to candidate message threads
 - ✅ `/dashboard/profile` resume upload writes to Firebase Storage
 - ✅ Employees can send offer letters and onboarding documents
 - ✅ Candidates can upload signed offer/onboarding documents

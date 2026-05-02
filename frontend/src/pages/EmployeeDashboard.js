@@ -28,6 +28,8 @@ import {
   convertToConsultant,
   updateConsultantProfile,
   resolveReview,
+  fetchMessageThread,
+  sendHiringMessage,
 } from "../lib/api";
 
 const EMPTY_JOB = {
@@ -71,11 +73,16 @@ export default function EmployeeDashboard() {
     reviews: [],
     documents: [],
     leads: [],
+    messageThreads: [],
   });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [jobForm, setJobForm] = useState(EMPTY_JOB);
   const [consultantForm, setConsultantForm] = useState(EMPTY_CONSULTANT);
+  const [activeThreadUid, setActiveThreadUid] = useState("");
+  const [threadMessages, setThreadMessages] = useState([]);
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [replyText, setReplyText] = useState("");
   const pendingReviews = useMemo(
     () => data.reviews.filter((review) => review.status === "pending_review"),
     [data.reviews]
@@ -86,9 +93,9 @@ export default function EmployeeDashboard() {
       { label: "Published jobs", value: data.jobs.filter((job) => job.status === "published").length },
       { label: "Applications", value: data.applications.length },
       { label: "Consultants", value: data.consultants.length },
-      { label: "Pending reviews", value: pendingReviews.length },
+      { label: "Messages", value: data.messageThreads.length },
     ],
-    [data, pendingReviews.length]
+    [data]
   );
 
   const load = async () => {
@@ -106,6 +113,35 @@ export default function EmployeeDashboard() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!activeThreadUid && data.messageThreads.length > 0) {
+      setActiveThreadUid(data.messageThreads[0].candidateUid);
+    }
+  }, [activeThreadUid, data.messageThreads]);
+
+  useEffect(() => {
+    if (!activeThreadUid) {
+      setThreadMessages([]);
+      return;
+    }
+    let ignore = false;
+    setThreadLoading(true);
+    fetchMessageThread(activeThreadUid)
+      .then((messages) => {
+        if (!ignore) setThreadMessages(messages);
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error(err?.message || "Could not load message thread.");
+      })
+      .finally(() => {
+        if (!ignore) setThreadLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [activeThreadUid]);
 
   const handleSaveJob = async (e) => {
     e.preventDefault();
@@ -209,6 +245,26 @@ export default function EmployeeDashboard() {
       await load();
     } catch (err) {
       toast.error(err?.message || "Could not update review.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const handleReply = async (e) => {
+    e.preventDefault();
+    setBusy("message-reply");
+    try {
+      await sendHiringMessage({
+        candidateUid: activeThreadUid,
+        text: replyText,
+        employee: { name: "Hiring team" },
+      });
+      setReplyText("");
+      setThreadMessages(await fetchMessageThread(activeThreadUid));
+      await load();
+      toast.success("Reply sent to candidate portal.");
+    } catch (err) {
+      toast.error(err?.message || "Could not send reply.");
     } finally {
       setBusy("");
     }
@@ -403,6 +459,109 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="Candidate messages" subtitle="Receive and reply to candidate conversations from Firestore">
+          <div className="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-4">
+            <div className="space-y-2 max-h-[420px] overflow-y-auto">
+              {data.messageThreads.length === 0 && (
+                <EmptyState>No candidate messages yet.</EmptyState>
+              )}
+              {data.messageThreads.map((thread) => (
+                <button
+                  key={thread.candidateUid}
+                  type="button"
+                  onClick={() => setActiveThreadUid(thread.candidateUid)}
+                  className={`w-full rounded-lg border p-4 text-left transition-colors ${
+                    activeThreadUid === thread.candidateUid
+                      ? "border-[#2563EB] bg-blue-50"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-slate-900">
+                        {thread.candidateName}
+                      </div>
+                      <div className="truncate text-xs text-slate-500">
+                        {thread.candidateEmail || thread.candidateUid}
+                      </div>
+                    </div>
+                    {thread.unreadCount > 0 && (
+                      <span className="rounded-full bg-[#2563EB] px-2 py-0.5 text-[11px] font-semibold text-white">
+                        {thread.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-600">
+                    {thread.latestText || "No message text"}
+                  </div>
+                  <div className="mt-2 text-[11px] text-slate-400">{thread.latestAtLabel}</div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex min-h-[420px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="border-b border-slate-100 px-4 py-3">
+                <div className="text-sm font-semibold text-slate-900">
+                  {activeThreadUid
+                    ? data.messageThreads.find((thread) => thread.candidateUid === activeThreadUid)?.candidateName || "Candidate"
+                    : "Choose a thread"}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {activeThreadUid || "Messages are stored under messages/{candidateUid}/thread"}
+                </div>
+              </div>
+              <div className="flex-1 space-y-3 overflow-y-auto bg-slate-50/60 p-4">
+                {threadLoading && <EmptyState>Loading messages...</EmptyState>}
+                {!threadLoading && activeThreadUid && threadMessages.length === 0 && (
+                  <EmptyState>No messages in this thread.</EmptyState>
+                )}
+                {!activeThreadUid && <EmptyState>Select a candidate thread to reply.</EmptyState>}
+                {threadMessages.map((message) => {
+                  const fromCandidate = message.author === "candidate";
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${fromCandidate ? "justify-start" : "justify-end"}`}
+                    >
+                      <div
+                        className={`max-w-[82%] rounded-xl px-4 py-3 text-sm shadow-sm ${
+                          fromCandidate
+                            ? "bg-white text-slate-800"
+                            : "bg-[#0A192F] text-white"
+                        }`}
+                      >
+                        <div className={`text-[11px] font-semibold ${fromCandidate ? "text-slate-500" : "text-white/70"}`}>
+                          {fromCandidate ? message.authorName || "Candidate" : message.authorName || "Hiring team"}
+                        </div>
+                        <div className="mt-1 whitespace-pre-wrap leading-relaxed">{message.text}</div>
+                        <div className={`mt-2 text-[10px] ${fromCandidate ? "text-slate-400" : "text-white/55"}`}>
+                          {message.time}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <form onSubmit={handleReply} className="flex flex-col gap-3 border-t border-slate-100 p-3 sm:flex-row">
+                <input
+                  value={replyText}
+                  onChange={(event) => setReplyText(event.target.value)}
+                  disabled={!activeThreadUid}
+                  className={inputClass}
+                  placeholder={activeThreadUid ? "Reply to candidate" : "Choose a thread first"}
+                />
+                <button
+                  disabled={!activeThreadUid || !replyText.trim() || busy === "message-reply"}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  Send
+                </button>
+              </form>
             </div>
           </div>
         </Panel>

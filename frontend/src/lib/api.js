@@ -5,6 +5,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -124,6 +126,54 @@ function normalizeApplication(app) {
     years_experience: app.years_experience || "",
     applied_ago: app.applied_ago || daysAgoLabel(app.created_at || app.createdAt),
   };
+}
+
+function formatMessageTime(value) {
+  const iso = toIso(value);
+  if (!iso) return "just now";
+  return new Date(iso).toLocaleString();
+}
+
+function buildMessageThreads(messageDocs, candidateByUid = {}) {
+  const threads = new Map();
+  messageDocs.forEach((snap) => {
+    const data = snap.data() || {};
+    const candidateUid = data.candidate_uid || snap.ref.parent.parent?.id;
+    if (!candidateUid) return;
+
+    const candidate = candidateByUid[candidateUid] || {};
+    const current = threads.get(candidateUid);
+    const next = {
+      candidateUid,
+      candidateName:
+        candidate.name ||
+        data.candidate_name ||
+        (data.author === "candidate" ? data.authorName : "") ||
+        "Candidate",
+      candidateEmail: candidate.email || data.candidate_email || "",
+      latestText: data.text || "",
+      latestAuthor: data.authorName || "SaturnMax Technologies Pvt Ltd",
+      latestAt: data.createdAt || data.created_at,
+      latestAtLabel: formatMessageTime(data.createdAt || data.created_at),
+      unreadCount: data.unreadForEmployee ? 1 : 0,
+      messageCount: 1,
+    };
+
+    if (!current) {
+      threads.set(candidateUid, next);
+      return;
+    }
+
+    threads.set(candidateUid, {
+      ...current,
+      unreadCount: current.unreadCount + (data.unreadForEmployee ? 1 : 0),
+      messageCount: current.messageCount + 1,
+    });
+  });
+
+  return Array.from(threads.values()).sort(
+    (a, b) => tsValue(b.latestAt) - tsValue(a.latestAt)
+  );
 }
 
 function emptyDashboard(user) {
@@ -469,14 +519,32 @@ export async function fetchOperationsData() {
     getDocs(collection(db, "leads")),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
+  const candidates = candidatesSnap.docs.map(mapDoc);
+  const candidateByUid = candidates.reduce((acc, candidate) => {
+    acc[candidate.uid || candidate.id] = candidate;
+    return acc;
+  }, {});
+  const messageSnaps = await Promise.all(
+    candidates.map((candidate) =>
+      getDocs(
+        query(
+          collection(db, "messages", candidate.uid || candidate.id, "thread"),
+          orderBy("createdAt", "desc"),
+          limit(50)
+        )
+      )
+    )
+  );
+  const messageDocs = messageSnaps.flatMap((snap) => snap.docs);
   return {
     jobs,
     applications: applications.sort((a, b) => tsValue(b.createdAt || b.created_at) - tsValue(a.createdAt || a.created_at)),
-    candidates: candidatesSnap.docs.map(mapDoc),
+    candidates,
     consultants: consultantsSnap.docs.map(mapDoc),
     reviews: reviewsSnap.docs.map(mapDoc),
     documents: docsSnap.docs.map(mapDoc),
     leads: leadsSnap.docs.map(mapDoc),
+    messageThreads: buildMessageThreads(messageDocs, candidateByUid),
   };
 }
 
@@ -710,6 +778,62 @@ export async function submitBankReview(details) {
     title: "Bank account details",
     status: "pending_review",
     details: `Bank: ${details.bank_name || "Not provided"} / IFSC: ${details.ifsc || "Not provided"}`,
+  });
+}
+
+export async function fetchMessageThread(candidateUid) {
+  requireFirestore();
+  if (!candidateUid) return [];
+  const snap = await getDocs(
+    query(collection(db, "messages", candidateUid, "thread"), orderBy("createdAt", "asc"), limit(200))
+  );
+  return snap.docs.map((item) => {
+    const data = mapDoc(item);
+    return {
+      ...data,
+      candidate_uid: data.candidate_uid || candidateUid,
+      time: formatMessageTime(data.createdAt || data.created_at),
+    };
+  });
+}
+
+export async function sendCandidateMessage({ text, user }) {
+  requireFirestore();
+  const current = requireAuthUser();
+  const body = text?.trim();
+  if (!body) throw new Error("Enter a message.");
+  await addDoc(collection(db, "messages", current.uid, "thread"), {
+    author: "candidate",
+    authorRole: "candidate",
+    authorName: user?.name || current.displayName || current.email?.split("@")[0] || "Candidate",
+    candidate_uid: current.uid,
+    candidate_email: current.email || user?.email || "",
+    text: body,
+    unreadForEmployee: true,
+    unreadForCandidate: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function sendHiringMessage({ candidateUid, text, employee }) {
+  requireFirestore();
+  const current = requireAuthUser();
+  const body = text?.trim();
+  if (!candidateUid) throw new Error("Choose a candidate thread.");
+  if (!body) throw new Error("Enter a reply.");
+  await addDoc(collection(db, "messages", candidateUid, "thread"), {
+    author: "employee",
+    authorRole: "hiring_team",
+    authorName:
+      employee?.name ||
+      current.displayName ||
+      current.email?.split("@")[0] ||
+      "SaturnMax Technologies Pvt Ltd hiring team",
+    candidate_uid: candidateUid,
+    text: body,
+    unreadForEmployee: false,
+    unreadForCandidate: true,
+    createdAt: serverTimestamp(),
   });
 }
 
