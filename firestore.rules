@@ -1,0 +1,189 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+
+    function role() {
+      return hasUserDoc() ? get(userPath(request.auth.uid)).data.role : null;
+    }
+
+    function isCandidate() {
+      return role() == "candidate";
+    }
+
+    function isConsultant() {
+      return role() == "consultant";
+    }
+
+    function isEmployee() {
+      return role() == "employee" || role() == "admin";
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function keepsImmutableFields() {
+      return !changedKeys().hasAny(["createdAt", "createdBy"]);
+    }
+
+    function ownsCandidate(candidateUid) {
+      return signedIn() && request.auth.uid == candidateUid;
+    }
+
+    function ownsOwner(ownerUid) {
+      return signedIn() && request.auth.uid == ownerUid;
+    }
+
+    match /users/{uid} {
+      allow read: if ownsOwner(uid) || isEmployee();
+      allow create: if ownsOwner(uid)
+        && request.resource.data.role == "candidate";
+      allow update: if isEmployee()
+        || (ownsOwner(uid)
+          && request.resource.data.role == resource.data.role
+          && keepsImmutableFields()
+          && changedKeys().hasOnly([
+            "email",
+            "name",
+            "phone",
+            "photoURL",
+            "status",
+            "notificationPreferences",
+            "uiPreferences",
+            "updatedAt"
+          ]));
+      allow delete: if isEmployee();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if resource.data.status == "published" || isEmployee();
+      allow create, update, delete: if isEmployee();
+    }
+
+    match /candidates/{uid} {
+      allow read: if ownsOwner(uid) || isEmployee();
+      allow create: if ownsOwner(uid) && isCandidate();
+      allow update: if isEmployee()
+        || (ownsOwner(uid)
+          && isCandidate()
+          && keepsImmutableFields()
+          && changedKeys().hasOnly([
+            "email",
+            "name",
+            "phone",
+            "current_location",
+            "current_company",
+            "portfolio_url",
+            "resume_uploaded",
+            "resume_url",
+            "primary_skills",
+            "preferred_work_mode",
+            "role_label",
+            "updatedAt"
+          ]));
+      allow delete: if isEmployee();
+    }
+
+    match /consultants/{uid} {
+      allow read: if ownsOwner(uid) || isEmployee();
+      allow create, delete: if isEmployee();
+      allow update: if isEmployee()
+        || (ownsOwner(uid)
+          && isConsultant()
+          && keepsImmutableFields()
+          && changedKeys().hasOnly([
+            "bankDetails",
+            "bankStatus",
+            "panDetails",
+            "panStatus",
+            "uanDetails",
+            "uanStatus",
+            "updatedAt"
+          ]));
+    }
+
+    match /applications/{applicationId} {
+      allow create: if signedIn()
+        && isCandidate()
+        && request.resource.data.candidate_uid == request.auth.uid;
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow update: if isEmployee()
+        || (signedIn()
+          && isCandidate()
+          && resource.data.candidate_uid == request.auth.uid
+          && request.resource.data.candidate_uid == resource.data.candidate_uid
+          && keepsImmutableFields()
+          && request.resource.data.status in ["offer_signed", "onboarding"]);
+      allow delete: if isEmployee();
+    }
+
+    match /leads/{leadId} {
+      allow create: if true;
+      allow read, update, delete: if isEmployee();
+    }
+
+    match /onboarding/{applicationId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow create, update, delete: if isEmployee();
+    }
+
+    match /documents/{documentId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.owner_uid == request.auth.uid);
+      allow create: if isEmployee()
+        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
+      allow update, delete: if isEmployee();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.owner_uid == request.auth.uid);
+      allow create: if isEmployee()
+        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
+      allow update, delete: if isEmployee();
+    }
+
+    match /messages/{uid}/thread/{messageId} {
+      allow read: if ownsOwner(uid) || isEmployee();
+      allow create: if (ownsOwner(uid)
+          && request.resource.data.candidate_uid == request.auth.uid
+          && request.resource.data.author == "candidate")
+        || (isEmployee()
+          && request.resource.data.candidate_uid == uid
+          && request.resource.data.author in ["employee", "admin"]);
+      allow update, delete: if false;
+    }
+
+    match /{path=**}/thread/{messageId} {
+      allow read: if isEmployee();
+    }
+
+    match /loginEvents/{eventId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isEmployee();
+    }
+
+    match /activityLogs/{logId} {
+      allow create: if signedIn();
+      allow read: if isEmployee();
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

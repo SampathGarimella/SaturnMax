@@ -16,33 +16,16 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { auth, db, isFirebaseConfigured, storage } from "./firebase";
+import {
+  APPLICATION_LABELS,
+  APPLICATION_STAGES,
+  COLLECTIONS,
+  JOB_STATUSES,
+  ROLES,
+} from "./constants";
+import { buildSafeCandidateUserData } from "./validators";
 
-export const BACKEND_CONFIGURED = false;
-
-export const APPLICATION_STAGES = [
-  "applied",
-  "screening",
-  "interview",
-  "selected",
-  "offer_sent",
-  "offer_signed",
-  "onboarding",
-  "consultant_active",
-];
-
-export const JOB_STATUSES = ["draft", "published", "paused", "closed"];
-
-const APPLICATION_LABELS = {
-  applied: "Applied",
-  screening: "Screening",
-  interview: "Interview",
-  selected: "Selected",
-  offer_sent: "Offer sent",
-  offer_signed: "Offer signed",
-  onboarding: "Onboarding",
-  consultant_active: "Consultant active",
-  not_shortlisted: "Not shortlisted",
-};
+export { APPLICATION_STAGES, JOB_STATUSES };
 
 function requireFirestore() {
   if (!isFirebaseConfigured || !db) {
@@ -223,18 +206,20 @@ function profilePercent(candidate, docs) {
 export async function ensureCandidateUser(user) {
   requireFirestore();
   if (!user?.uid) return;
-  const userRef = doc(db, "users", user.uid);
+  const userRef = doc(db, COLLECTIONS.USERS, user.uid);
   const userSnap = await getDoc(userRef);
-  const existingRole = userSnap.exists() ? userSnap.data()?.role : null;
+  const existingData = userSnap.exists() ? userSnap.data() : null;
+  const existingRole = existingData?.role || null;
   const name = user.displayName || user.name || user.email?.split("@")[0] || "Candidate";
+  const safeUser = buildSafeCandidateUserData(existingData, {
+    email: user.email || "",
+    name,
+  });
 
   await setDoc(
     userRef,
     {
-      role: existingRole || "candidate",
-      email: user.email || "",
-      name,
-      status: userSnap.exists() ? userSnap.data()?.status || "active" : "active",
+      ...safeUser,
       ...(userSnap.exists() ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
     },
@@ -244,7 +229,7 @@ export async function ensureCandidateUser(user) {
   if (existingRole && existingRole !== "candidate") return;
 
   await setDoc(
-    doc(db, "candidates", user.uid),
+    doc(db, COLLECTIONS.CANDIDATES, user.uid),
     {
       uid: user.uid,
       email: user.email || "",
@@ -259,7 +244,7 @@ export async function ensureCandidateUser(user) {
 
 export async function fetchJobs({ includeAll = false } = {}) {
   if (!isFirebaseConfigured || !db) return [];
-  const base = collection(db, "jobs");
+  const base = collection(db, COLLECTIONS.JOBS);
   const snap = includeAll
     ? await getDocs(base)
     : await getDocs(query(base, where("status", "==", "published")));
@@ -287,10 +272,10 @@ export async function saveJob(payload) {
     throw new Error("Add a job title and description.");
   }
   if (payload.id) {
-    await updateDoc(doc(db, "jobs", payload.id), body);
+    await updateDoc(doc(db, COLLECTIONS.JOBS, payload.id), body);
     return { id: payload.id, ...body };
   }
-  const refDoc = await addDoc(collection(db, "jobs"), {
+  const refDoc = await addDoc(collection(db, COLLECTIONS.JOBS), {
     ...body,
     createdAt: serverTimestamp(),
   });
@@ -301,7 +286,7 @@ export async function saveJob(payload) {
 export async function updateJobStatus(jobId, status) {
   requireFirestore();
   if (!JOB_STATUSES.includes(status)) throw new Error("Invalid job status.");
-  await updateDoc(doc(db, "jobs", jobId), {
+  await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
     status,
     updatedAt: serverTimestamp(),
   });
@@ -309,7 +294,7 @@ export async function updateJobStatus(jobId, status) {
 
 export async function deleteJob(jobId) {
   requireFirestore();
-  await deleteDoc(doc(db, "jobs", jobId));
+  await deleteDoc(doc(db, COLLECTIONS.JOBS, jobId));
 }
 
 export async function submitApplication(payload) {
@@ -317,6 +302,13 @@ export async function submitApplication(payload) {
   const user = requireAuthUser();
   if (!payload.full_name || !payload.email || !payload.phone || !payload.position_title) {
     throw new Error("Please complete name, email, phone, and position.");
+  }
+
+  const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+  const userSnap = await getDoc(userRef);
+  const existingUser = userSnap.exists() ? userSnap.data() : null;
+  if (existingUser?.role && existingUser.role !== ROLES.CANDIDATE) {
+    throw new Error("Please use a candidate account to apply for jobs.");
   }
 
   const candidateProfile = {
@@ -334,24 +326,24 @@ export async function submitApplication(payload) {
   };
 
   await setDoc(
-    doc(db, "candidates", user.uid),
+    doc(db, COLLECTIONS.CANDIDATES, user.uid),
     { ...candidateProfile, createdAt: serverTimestamp() },
     { merge: true }
   );
   await setDoc(
-    doc(db, "users", user.uid),
+    userRef,
     {
-      role: "candidate",
-      email: payload.email,
-      name: payload.full_name,
-      status: "active",
+      ...buildSafeCandidateUserData(existingUser, {
+        email: payload.email,
+        name: payload.full_name,
+      }),
+      ...(userSnap.exists() ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
     },
     { merge: true }
   );
 
-  const appRef = await addDoc(collection(db, "applications"), {
+  const appRef = await addDoc(collection(db, COLLECTIONS.APPLICATIONS), {
     ...payload,
     candidate_uid: user.uid,
     candidate_name: payload.full_name,
@@ -369,7 +361,7 @@ export async function submitContact(payload) {
   if (!payload.name || !payload.email || !payload.message) {
     throw new Error("Please complete name, email, and message.");
   }
-  const refDoc = await addDoc(collection(db, "leads"), {
+  const refDoc = await addDoc(collection(db, COLLECTIONS.LEADS), {
     ...payload,
     status: "new",
     source: "website",
@@ -384,7 +376,7 @@ export async function fetchApplications(emailOrUid) {
   if (!isFirebaseConfigured || !db) return [];
   const user = auth?.currentUser;
   const uid = user?.uid || emailOrUid;
-  const snap = await getDocs(query(collection(db, "applications"), where("candidate_uid", "==", uid)));
+  const snap = await getDocs(query(collection(db, COLLECTIONS.APPLICATIONS), where("candidate_uid", "==", uid)));
   return snap.docs
     .map(mapDoc)
     .map(normalizeApplication)
@@ -393,7 +385,7 @@ export async function fetchApplications(emailOrUid) {
 
 export async function fetchDocumentsForOwner(uid) {
   if (!isFirebaseConfigured || !db || !uid) return [];
-  const snap = await getDocs(query(collection(db, "documents"), where("owner_uid", "==", uid)));
+  const snap = await getDocs(query(collection(db, COLLECTIONS.DOCUMENTS), where("owner_uid", "==", uid)));
   return snap.docs
     .map(mapDoc)
     .sort((a, b) => tsValue(b.createdAt || b.created_at) - tsValue(a.createdAt || a.created_at));
@@ -406,7 +398,7 @@ export async function fetchDashboard(userArg) {
   if (!user?.uid) return emptyDashboard(user || {});
 
   const [candidateSnap, applications, documents] = await Promise.all([
-    getDoc(doc(db, "candidates", user.uid)),
+    getDoc(doc(db, COLLECTIONS.CANDIDATES, user.uid)),
     fetchApplications(user.uid),
     fetchDocumentsForOwner(user.uid),
   ]);
@@ -470,7 +462,7 @@ export async function uploadTrackedFile({ file, path, ownerUid, applicationId, t
     task.on("state_changed", undefined, reject, resolve);
   });
   const url = await getDownloadURL(task.snapshot.ref);
-  const refDoc = await addDoc(collection(db, "documents"), {
+  const refDoc = await addDoc(collection(db, COLLECTIONS.DOCUMENTS), {
     owner_uid: ownerUid,
     application_id: applicationId || null,
     type,
@@ -497,7 +489,7 @@ export async function markResumeUploaded({ file, candidateUid }) {
     status: "uploaded",
   });
   await setDoc(
-    doc(db, "candidates", candidateUid),
+    doc(db, COLLECTIONS.CANDIDATES, candidateUid),
     {
       resume_uploaded: true,
       resume_url: uploaded.file_url,
@@ -512,13 +504,13 @@ export async function fetchOperationsData() {
   requireFirestore();
   const [jobs, apps, usersSnap, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap] = await Promise.all([
     fetchJobs({ includeAll: true }),
-    getDocs(collection(db, "applications")),
-    getDocs(collection(db, "users")),
-    getDocs(collection(db, "candidates")),
-    getDocs(collection(db, "consultants")),
-    getDocs(collection(db, "reviews")),
-    getDocs(collection(db, "documents")),
-    getDocs(collection(db, "leads")),
+    getDocs(collection(db, COLLECTIONS.APPLICATIONS)),
+    getDocs(collection(db, COLLECTIONS.USERS)),
+    getDocs(collection(db, COLLECTIONS.CANDIDATES)),
+    getDocs(collection(db, COLLECTIONS.CONSULTANTS)),
+    getDocs(collection(db, COLLECTIONS.REVIEWS)),
+    getDocs(collection(db, COLLECTIONS.DOCUMENTS)),
+    getDocs(collection(db, COLLECTIONS.LEADS)),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
   const users = usersSnap.docs.map(mapDoc);
@@ -551,7 +543,7 @@ export async function fetchOperationsData() {
     messageOwnerUids.map((uid) =>
       getDocs(
         query(
-          collection(db, "messages", uid, "thread"),
+          collection(db, COLLECTIONS.MESSAGES, uid, "thread"),
           orderBy("createdAt", "desc"),
           limit(50)
         )
@@ -591,14 +583,14 @@ export async function updateApplicationStatus(application, status) {
   if (![...APPLICATION_STAGES, "not_shortlisted"].includes(status)) {
     throw new Error("Invalid application status.");
   }
-  await updateDoc(doc(db, "applications", application.id), {
+  await updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
     status,
     lifecycle_stage: status,
     updatedAt: serverTimestamp(),
   });
   if (status === "onboarding") {
     await setDoc(
-      doc(db, "onboarding", application.id),
+      doc(db, COLLECTIONS.ONBOARDING, application.id),
       {
         id: application.id,
         application_id: application.id,
@@ -676,7 +668,7 @@ export async function uploadSignedCandidateDocument(application, file, type = "s
 
 export async function createReview(payload) {
   requireFirestore();
-  const refDoc = await addDoc(collection(db, "reviews"), {
+  const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
     ...payload,
     status: payload.status || "pending_review",
     createdAt: serverTimestamp(),
@@ -688,7 +680,7 @@ export async function createReview(payload) {
 
 export async function updateReviewStatus(reviewId, status) {
   requireFirestore();
-  await updateDoc(doc(db, "reviews", reviewId), {
+  await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
     status,
     updatedAt: serverTimestamp(),
   });
@@ -699,7 +691,7 @@ export async function resolveReview(review, status) {
   await updateReviewStatus(review.id, status);
   if (review.type === "bank_details" && review.owner_uid) {
     await setDoc(
-      doc(db, "consultants", review.owner_uid),
+      doc(db, COLLECTIONS.CONSULTANTS, review.owner_uid),
       {
         bankStatus: status === "approved" ? "approved" : "rejected",
         bankDetails: {
@@ -716,7 +708,7 @@ export async function resolveReview(review, status) {
 export async function updateConsultantProfile(uid, profile) {
   requireFirestore();
   await setDoc(
-    doc(db, "consultants", uid),
+    doc(db, COLLECTIONS.CONSULTANTS, uid),
     {
       ...profile,
       uid,
@@ -748,9 +740,9 @@ export async function convertToConsultant(application, profile = {}) {
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   };
-  await setDoc(doc(db, "consultants", uid), consultant, { merge: true });
+  await setDoc(doc(db, COLLECTIONS.CONSULTANTS, uid), consultant, { merge: true });
   await setDoc(
-    doc(db, "users", uid),
+    doc(db, COLLECTIONS.USERS, uid),
     {
       role: "consultant",
       email: application.email,
@@ -767,9 +759,9 @@ export async function convertToConsultant(application, profile = {}) {
 export async function fetchConsultantDashboard(uid) {
   requireFirestore();
   const [consultantSnap, documents, reviewsSnap] = await Promise.all([
-    getDoc(doc(db, "consultants", uid)),
+    getDoc(doc(db, COLLECTIONS.CONSULTANTS, uid)),
     fetchDocumentsForOwner(uid),
-    getDocs(query(collection(db, "reviews"), where("owner_uid", "==", uid))),
+    getDocs(query(collection(db, COLLECTIONS.REVIEWS), where("owner_uid", "==", uid))),
   ]);
   const consultant = consultantSnap.exists()
     ? { id: consultantSnap.id, ...consultantSnap.data() }
@@ -794,7 +786,7 @@ export async function submitBankReview(details) {
   requireFirestore();
   const user = requireAuthUser();
   await setDoc(
-    doc(db, "consultants", user.uid),
+    doc(db, COLLECTIONS.CONSULTANTS, user.uid),
     {
       bankDetails: {
         account_holder: details.account_holder || "",
@@ -823,7 +815,7 @@ export async function fetchMessageThread(candidateUid) {
   requireFirestore();
   if (!candidateUid) return [];
   const snap = await getDocs(
-    query(collection(db, "messages", candidateUid, "thread"), orderBy("createdAt", "asc"), limit(200))
+    query(collection(db, COLLECTIONS.MESSAGES, candidateUid, "thread"), orderBy("createdAt", "asc"), limit(200))
   );
   return snap.docs.map((item) => {
     const data = mapDoc(item);
@@ -846,7 +838,7 @@ export async function sendCandidateMessage({ text, user }) {
     displayName: current.displayName,
     name: user?.name,
   });
-  await addDoc(collection(db, "messages", current.uid, "thread"), {
+  await addDoc(collection(db, COLLECTIONS.MESSAGES, current.uid, "thread"), {
     author: "candidate",
     authorRole: "candidate",
     authorName: user?.name || current.displayName || current.email?.split("@")[0] || "Candidate",
@@ -865,7 +857,7 @@ export async function sendHiringMessage({ candidateUid, text, employee }) {
   const body = text?.trim();
   if (!candidateUid) throw new Error("Choose a candidate thread.");
   if (!body) throw new Error("Enter a reply.");
-  await addDoc(collection(db, "messages", candidateUid, "thread"), {
+  await addDoc(collection(db, COLLECTIONS.MESSAGES, candidateUid, "thread"), {
     author: "employee",
     authorRole: "hiring_team",
     authorName:
@@ -883,7 +875,7 @@ export async function sendHiringMessage({ candidateUid, text, employee }) {
 
 export async function recordLoginEvent(session) {
   if (!isFirebaseConfigured || !db) return;
-  await addDoc(collection(db, "loginEvents"), {
+  await addDoc(collection(db, COLLECTIONS.LOGIN_EVENTS), {
     ...session,
     createdAt: serverTimestamp(),
   });

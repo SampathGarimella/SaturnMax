@@ -16,6 +16,8 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import { ensureCandidateUser } from "../lib/api";
+import { ROLE_STATUS } from "../lib/constants";
+import { resolveRoleDocument } from "../lib/validators";
 
 const AuthContext = createContext(null);
 
@@ -23,7 +25,7 @@ function mapFirebaseUser(fbUser, role) {
   return {
     uid: fbUser.uid,
     email: fbUser.email,
-    name: fbUser.displayName || fbUser.email?.split("@")[0] || "Candidate",
+    name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
     photoURL: fbUser.photoURL,
     role,
   };
@@ -36,18 +38,46 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}
   const [mode, setMode] = useState("guest"); // firebase | guest
   const [loading, setLoading] = useState(true);
+  const [roleStatus, setRoleStatus] = useState(ROLE_STATUS.LOADING);
+  const [roleError, setRoleError] = useState("");
 
   const loadRoleForUid = useCallback(async (uid) => {
-    if (!db || !uid) return "candidate";
+    if (!db || !uid) {
+      return {
+        role: null,
+        status: ROLE_STATUS.ERROR,
+        message: "Role service is unavailable.",
+      };
+    }
     try {
       const snap = await getDoc(doc(db, "users", uid));
-      if (!snap.exists()) return "candidate";
-      const data = snap.data() || {};
-      return data.role || "candidate";
+      if (!snap.exists()) {
+        return {
+          role: null,
+          status: ROLE_STATUS.UNKNOWN,
+          message: "Your account role is not configured yet.",
+        };
+      }
+      return resolveRoleDocument(snap.data() || {});
     } catch (err) {
       console.warn("Could not load user role from Firestore:", err);
-      return "candidate";
+      return {
+        role: null,
+        status: ROLE_STATUS.ERROR,
+        message: "Could not verify your account role. Please retry.",
+      };
     }
+  }, []);
+
+  const applyRoleResult = useCallback((fbUser, result) => {
+    const nextUser = mapFirebaseUser(fbUser, result.role);
+    nextUser.roleStatus = result.status;
+    nextUser.roleError = result.message || "";
+    setUser(nextUser);
+    setRoleStatus(result.status);
+    setRoleError(result.message || "");
+    setMode("firebase");
+    return nextUser;
   }, []);
 
   // Bootstrap authentication state.
@@ -57,25 +87,29 @@ export function AuthProvider({ children }) {
     if (isFirebaseConfigured && auth) {
       unsub = onAuthStateChanged(auth, async (fbUser) => {
         if (fbUser) {
-          const role = await loadRoleForUid(fbUser.uid);
-          setUser(mapFirebaseUser(fbUser, role));
-          setMode("firebase");
+          setRoleStatus(ROLE_STATUS.LOADING);
+          const result = await loadRoleForUid(fbUser.uid);
+          applyRoleResult(fbUser, result);
         } else {
           setUser(null);
           setMode("guest");
+          setRoleStatus(ROLE_STATUS.GUEST);
+          setRoleError("");
         }
         setLoading(false);
       });
     } else {
       setUser(null);
       setMode("guest");
+      setRoleStatus(ROLE_STATUS.GUEST);
+      setRoleError("");
       setLoading(false);
     }
 
     return () => {
       if (unsub) unsub();
     };
-  }, [loadRoleForUid]);
+  }, [applyRoleResult, loadRoleForUid]);
 
   const applyPersistence = useCallback(async (keepSignedIn) => {
     if (!isFirebaseConfigured || !auth) return;
@@ -97,13 +131,11 @@ export function AuthProvider({ children }) {
       }
       await applyPersistence(keepSignedIn);
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      const role = await loadRoleForUid(cred.user.uid);
-      const nextUser = mapFirebaseUser(cred.user, role);
-      setUser(nextUser);
-      setMode("firebase");
-      return nextUser;
+      setRoleStatus(ROLE_STATUS.LOADING);
+      const result = await loadRoleForUid(cred.user.uid);
+      return applyRoleResult(cred.user, result);
     },
-    [applyPersistence, loadRoleForUid]
+    [applyPersistence, applyRoleResult, loadRoleForUid]
   );
 
   const signUp = useCallback(
@@ -122,13 +154,10 @@ export function AuthProvider({ children }) {
         }
       }
       await ensureCandidateUser({ ...cred.user, name });
-      const role = await loadRoleForUid(cred.user.uid);
-      const nextUser = mapFirebaseUser(cred.user, role);
-      setUser(nextUser);
-      setMode("firebase");
-      return nextUser;
+      const result = await loadRoleForUid(cred.user.uid);
+      return applyRoleResult(cred.user, result);
     },
-    [applyPersistence, loadRoleForUid]
+    [applyPersistence, applyRoleResult, loadRoleForUid]
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -139,12 +168,9 @@ export function AuthProvider({ children }) {
     provider.setCustomParameters({ prompt: "select_account" });
     const cred = await signInWithPopup(auth, provider);
     await ensureCandidateUser(cred.user);
-    const role = await loadRoleForUid(cred.user.uid);
-    const nextUser = mapFirebaseUser(cred.user, role);
-    setUser(nextUser);
-    setMode("firebase");
-    return nextUser;
-  }, [loadRoleForUid]);
+    const result = await loadRoleForUid(cred.user.uid);
+    return applyRoleResult(cred.user, result);
+  }, [applyRoleResult, loadRoleForUid]);
 
   const signInWithLinkedIn = useCallback(async () => {
     // LinkedIn isn't a native Firebase provider. If you've registered LinkedIn
@@ -159,12 +185,9 @@ export function AuthProvider({ children }) {
     provider.addScope("email");
     const cred = await signInWithPopup(auth, provider);
     await ensureCandidateUser(cred.user);
-    const role = await loadRoleForUid(cred.user.uid);
-    const nextUser = mapFirebaseUser(cred.user, role);
-    setUser(nextUser);
-    setMode("firebase");
-    return nextUser;
-  }, [loadRoleForUid]);
+    const result = await loadRoleForUid(cred.user.uid);
+    return applyRoleResult(cred.user, result);
+  }, [applyRoleResult, loadRoleForUid]);
 
   const sendReset = useCallback(async (email) => {
     if (!isFirebaseConfigured || !auth) {
@@ -183,12 +206,17 @@ export function AuthProvider({ children }) {
     }
     setUser(null);
     setMode("guest");
+    setRoleStatus(ROLE_STATUS.GUEST);
+    setRoleError("");
   }, []);
 
   const value = {
     user,
     loading,
     mode,
+    roleStatus,
+    roleLoading: roleStatus === ROLE_STATUS.LOADING,
+    roleError,
     isFirebaseConfigured,
     signIn,
     signUp,

@@ -48,189 +48,31 @@ Firebase Console → **Build → Authentication → Sign-in method**:
 
 Firebase Console → **Build → Firestore Database → Create database** → choose your region → start in **production mode**.
 
-Paste these **security rules** under the **Rules** tab. This version supports
-candidate, consultant, and employee portals. Employee users can manage operating
-records; candidates and consultants can only read/write their own private areas.
+The committed source of truth is `firestore.rules`. Paste that full file into
+Firebase Console → Firestore Database → Rules, or deploy it with Firebase CLI:
 
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
-    function role() {
-      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? userDoc().data.role
-        : null;
-    }
-
-    function isEmployee() {
-      return role() == "employee" || role() == "admin";
-    }
-
-    function isConsultant() {
-      return role() == "consultant";
-    }
-
-    match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow create: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.role == "candidate";
-      allow update: if isEmployee()
-        || (signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.role == resource.data.role);
-      allow delete: if isEmployee();
-    }
-
-    match /messages/{uid}/thread/{messageId} {
-      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
-    }
-
-    match /candidates/{uid} {
-      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
-    }
-
-    match /consultants/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow create, update, delete: if isEmployee();
-      allow update: if signedIn()
-        && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["bankDetails", "bankStatus", "updatedAt"]);
-    }
-
-    match /jobs/{jobId} {
-      allow read: if resource.data.status == "published" || isEmployee();
-      allow create, update, delete: if isEmployee();
-    }
-
-    match /applications/{applicationId} {
-      allow create: if signedIn()
-        && request.resource.data.candidate_uid == request.auth.uid;
-      allow read: if isEmployee()
-        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
-      allow update: if isEmployee()
-        || (signedIn()
-          && resource.data.candidate_uid == request.auth.uid
-          && request.resource.data.candidate_uid == resource.data.candidate_uid
-          && request.resource.data.status in ["offer_signed", "onboarding"]);
-      allow delete: if isEmployee();
-    }
-
-    match /leads/{leadId} {
-      allow create: if true;
-      allow read, update, delete: if isEmployee();
-    }
-
-    match /onboarding/{applicationId} {
-      allow read: if isEmployee()
-        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
-      allow create, update, delete: if isEmployee();
-    }
-
-    match /documents/{documentId} {
-      allow read: if isEmployee()
-        || (signedIn() && resource.data.owner_uid == request.auth.uid);
-      allow create: if isEmployee()
-        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
-      allow update, delete: if isEmployee();
-    }
-
-    match /reviews/{reviewId} {
-      allow read: if isEmployee()
-        || (signedIn() && resource.data.owner_uid == request.auth.uid);
-      allow create: if isEmployee()
-        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
-      allow update, delete: if isEmployee();
-    }
-
-    match /loginEvents/{eventId} {
-      allow create: if signedIn();
-      allow read, update, delete: if isEmployee();
-    }
-
-    // Deny everything else by default
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
+```bash
+firebase deploy --only firestore:rules
 ```
+
+These rules enforce role-based access from `users/{uid}.role`, preserve existing
+role documents, restrict candidate/consultant ownership, and allow public reads
+only for published jobs.
 
 ## 5. Enable Storage
 
 Firebase Console → **Build → Storage → Get started** → use the default bucket → production mode.
 
-Paste these **storage rules**. Resumes and consultant documents can live fully in
-Firebase Storage as long as the metadata and role assignments are protected in
-Firestore.
+The committed source of truth is `storage.rules`. Paste that full file into
+Firebase Console → Storage → Rules, or deploy it with Firebase CLI:
 
-```js
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function userDoc() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
-    }
-
-    function role() {
-      return signedIn() && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        ? userDoc().data.role
-        : null;
-    }
-
-    function isEmployee() {
-      return role() == "employee" || role() == "admin";
-    }
-
-    match /resumes/{uid}/{fileName} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if signedIn() && (request.auth.uid == uid || isEmployee());
-    }
-
-    match /offer-letters/{uid}/{applicationId}/{fileName} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
-    }
-
-    match /signed-offers/{uid}/{applicationId}/{fileName} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if signedIn() && request.auth.uid == uid;
-    }
-
-    match /onboarding-documents/{uid}/{applicationId}/{fileName} {
-      allow read, write: if signedIn() && (request.auth.uid == uid || isEmployee());
-    }
-
-    match /consultant-documents/{uid}/{fileName} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
-    }
-
-    match /payroll-documents/{uid}/{yearMonth}/{fileName} {
-      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
-    }
-
-    match /{allPaths=**} {
-      allow read, write: if false;
-    }
-  }
-}
+```bash
+firebase deploy --only storage
 ```
+
+These rules protect resumes, offer letters, signed offers, onboarding documents,
+consultant documents, and payroll documents by owner UID plus employee/admin
+role checks.
 
 ## 6. Seed your test users
 
@@ -291,6 +133,10 @@ A backend is still recommended for trusted operations:
 - Payroll, payouts, invoices, or tax forms
 - Any integration that uses private API keys
 - Scheduled reminders, audit logs, or signed document generation
+
+The historical `backend/` service is deprecated and is not part of the active
+production architecture. Use Firebase Security Rules now and Firebase Cloud
+Functions later for privileged server-side work.
 
 ## 9. Sending yourself a test message (real-time)
 

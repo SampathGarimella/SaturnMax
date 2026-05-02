@@ -5,6 +5,7 @@ import { ArrowLeft, Eye, EyeOff, UserCog, BriefcaseBusiness } from "lucide-react
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
 import { recordLoginEvent } from "../lib/api";
+import { ROLE_PORTAL_LABEL, ROLE_STATUS } from "../lib/constants";
 
 const CONFIG = {
   consultant: {
@@ -27,13 +28,6 @@ const CONFIG = {
   },
 };
 
-const ROLE_PORTAL_LABEL = {
-  admin: "Employee login",
-  employee: "Employee login",
-  consultant: "Consultant login",
-  candidate: "Candidate login",
-};
-
 export default function RoleLoginPage({ role = "consultant" }) {
   const config = CONFIG[role] || CONFIG.consultant;
   const [email, setEmail] = useState("");
@@ -53,7 +47,12 @@ export default function RoleLoginPage({ role = "consultant" }) {
     setBusy(true);
     try {
       const signedUser = await signIn({ email, password, keepSignedIn: true });
-      if (!config.allowedRoles.includes(signedUser?.role || "candidate")) {
+      if (signedUser?.roleStatus !== ROLE_STATUS.READY) {
+        toast.error(signedUser?.roleError || "Your account role needs setup.");
+        navigate(config.destination);
+        return;
+      }
+      if (!config.allowedRoles.includes(signedUser.role)) {
         await signOut();
         toast.error(
           `This account belongs to ${ROLE_PORTAL_LABEL[signedUser?.role] || "another portal"}.`

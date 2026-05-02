@@ -172,6 +172,36 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleJobStatus = async (job, status) => {
+    setBusy(`${job.id}-${status}`);
+    try {
+      await updateJobStatus(job.id, status);
+      toast.success(`Job marked ${status}.`);
+      await load();
+    } catch (err) {
+      toast.error(err?.message || "Could not update job status.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const handleDeleteJob = async (job) => {
+    const confirmed = window.confirm(
+      `Delete "${job.title}"? This removes it from Firestore and cannot be undone from the dashboard.`
+    );
+    if (!confirmed) return;
+    setBusy(`${job.id}-delete`);
+    try {
+      await deleteJob(job.id);
+      toast.success("Job deleted.");
+      await load();
+    } catch (err) {
+      toast.error(err?.message || "Could not delete job.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const handleOfferUpload = async (application, file) => {
     if (!file) return;
     setBusy(`${application.id}-offer`);
@@ -404,12 +434,21 @@ export default function EmployeeDashboard() {
                       Edit
                     </button>
                     {["published", "paused", "closed"].map((status) => (
-                      <button key={status} onClick={() => updateJobStatus(job.id, status).then(load)} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                        {status}
+                      <button
+                        key={status}
+                        onClick={() => handleJobStatus(job, status)}
+                        disabled={busy === `${job.id}-${status}`}
+                        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {busy === `${job.id}-${status}` ? "Saving..." : status}
                       </button>
                     ))}
-                    <button onClick={() => deleteJob(job.id).then(load)} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                      Delete
+                    <button
+                      onClick={() => handleDeleteJob(job)}
+                      disabled={busy === `${job.id}-delete`}
+                      className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
+                    >
+                      {busy === `${job.id}-delete` ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </div>

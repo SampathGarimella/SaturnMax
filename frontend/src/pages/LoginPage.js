@@ -4,18 +4,12 @@ import { toast } from "sonner";
 import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
 import { useAuth } from "../context/AuthContext";
+import { ROLE_PORTAL_LABEL, ROLE_STATUS, ROLES } from "../lib/constants";
 
 const TABS = [
   { id: "signin", label: "Sign in" },
   { id: "signup", label: "Create account" },
 ];
-
-const ROLE_PORTAL_LABEL = {
-  admin: "Employee login",
-  employee: "Employee login",
-  consultant: "Consultant login",
-  candidate: "Candidate login",
-};
 
 export default function LoginPage() {
   const [tab, setTab] = useState("signin");
@@ -63,7 +57,12 @@ export default function LoginPage() {
       let signedUser = null;
       if (tab === "signin") {
         signedUser = await signIn({ email, password, keepSignedIn });
-        if (signedUser?.role && signedUser.role !== "candidate") {
+        if (signedUser?.roleStatus !== ROLE_STATUS.READY) {
+          toast.error(signedUser?.roleError || "Your account role needs setup.");
+          navigate("/dashboard");
+          return;
+        }
+        if (signedUser.role !== ROLES.CANDIDATE) {
           await signOut();
           toast.error(
             `This account belongs to ${ROLE_PORTAL_LABEL[signedUser.role] || "another portal"}.`
@@ -73,6 +72,11 @@ export default function LoginPage() {
         toast.success("Welcome back!");
       } else {
         signedUser = await signUp({ email, password, name, keepSignedIn });
+        if (signedUser?.roleStatus !== ROLE_STATUS.READY) {
+          toast.error(signedUser?.roleError || "Your account role needs setup.");
+          navigate("/dashboard");
+          return;
+        }
         toast.success("Account created. Welcome to SaturnMax Technologies Pvt Ltd!");
       }
       navigate("/dashboard");
@@ -96,7 +100,12 @@ export default function LoginPage() {
       } else {
         signedUser = await signInWithLinkedIn();
       }
-      if (signedUser?.role && signedUser.role !== "candidate") {
+      if (signedUser?.roleStatus !== ROLE_STATUS.READY) {
+        toast.error(signedUser?.roleError || "Your account role needs setup.");
+        navigate("/dashboard");
+        return;
+      }
+      if (signedUser.role !== ROLES.CANDIDATE) {
         await signOut();
         toast.error(
           `This account belongs to ${ROLE_PORTAL_LABEL[signedUser.role] || "another portal"}.`

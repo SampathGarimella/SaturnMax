@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  frontend-build:
+  frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -24,25 +24,32 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install --frozen-lockfile --network-timeout 600000
 
+      - name: Run frontend unit tests
+        run: yarn test:unit
+
       - name: Build frontend
         run: yarn build
 
-  backend-checks:
+  firestore-rules:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "20"
 
-      - name: Install backend dependencies
-        run: pip install -r requirements.txt
+      - name: Setup Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
-      - name: Syntax check backend
-        run: python -m py_compile server.py
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Run Firestore rules tests
+        run: npx firebase-tools@13.35.1 emulators:exec --only firestore "cd frontend && yarn test:rules"

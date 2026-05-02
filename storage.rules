@@ -1,0 +1,56 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/(default)/documents/users/$(uid);
+    }
+
+    function role() {
+      return signedIn() && firestore.exists(userPath(request.auth.uid))
+        ? firestore.get(userPath(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isEmployee() {
+      return role() == "employee" || role() == "admin";
+    }
+
+    match /resumes/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /offer-letters/{uid}/{applicationId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
+    }
+
+    match /signed-offers/{uid}/{applicationId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /onboarding-documents/{uid}/{applicationId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && (request.auth.uid == uid || isEmployee());
+    }
+
+    match /consultant-documents/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
+    }
+
+    match /payroll-documents/{uid}/{yearMonth}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if isEmployee();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
