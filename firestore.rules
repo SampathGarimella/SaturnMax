@@ -61,7 +61,8 @@ service cloud.firestore {
             "status",
             "notificationPreferences",
             "uiPreferences",
-            "updatedAt"
+            "updatedAt",
+            "updatedBy"
           ]));
       allow delete: if isEmployee();
     }
@@ -90,7 +91,8 @@ service cloud.firestore {
             "primary_skills",
             "preferred_work_mode",
             "role_label",
-            "updatedAt"
+            "updatedAt",
+            "updatedBy"
           ]));
       allow delete: if isEmployee();
     }
@@ -109,7 +111,8 @@ service cloud.firestore {
             "panStatus",
             "uanDetails",
             "uanStatus",
-            "updatedAt"
+            "updatedAt",
+            "updatedBy"
           ]));
     }
 
@@ -164,7 +167,23 @@ service cloud.firestore {
         || (isEmployee()
           && request.resource.data.candidate_uid == uid
           && request.resource.data.author in ["employee", "admin"]);
-      allow update, delete: if false;
+      allow update: if (ownsOwner(uid)
+          && changedKeys().hasOnly([
+            "unreadForCandidate",
+            "candidateReadAt",
+            "updatedAt",
+            "updatedBy"
+          ])
+          && request.resource.data.unreadForCandidate == false)
+        || (isEmployee()
+          && changedKeys().hasOnly([
+            "unreadForEmployee",
+            "employeeReadAt",
+            "updatedAt",
+            "updatedBy"
+          ])
+          && request.resource.data.unreadForEmployee == false);
+      allow delete: if false;
     }
 
     match /{path=**}/thread/{messageId} {

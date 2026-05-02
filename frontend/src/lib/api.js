@@ -13,17 +13,27 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { auth, db, isFirebaseConfigured, storage } from "./firebase";
 import {
-  APPLICATION_LABELS,
-  APPLICATION_STAGES,
   COLLECTIONS,
   JOB_STATUSES,
   ROLES,
 } from "./constants";
-import { buildSafeCandidateUserData } from "./validators";
+import { buildSafeCandidateUserData, buildUserPreferencesUpdate, normalizeUserPreferences } from "./validators";
+import {
+  APPLICATION_LABELS,
+  APPLICATION_STAGES,
+  APPLICATION_STATUS_VALUES,
+  REVIEW_STATUSES,
+  assertApplicationTransition,
+  getApplicationStatusMeta,
+  getMessageReadPatch,
+  normalizeApplicationStatus,
+  normalizeMessageData,
+} from "./workflow";
 
 export { APPLICATION_STAGES, JOB_STATUSES };
 
@@ -53,6 +63,21 @@ function toIso(value) {
   if (value.seconds) return new Date(value.seconds * 1000).toISOString();
   if (typeof value === "string") return value;
   return null;
+}
+
+function updateMeta(user = auth?.currentUser) {
+  return {
+    updatedAt: serverTimestamp(),
+    ...(user?.uid ? { updatedBy: user.uid } : {}),
+  };
+}
+
+function createMeta(user = auth?.currentUser) {
+  return {
+    createdAt: serverTimestamp(),
+    ...(user?.uid ? { createdBy: user.uid } : {}),
+    ...updateMeta(user),
+  };
 }
 
 function daysAgoLabel(value) {
@@ -100,12 +125,14 @@ function normalizeJob(job) {
 }
 
 function normalizeApplication(app) {
-  const status = app.status || "applied";
+  const status = normalizeApplicationStatus(app.status || app.lifecycle_stage || "applied");
+  const meta = getApplicationStatusMeta(status);
   return {
     ...app,
     id: app.id,
     status,
-    status_label: APPLICATION_LABELS[status] || status,
+    status_label: meta.label || APPLICATION_LABELS[status] || status,
+    status_next_action: meta.nextAction || "",
     position_title: app.position_title || "Open role",
     years_experience: app.years_experience || "",
     applied_ago: app.applied_ago || daysAgoLabel(app.created_at || app.createdAt),
@@ -121,9 +148,9 @@ function formatMessageTime(value) {
 function buildMessageThreads(messageDocs, candidateByUid = {}) {
   const threads = new Map();
   messageDocs.forEach((snap) => {
-    const data = snap.data() || {};
-    const candidateUid = data.candidate_uid || snap.ref.parent.parent?.id;
+    const candidateUid = (snap.data() || {}).candidate_uid || snap.ref.parent.parent?.id;
     if (!candidateUid) return;
+    const data = normalizeMessageData(snap.id, snap.data() || {}, candidateUid);
 
     const candidate = candidateByUid[candidateUid] || {};
     const current = threads.get(candidateUid);
@@ -220,8 +247,8 @@ export async function ensureCandidateUser(user) {
     userRef,
     {
       ...safeUser,
-      ...(userSnap.exists() ? {} : { createdAt: serverTimestamp() }),
-      updatedAt: serverTimestamp(),
+      ...(userSnap.exists() ? {} : createMeta({ uid: user.uid })),
+      ...updateMeta({ uid: user.uid }),
     },
     { merge: true }
   );
@@ -235,8 +262,8 @@ export async function ensureCandidateUser(user) {
       email: user.email || "",
       name,
       role_label: "Job Candidate",
-      ...(userSnap.exists() ? {} : { createdAt: serverTimestamp() }),
-      updatedAt: serverTimestamp(),
+      ...(userSnap.exists() ? {} : createMeta({ uid: user.uid })),
+      ...updateMeta({ uid: user.uid }),
     },
     { merge: true }
   );
@@ -256,6 +283,7 @@ export async function fetchJobs({ includeAll = false } = {}) {
 
 export async function saveJob(payload) {
   requireFirestore();
+  const user = requireAuthUser();
   const tags = splitTags(payload.tags);
   const body = {
     title: payload.title?.trim(),
@@ -266,7 +294,7 @@ export async function saveJob(payload) {
     tags,
     description: payload.description?.trim(),
     status: payload.status || "draft",
-    updatedAt: serverTimestamp(),
+    ...updateMeta(user),
   };
   if (!body.title || !body.description) {
     throw new Error("Add a job title and description.");
@@ -277,7 +305,7 @@ export async function saveJob(payload) {
   }
   const refDoc = await addDoc(collection(db, COLLECTIONS.JOBS), {
     ...body,
-    createdAt: serverTimestamp(),
+    ...createMeta(user),
   });
   await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id, ...body };
@@ -285,10 +313,11 @@ export async function saveJob(payload) {
 
 export async function updateJobStatus(jobId, status) {
   requireFirestore();
+  const user = requireAuthUser();
   if (!JOB_STATUSES.includes(status)) throw new Error("Invalid job status.");
   await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
     status,
-    updatedAt: serverTimestamp(),
+    ...updateMeta(user),
   });
 }
 
@@ -322,12 +351,12 @@ export async function submitApplication(payload) {
     resume_url: payload.resume_url || "",
     primary_skills: payload.primary_skills || "",
     role_label: "Job Candidate",
-    updatedAt: serverTimestamp(),
+    ...updateMeta(user),
   };
 
   await setDoc(
     doc(db, COLLECTIONS.CANDIDATES, user.uid),
-    { ...candidateProfile, createdAt: serverTimestamp() },
+    { ...candidateProfile, ...createMeta(user) },
     { merge: true }
   );
   await setDoc(
@@ -337,8 +366,8 @@ export async function submitApplication(payload) {
         email: payload.email,
         name: payload.full_name,
       }),
-      ...(userSnap.exists() ? {} : { createdAt: serverTimestamp() }),
-      updatedAt: serverTimestamp(),
+      ...(userSnap.exists() ? {} : createMeta(user)),
+      ...updateMeta(user),
     },
     { merge: true }
   );
@@ -349,8 +378,7 @@ export async function submitApplication(payload) {
     candidate_name: payload.full_name,
     status: "applied",
     lifecycle_stage: "applied",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    ...createMeta(user),
   });
   await setDoc(appRef, { id: appRef.id }, { merge: true });
   return { id: appRef.id, ...payload, status: "applied" };
@@ -409,16 +437,9 @@ export async function fetchDashboard(userArg) {
   const interview = applications.find((app) => app.status === "interview");
   const activity = applications.slice(0, 6).map((app) => ({
     id: `activity-${app.id}`,
-    title: `${APPLICATION_LABELS[app.status] || app.status}: ${app.position_title}`,
+    title: `${getApplicationStatusMeta(app.status).label}: ${app.position_title}`,
     timestamp_label: app.applied_ago || "recently",
-    color:
-      app.status === "not_shortlisted"
-        ? "red"
-        : app.status.includes("offer") || app.status === "consultant_active"
-        ? "green"
-        : app.status === "interview"
-        ? "blue"
-        : "amber",
+    color: getApplicationStatusMeta(app.status).tone,
   }));
 
   return {
@@ -454,6 +475,7 @@ export async function fetchDashboard(userArg) {
 
 export async function uploadTrackedFile({ file, path, ownerUid, applicationId, type, title, status = "uploaded" }) {
   requireFirestore();
+  const user = auth?.currentUser;
   if (!storage) throw new Error("Storage is not configured.");
   if (!file) throw new Error("Choose a file first.");
   const fileRef = ref(storage, path);
@@ -471,8 +493,7 @@ export async function uploadTrackedFile({ file, path, ownerUid, applicationId, t
     file_url: url,
     storage_path: path,
     status,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    ...createMeta(user),
   });
   await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id, file_url: url, title: title || file.name, type };
@@ -493,7 +514,7 @@ export async function markResumeUploaded({ file, candidateUid }) {
     {
       resume_uploaded: true,
       resume_url: uploaded.file_url,
-      updatedAt: serverTimestamp(),
+      ...updateMeta(auth?.currentUser),
     },
     { merge: true }
   );
@@ -578,19 +599,27 @@ export async function fetchOperationsData() {
   };
 }
 
-export async function updateApplicationStatus(application, status) {
+export async function updateApplicationStatus(application, status, context = {}) {
   requireFirestore();
-  if (![...APPLICATION_STAGES, "not_shortlisted"].includes(status)) {
+  const user = requireAuthUser();
+  if (!APPLICATION_STATUS_VALUES.includes(normalizeApplicationStatus(status))) {
     throw new Error("Invalid application status.");
   }
-  await updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
-    status,
-    lifecycle_stage: status,
-    updatedAt: serverTimestamp(),
+  const transition = assertApplicationTransition(application.status || application.lifecycle_stage, status, {
+    ...context,
+    application,
   });
-  if (status === "onboarding") {
+  const nextStatus = transition.to;
+  await updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
+    status: nextStatus,
+    lifecycle_stage: nextStatus,
+    ...updateMeta(user),
+  });
+  if (nextStatus === "onboarding") {
+    const onboardingRef = doc(db, COLLECTIONS.ONBOARDING, application.id);
+    const onboardingSnap = await getDoc(onboardingRef);
     await setDoc(
-      doc(db, COLLECTIONS.ONBOARDING, application.id),
+      onboardingRef,
       {
         id: application.id,
         application_id: application.id,
@@ -605,8 +634,8 @@ export async function updateApplicationStatus(application, status) {
           uan: "pending",
           form12bb: "pending",
         },
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
+        ...(onboardingSnap.exists() ? {} : createMeta(user)),
+        ...updateMeta(user),
       },
       { merge: true }
     );
@@ -645,13 +674,14 @@ export async function uploadSignedCandidateDocument(application, file, type = "s
   const user = requireAuthUser();
   const ext = file.name.split(".").pop() || "pdf";
   const folder = type === "signed_offer" ? "signed-offers" : "onboarding-documents";
+  const readableType = String(type || "document").replace(/_/g, " ");
   const uploaded = await uploadTrackedFile({
     file,
     path: `${folder}/${user.uid}/${application.id}/${type}.${ext}`,
     ownerUid: user.uid,
     applicationId: application.id,
     type,
-    title: type === "signed_offer" ? "Signed offer letter" : "Signed onboarding document",
+    title: type === "signed_offer" ? "Signed offer letter" : `Signed ${readableType}`,
     status: "pending_review",
   });
   await updateApplicationStatus(application, type === "signed_offer" ? "offer_signed" : "onboarding");
@@ -666,13 +696,114 @@ export async function uploadSignedCandidateDocument(application, file, type = "s
   return uploaded;
 }
 
+const REVIEW_DOCUMENT_TYPES = {
+  signed_offer: ["signed_offer"],
+  signed_onboarding: ["signed_onboarding", "signed_onboarding_document"],
+  onboarding_pack: ["signed_onboarding", "signed_onboarding_document", "onboarding_pack", "onboarding"],
+  onboarding: ["signed_onboarding", "signed_onboarding_document", "onboarding_pack", "onboarding"],
+  form12bb: ["form12bb", "form_12bb"],
+  pan: ["pan", "pan_details", "pan_card"],
+  uan: ["uan", "uan_details", "epf", "epfo"],
+  bank_details: [],
+};
+
+const REVIEW_TASK_BY_TYPE = {
+  signed_offer: "signed_offer",
+  signed_onboarding: "onboarding",
+  onboarding_pack: "onboarding",
+  onboarding: "onboarding",
+  form12bb: "form12bb",
+  pan: "pan",
+  uan: "uan",
+  bank_details: "bank",
+};
+
+function reviewDocumentStatus(status) {
+  if (status === "approved") return "approved";
+  if (status === "rejected") return "rejected";
+  if (status === "needs_changes") return "needs_changes";
+  return "pending_review";
+}
+
+function reviewTaskStatus(status) {
+  if (status === "approved") return "approved";
+  if (status === "rejected" || status === "needs_changes") return "needs_changes";
+  return "pending";
+}
+
+function reviewDocumentTypes(review) {
+  return REVIEW_DOCUMENT_TYPES[review?.type] || [review?.type].filter(Boolean);
+}
+
+async function updateDocumentsForReview(review, status, actor) {
+  const types = reviewDocumentTypes(review);
+  if (!review?.owner_uid || types.length === 0) return;
+  const snap = await getDocs(
+    query(collection(db, COLLECTIONS.DOCUMENTS), where("owner_uid", "==", review.owner_uid))
+  );
+  const batch = writeBatch(db);
+  let changed = 0;
+  snap.docs.forEach((item) => {
+    const data = item.data() || {};
+    if (review.application_id && data.application_id && data.application_id !== review.application_id) {
+      return;
+    }
+    if (!types.includes(data.type)) return;
+    batch.update(item.ref, {
+      status: reviewDocumentStatus(status),
+      reviewedAt: serverTimestamp(),
+      reviewedBy: actor.uid,
+      ...updateMeta(actor),
+    });
+    changed += 1;
+  });
+  if (changed > 0) await batch.commit();
+}
+
+async function updateOnboardingForReview(review, status, actor) {
+  if (!review?.application_id) return;
+  const task = REVIEW_TASK_BY_TYPE[review.type];
+  if (!task) return;
+  const onboardingRef = doc(db, COLLECTIONS.ONBOARDING, review.application_id);
+  await setDoc(
+    onboardingRef,
+    {
+      id: review.application_id,
+      application_id: review.application_id,
+      candidate_uid: review.owner_uid || review.candidate_uid || "",
+      status: status === "approved" ? "under_review" : "in_progress",
+      tasks: {
+        [task]: reviewTaskStatus(status),
+      },
+      ...updateMeta(actor),
+    },
+    { merge: true }
+  );
+}
+
+async function updateApplicationForReview(review, status) {
+  if (status !== "approved" || !review?.application_id) return;
+  const applicationSnap = await getDoc(doc(db, COLLECTIONS.APPLICATIONS, review.application_id));
+  if (!applicationSnap.exists()) return;
+  const application = normalizeApplication(mapDoc(applicationSnap));
+  if (review.type === "signed_offer" && application.status === "offer_sent") {
+    await updateApplicationStatus(application, "offer_signed", { documents: [], reviews: [] });
+  }
+  if (
+    ["signed_onboarding", "onboarding_pack", "onboarding", "form12bb"].includes(review.type) &&
+    application.status === "offer_signed"
+  ) {
+    await updateApplicationStatus(application, "onboarding", { documents: [], reviews: [] });
+  }
+}
+
 export async function createReview(payload) {
   requireFirestore();
+  const user = auth?.currentUser;
   const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
     ...payload,
     status: payload.status || "pending_review",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    ...createMeta(user),
   });
   await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id };
@@ -680,48 +811,66 @@ export async function createReview(payload) {
 
 export async function updateReviewStatus(reviewId, status) {
   requireFirestore();
+  const user = requireAuthUser();
+  if (!REVIEW_STATUSES.includes(status)) throw new Error("Invalid review status.");
   await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
     status,
-    updatedAt: serverTimestamp(),
+    resolvedAt: status === "pending_review" ? null : serverTimestamp(),
+    resolvedBy: status === "pending_review" ? null : user.uid,
+    ...updateMeta(user),
   });
 }
 
 export async function resolveReview(review, status) {
   requireFirestore();
+  const user = requireAuthUser();
+  if (!REVIEW_STATUSES.includes(status)) throw new Error("Invalid review status.");
   await updateReviewStatus(review.id, status);
+  await updateDocumentsForReview(review, status, user);
+  await updateOnboardingForReview(review, status, user);
   if (review.type === "bank_details" && review.owner_uid) {
     await setDoc(
       doc(db, COLLECTIONS.CONSULTANTS, review.owner_uid),
       {
-        bankStatus: status === "approved" ? "approved" : "rejected",
+        bankStatus: status === "approved" ? "approved" : reviewDocumentStatus(status),
         bankDetails: {
-          status: status === "approved" ? "approved" : "rejected",
+          status: status === "approved" ? "approved" : reviewDocumentStatus(status),
           reviewedAt: serverTimestamp(),
+          reviewedBy: user.uid,
         },
-        updatedAt: serverTimestamp(),
+        ...updateMeta(user),
       },
       { merge: true }
     );
   }
+  await updateApplicationForReview(review, status);
 }
 
 export async function updateConsultantProfile(uid, profile) {
   requireFirestore();
+  const user = requireAuthUser();
   await setDoc(
     doc(db, COLLECTIONS.CONSULTANTS, uid),
     {
       ...profile,
       uid,
-      updatedAt: serverTimestamp(),
+      ...updateMeta(user),
     },
     { merge: true }
   );
 }
 
-export async function convertToConsultant(application, profile = {}) {
+export async function convertToConsultant(application, profile = {}, context = {}) {
   requireFirestore();
+  const user = requireAuthUser();
   const uid = application.candidate_uid;
   if (!uid) throw new Error("Application is missing candidate UID.");
+  assertApplicationTransition(application.status || application.lifecycle_stage, "consultant_active", {
+    ...context,
+    application,
+  });
+  const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
+  const consultantSnap = await getDoc(consultantRef);
   const consultant = {
     uid,
     email: application.email,
@@ -737,10 +886,10 @@ export async function convertToConsultant(application, profile = {}) {
     uanStatus: "pending_review",
     gstStatus: "not_required",
     startDate: profile.startDate || "",
-    updatedAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
+    ...(consultantSnap.exists() ? {} : createMeta(user)),
+    ...updateMeta(user),
   };
-  await setDoc(doc(db, COLLECTIONS.CONSULTANTS, uid), consultant, { merge: true });
+  await setDoc(consultantRef, consultant, { merge: true });
   await setDoc(
     doc(db, COLLECTIONS.USERS, uid),
     {
@@ -748,11 +897,11 @@ export async function convertToConsultant(application, profile = {}) {
       email: application.email,
       name: consultant.name,
       status: "active",
-      updatedAt: serverTimestamp(),
+      ...updateMeta(user),
     },
     { merge: true }
   );
-  await updateApplicationStatus(application, "consultant_active");
+  await updateApplicationStatus(application, "consultant_active", context);
   return consultant;
 }
 
@@ -797,7 +946,7 @@ export async function submitBankReview(details) {
         updatedAt: serverTimestamp(),
       },
       bankStatus: "pending_review",
-      updatedAt: serverTimestamp(),
+      ...updateMeta(user),
     },
     { merge: true }
   );
@@ -818,13 +967,47 @@ export async function fetchMessageThread(candidateUid) {
     query(collection(db, COLLECTIONS.MESSAGES, candidateUid, "thread"), orderBy("createdAt", "asc"), limit(200))
   );
   return snap.docs.map((item) => {
-    const data = mapDoc(item);
+    const data = normalizeMessageData(item.id, mapDoc(item), candidateUid);
     return {
       ...data,
-      candidate_uid: data.candidate_uid || candidateUid,
       time: formatMessageTime(data.createdAt || data.created_at),
     };
   });
+}
+
+async function markThreadRead(candidateUid, viewer) {
+  requireFirestore();
+  const user = requireAuthUser();
+  if (!candidateUid) return;
+  const unreadField = viewer === "candidate" ? "unreadForCandidate" : "unreadForEmployee";
+  const snap = await getDocs(
+    query(
+      collection(db, COLLECTIONS.MESSAGES, candidateUid, "thread"),
+      where(unreadField, "==", true),
+      limit(200)
+    )
+  );
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((item) => {
+    batch.update(item.ref, getMessageReadPatch(viewer, user.uid, serverTimestamp()));
+  });
+  await batch.commit();
+}
+
+export async function markCandidateThreadRead(candidateUid) {
+  return markThreadRead(candidateUid, "candidate");
+}
+
+export async function markEmployeeThreadRead(candidateUid) {
+  return markThreadRead(candidateUid, "employee");
+}
+
+export function mapMessageForUi(id, data, candidateUid = "") {
+  return {
+    ...normalizeMessageData(id, data, candidateUid),
+    time: formatMessageTime(data?.createdAt || data?.created_at),
+  };
 }
 
 export async function sendCandidateMessage({ text, user }) {
@@ -847,7 +1030,7 @@ export async function sendCandidateMessage({ text, user }) {
     text: body,
     unreadForEmployee: true,
     unreadForCandidate: false,
-    createdAt: serverTimestamp(),
+    ...createMeta(current),
   });
 }
 
@@ -869,8 +1052,32 @@ export async function sendHiringMessage({ candidateUid, text, employee }) {
     text: body,
     unreadForEmployee: false,
     unreadForCandidate: true,
-    createdAt: serverTimestamp(),
+    ...createMeta(current),
   });
+}
+
+export async function fetchUserPreferences(uid = auth?.currentUser?.uid) {
+  requireFirestore();
+  if (!uid) throw new Error("Please sign in to load settings.");
+  const snap = await getDoc(doc(db, COLLECTIONS.USERS, uid));
+  return normalizeUserPreferences(snap.exists() ? snap.data() : {});
+}
+
+export async function saveUserPreferences(nextPreferences) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const userRef = doc(db, COLLECTIONS.USERS, user.uid);
+  const snap = await getDoc(userRef);
+  const update = buildUserPreferencesUpdate(snap.exists() ? snap.data() : {}, nextPreferences);
+  await setDoc(
+    userRef,
+    {
+      ...update,
+      ...updateMeta(user),
+    },
+    { merge: true }
+  );
+  return update;
 }
 
 export async function recordLoginEvent(session) {

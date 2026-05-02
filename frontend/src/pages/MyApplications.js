@@ -3,21 +3,7 @@ import { useOutletContext, Link } from "react-router-dom";
 import { FileText, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import { uploadSignedCandidateDocument } from "../lib/api";
-
-const STATUS_META = {
-  applied: { label: "Applied", className: "bg-slate-100 text-slate-700" },
-  screening: { label: "Screening", className: "bg-amber-100 text-amber-800" },
-  under_review: { label: "Under review", className: "bg-amber-100 text-amber-800" },
-  interview: { label: "Interview", className: "bg-emerald-100 text-emerald-800" },
-  pending: { label: "Pending", className: "bg-slate-100 text-slate-700" },
-  not_shortlisted: { label: "Not shortlisted", className: "bg-rose-100 text-rose-800" },
-  offer: { label: "Offer", className: "bg-blue-100 text-blue-800" },
-  selected: { label: "Selected", className: "bg-blue-100 text-blue-800" },
-  offer_sent: { label: "Offer sent", className: "bg-blue-100 text-blue-800" },
-  offer_signed: { label: "Offer signed", className: "bg-emerald-100 text-emerald-800" },
-  onboarding: { label: "Onboarding", className: "bg-violet-100 text-violet-800" },
-  consultant_active: { label: "Consultant active", className: "bg-emerald-100 text-emerald-800" },
-};
+import { getApplicationStatusMeta, isWorkflowTransitionError } from "../lib/workflow";
 
 export default function MyApplications() {
   const { data, loading, reload } = useOutletContext();
@@ -41,11 +27,24 @@ export default function MyApplications() {
       reload?.();
     } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Upload failed.");
+      if (isWorkflowTransitionError(err)) {
+        toast.error(err.message, { description: err.details?.nextAction });
+      } else {
+        toast.error(err?.message || "Upload failed.");
+      }
     } finally {
       setUploadingFor("");
     }
   };
+
+  const uploadTypeForRequest = (docType) => {
+    if (["onboarding", "onboarding_pack", "signed_onboarding_document"].includes(docType)) {
+      return "signed_onboarding";
+    }
+    return docType || "signed_onboarding";
+  };
+
+  const documentLabel = (type) => String(type || "document").replace(/_/g, " ");
 
   return (
     <div className="space-y-5" data-testid="my-applications-page">
@@ -76,10 +75,13 @@ export default function MyApplications() {
           </div>
         )}
         {data.applications.map((a) => {
-          const meta = STATUS_META[a.status] || STATUS_META.pending;
+          const meta = getApplicationStatusMeta(a.status);
           const docs = documentsByApplication[a.id] || [];
           const offer = docs.find((doc) => doc.type === "offer_letter");
           const onboardingDocs = docs.filter((doc) => doc.type !== "offer_letter" && doc.type !== "signed_offer");
+          const actionableDocs = onboardingDocs.filter((doc) =>
+            ["requested", "sent", "uploaded"].includes(doc.status || "uploaded")
+          );
           return (
             <div
               key={a.id}
@@ -122,17 +124,48 @@ export default function MyApplications() {
                     />
                   </label>
                 )}
-                {onboardingDocs.length > 0 && (
-                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 hover:bg-slate-50">
-                    <UploadCloud className="h-3.5 w-3.5" />
-                    {uploadingFor === `${a.id}-signed_onboarding` ? "Uploading..." : "Upload onboarding doc"}
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      className="hidden"
-                      onChange={(e) => handleSignedUpload(a, e.target.files?.[0], "signed_onboarding")}
-                    />
-                  </label>
+                {onboardingDocs.map((doc) => (
+                  <div key={doc.id} className="flex flex-col gap-1">
+                    {doc.file_url && (
+                      <a
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-[#2563EB] hover:text-[#1D4ED8]"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {documentLabel(doc.type)}
+                      </a>
+                    )}
+                    {["pending_review", "approved", "rejected", "needs_changes"].includes(doc.status) && (
+                      <span className="text-slate-500">
+                        {documentLabel(doc.type)}: {String(doc.status).replace(/_/g, " ")}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {actionableDocs.map((doc) => {
+                  const uploadType = uploadTypeForRequest(doc.type);
+                  return (
+                    <label
+                      key={`${doc.id}-upload`}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <UploadCloud className="h-3.5 w-3.5" />
+                      {uploadingFor === `${a.id}-${uploadType}`
+                        ? "Uploading..."
+                        : `Upload ${documentLabel(doc.type)}`}
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        className="hidden"
+                        onChange={(e) => handleSignedUpload(a, e.target.files?.[0], uploadType)}
+                      />
+                    </label>
+                  );
+                })}
+                {onboardingDocs.length === 0 && offer && (
+                  <div className="text-slate-400">No onboarding documents yet</div>
                 )}
               </div>
             </div>

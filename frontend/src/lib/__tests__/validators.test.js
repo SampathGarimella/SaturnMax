@@ -1,9 +1,11 @@
 import {
   buildSafeCandidateUserData,
+  buildUserPreferencesUpdate,
   isCanonicalRole,
   isValidAccountNumber,
   isValidIfsc,
   isValidIndianMobile,
+  normalizeUserPreferences,
   resolveRoleDocument,
 } from "../validators";
 import { ROLE_STATUS, ROLES } from "../constants";
@@ -50,5 +52,40 @@ describe("profile field validators", () => {
     expect(isValidIfsc("bad-ifsc")).toBe(false);
     expect(isValidAccountNumber("123456789012")).toBe(true);
     expect(isValidAccountNumber("1234")).toBe(false);
+  });
+});
+
+describe("settings preference mappers", () => {
+  test("normalizes stored preferences with safe defaults", () => {
+    expect(
+      normalizeUserPreferences({
+        notificationPreferences: { weeklyDigest: true, unknown: true },
+        uiPreferences: { theme: "dark" },
+      })
+    ).toEqual({
+      notificationPreferences: {
+        applicationUpdates: true,
+        newRoles: true,
+        recruiterMessages: true,
+        weeklyDigest: true,
+      },
+      uiPreferences: { theme: "light" },
+    });
+  });
+
+  test("merges settings updates without dropping existing preferences", () => {
+    const update = buildUserPreferencesUpdate(
+      {
+        notificationPreferences: { applicationUpdates: false, weeklyDigest: true },
+        uiPreferences: { theme: "system" },
+      },
+      { notificationPreferences: { recruiterMessages: false } }
+    );
+    expect(update.notificationPreferences).toMatchObject({
+      applicationUpdates: false,
+      recruiterMessages: false,
+      weeklyDigest: true,
+    });
+    expect(update.uiPreferences.theme).toBe("system");
   });
 });

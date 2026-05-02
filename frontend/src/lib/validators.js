@@ -4,6 +4,17 @@ const INDIA_MOBILE_RE = /^(?:\+91[-\s]?|0)?[6-9]\d{9}$/;
 const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const ACCOUNT_NUMBER_RE = /^\d{9,18}$/;
 
+export const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
+  applicationUpdates: true,
+  newRoles: true,
+  recruiterMessages: true,
+  weeklyDigest: false,
+});
+
+export const DEFAULT_UI_PREFERENCES = Object.freeze({
+  theme: "light",
+});
+
 export function isCanonicalRole(role) {
   return ROLE_VALUES.includes(role);
 }
@@ -59,4 +70,47 @@ export function isValidIfsc(value) {
 
 export function isValidAccountNumber(value) {
   return ACCOUNT_NUMBER_RE.test(String(value || "").trim());
+}
+
+export function normalizeUserPreferences(data = {}) {
+  const notificationPreferences = data.notificationPreferences || {};
+  const uiPreferences = data.uiPreferences || {};
+  const theme = ["light", "system"].includes(uiPreferences.theme)
+    ? uiPreferences.theme
+    : DEFAULT_UI_PREFERENCES.theme;
+
+  return {
+    notificationPreferences: {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      ...Object.keys(DEFAULT_NOTIFICATION_PREFERENCES).reduce((acc, key) => {
+        if (typeof notificationPreferences[key] === "boolean") {
+          acc[key] = notificationPreferences[key];
+        }
+        return acc;
+      }, {}),
+    },
+    uiPreferences: {
+      ...DEFAULT_UI_PREFERENCES,
+      theme,
+    },
+  };
+}
+
+export function buildUserPreferencesUpdate(existingData = {}, nextData = {}) {
+  const current = normalizeUserPreferences(existingData);
+  const incoming = normalizeUserPreferences({
+    notificationPreferences: {
+      ...current.notificationPreferences,
+      ...(nextData.notificationPreferences || {}),
+    },
+    uiPreferences: {
+      ...current.uiPreferences,
+      ...(nextData.uiPreferences || {}),
+    },
+  });
+
+  return {
+    notificationPreferences: incoming.notificationPreferences,
+    uiPreferences: incoming.uiPreferences,
+  };
 }

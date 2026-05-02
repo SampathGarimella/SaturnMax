@@ -24,6 +24,8 @@ let testEnv;
 const projectId = "saturnmax-rules-test";
 const rulesPath = path.resolve(__dirname, "../../../../firestore.rules");
 
+jest.setTimeout(30000);
+
 function authedDb(uid) {
   return testEnv.authenticatedContext(uid).firestore();
 }
@@ -119,6 +121,14 @@ describe("Firestore security rules", () => {
   test("candidate cannot overwrite role or mutate another candidate application", async () => {
     const db = authedDb("candidate-1");
     await assertFails(updateDoc(doc(db, "users", "candidate-1"), { role: "admin" }));
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "candidate-1"), {
+        notificationPreferences: { applicationUpdates: true, recruiterMessages: false },
+        uiPreferences: { theme: "system" },
+        updatedAt: 2,
+        updatedBy: "candidate-1",
+      })
+    );
     await assertSucceeds(updateDoc(doc(db, "applications", "app-1"), { status: "offer_signed" }));
     await assertFails(updateDoc(doc(db, "applications", "app-2"), { status: "offer_signed" }));
   });
@@ -143,11 +153,13 @@ describe("Firestore security rules", () => {
     const employee = authedDb("employee-1");
     const thread = collection(candidate, "messages", "candidate-1", "thread");
 
-    await assertSucceeds(
+    const candidateMessage = await assertSucceeds(
       addDoc(thread, {
         author: "candidate",
         candidate_uid: "candidate-1",
         text: "Hello hiring team",
+        unreadForEmployee: true,
+        unreadForCandidate: false,
       })
     );
     await assertFails(getDoc(doc(otherCandidate, "messages", "candidate-1")));
@@ -158,11 +170,34 @@ describe("Firestore security rules", () => {
         text: "Wrong thread",
       })
     );
-    await assertSucceeds(
+    const employeeMessage = await assertSucceeds(
       addDoc(collection(employee, "messages", "candidate-1", "thread"), {
         author: "employee",
         candidate_uid: "candidate-1",
         text: "Thanks for the update",
+        unreadForEmployee: false,
+        unreadForCandidate: true,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(employee, "messages", "candidate-1", "thread", candidateMessage.id), {
+        unreadForEmployee: false,
+        employeeReadAt: 2,
+        updatedAt: 2,
+        updatedBy: "employee-1",
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(candidate, "messages", "candidate-1", "thread", employeeMessage.id), {
+        unreadForCandidate: false,
+        candidateReadAt: 3,
+        updatedAt: 3,
+        updatedBy: "candidate-1",
+      })
+    );
+    await assertFails(
+      updateDoc(doc(otherCandidate, "messages", "candidate-1", "thread", employeeMessage.id), {
+        unreadForCandidate: false,
       })
     );
   });

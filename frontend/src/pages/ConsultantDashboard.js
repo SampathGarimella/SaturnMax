@@ -63,12 +63,17 @@ export default function ConsultantDashboard() {
   const onboarding = useMemo(
     () => [
       { label: "Profile created", done: Boolean(consultant.uid) },
-      { label: "Offer accepted", done: data.documents.some((doc) => doc.type === "signed_offer" && doc.status !== "rejected") },
+      {
+        label: "Offer accepted",
+        done:
+          data.documents.some((doc) => doc.type === "signed_offer" && doc.status === "approved") ||
+          data.reviews.some((review) => review.type === "signed_offer" && review.status === "approved"),
+      },
       { label: "PAN / tax details", done: consultant.panStatus === "approved" },
       { label: "Bank payout setup", done: consultant.bankStatus === "approved" },
       { label: "Project assigned", done: Boolean(consultant.project && consultant.client) },
     ],
-    [consultant, data.documents]
+    [consultant, data.documents, data.reviews]
   );
 
   const handleBankSubmit = async (e) => {

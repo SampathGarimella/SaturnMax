@@ -29,28 +29,7 @@ export const ROLE_PORTAL_LABEL = Object.freeze({
   [ROLES.CANDIDATE]: "Candidate login",
 });
 
-export const APPLICATION_STAGES = Object.freeze([
-  "applied",
-  "screening",
-  "interview",
-  "selected",
-  "offer_sent",
-  "offer_signed",
-  "onboarding",
-  "consultant_active",
-]);
-
-export const APPLICATION_LABELS = Object.freeze({
-  applied: "Applied",
-  screening: "Screening",
-  interview: "Interview",
-  selected: "Selected",
-  offer_sent: "Offer sent",
-  offer_signed: "Offer signed",
-  onboarding: "Onboarding",
-  consultant_active: "Consultant active",
-  not_shortlisted: "Not shortlisted",
-});
+export { APPLICATION_LABELS, APPLICATION_STAGES } from "./workflow";
 
 export const JOB_STATUSES = Object.freeze(["draft", "published", "paused", "closed"]);
 

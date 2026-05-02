@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
-import { sendCandidateMessage } from "../lib/api";
+import { mapMessageForUi, markCandidateThreadRead, sendCandidateMessage } from "../lib/api";
 
 export default function Messages() {
   const { user, mode } = useAuth();
@@ -38,13 +38,14 @@ export default function Messages() {
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const out = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-          time: d.data().createdAt?.toDate?.().toLocaleString?.() || "just now",
-        }));
+        const out = snap.docs.map((d) => mapMessageForUi(d.id, d.data(), user.uid));
         setMessages(out);
         setLiveLoading(false);
+        if (out.some((message) => message.unreadForCandidate)) {
+          markCandidateThreadRead(user.uid).catch((err) => {
+            console.error("Could not mark candidate thread read:", err);
+          });
+        }
       },
       (err) => {
         console.error("Firestore subscribe failed:", err);
@@ -137,7 +138,7 @@ export default function Messages() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    {m.unread && !mine && (
+                    {m.unreadForCandidate && !mine && (
                       <span className="h-2 w-2 rounded-full bg-[#2563EB] shrink-0" />
                     )}
                     <div className="font-semibold text-sm text-slate-900 truncate">

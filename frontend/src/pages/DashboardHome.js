@@ -12,26 +12,14 @@ import {
   MessageSquare,
   ShieldCheck,
 } from "lucide-react";
-
-const STATUS_META = {
-  applied: { label: "Applied", className: "bg-slate-100 text-slate-700" },
-  screening: { label: "Screening", className: "bg-amber-100 text-amber-800" },
-  under_review: { label: "Under review", className: "bg-amber-100 text-amber-800" },
-  interview: { label: "Interview", className: "bg-emerald-100 text-emerald-800" },
-  pending: { label: "Pending", className: "bg-slate-100 text-slate-700" },
-  not_shortlisted: { label: "Not shortlisted", className: "bg-rose-100 text-rose-800" },
-  offer: { label: "Offer", className: "bg-blue-100 text-blue-800" },
-  selected: { label: "Selected", className: "bg-blue-100 text-blue-800" },
-  offer_sent: { label: "Offer sent", className: "bg-blue-100 text-blue-800" },
-  offer_signed: { label: "Offer signed", className: "bg-emerald-100 text-emerald-800" },
-  onboarding: { label: "Onboarding", className: "bg-violet-100 text-violet-800" },
-  consultant_active: { label: "Consultant active", className: "bg-emerald-100 text-emerald-800" },
-};
+import { getApplicationStatusMeta } from "../lib/workflow";
 
 const DOT_COLORS = {
+  slate: "bg-slate-500",
   green: "bg-emerald-500",
   blue: "bg-[#2563EB]",
   amber: "bg-amber-500",
+  violet: "bg-violet-500",
   red: "bg-rose-500",
 };
 
@@ -154,7 +142,7 @@ export default function DashboardHome() {
               </li>
             )}
             {applications.slice(0, 4).map((a) => {
-              const meta = STATUS_META[a.status] || STATUS_META.pending;
+              const meta = getApplicationStatusMeta(a.status);
               return (
                 <li
                   key={a.id}

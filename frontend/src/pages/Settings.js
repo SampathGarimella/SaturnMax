@@ -1,14 +1,69 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
+import { fetchUserPreferences, saveUserPreferences } from "../lib/api";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  DEFAULT_UI_PREFERENCES,
+} from "../lib/validators";
 
 export default function Settings() {
-  const [emailPrefs, setEmailPrefs] = useState({
-    applicationUpdates: true,
-    newRoles: true,
-    recruiterMessages: true,
-    weeklyDigest: false,
-  });
-  const [theme, setTheme] = useState("light");
+  const { user } = useAuth();
+  const [emailPrefs, setEmailPrefs] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [theme, setTheme] = useState(DEFAULT_UI_PREFERENCES.theme);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState("");
+
+  useEffect(() => {
+    let ignore = false;
+    if (!user?.uid) {
+      setLoading(false);
+      return undefined;
+    }
+    setLoading(true);
+    fetchUserPreferences(user.uid)
+      .then((prefs) => {
+        if (ignore) return;
+        setEmailPrefs(prefs.notificationPreferences);
+        setTheme(prefs.uiPreferences.theme);
+      })
+      .catch((err) => {
+        console.error(err);
+        toast.error(err?.message || "Could not load settings.");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [user?.uid]);
+
+  const savePreferences = async (next = {}) => {
+    const previousEmailPrefs = emailPrefs;
+    const previousTheme = theme;
+    const nextEmailPrefs = next.notificationPreferences || emailPrefs;
+    const nextTheme = next.uiPreferences?.theme || theme;
+    setEmailPrefs(nextEmailPrefs);
+    setTheme(nextTheme);
+    setSaving(next.kind || "settings");
+    try {
+      const saved = await saveUserPreferences({
+        notificationPreferences: nextEmailPrefs,
+        uiPreferences: { theme: nextTheme },
+      });
+      setEmailPrefs(saved.notificationPreferences);
+      setTheme(saved.uiPreferences.theme);
+      toast.success(next.kind === "theme" ? "Appearance saved." : "Preferences saved.");
+    } catch (err) {
+      console.error(err);
+      setEmailPrefs(previousEmailPrefs);
+      setTheme(previousTheme);
+      toast.error(err?.message || "Could not save settings.");
+    } finally {
+      setSaving("");
+    }
+  };
 
   return (
     <div className="space-y-6" data-testid="settings-page">
@@ -44,6 +99,7 @@ export default function Settings() {
               <input
                 type="checkbox"
                 checked={emailPrefs[row.id]}
+                disabled={loading || saving === "email"}
                 onChange={(e) =>
                   setEmailPrefs({ ...emailPrefs, [row.id]: e.target.checked })
                 }
@@ -53,11 +109,14 @@ export default function Settings() {
           ))}
         </div>
         <button
-          onClick={() => toast.success("Email preferences saved.")}
+          onClick={() =>
+            savePreferences({ kind: "email", notificationPreferences: emailPrefs })
+          }
+          disabled={loading || saving === "email"}
           className="mt-5 inline-flex items-center rounded-md bg-[#0A192F] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#0e2445]"
           data-testid="save-email-prefs"
         >
-          Save preferences
+          {saving === "email" ? "Saving..." : "Save preferences"}
         </button>
       </section>
 
@@ -70,9 +129,9 @@ export default function Settings() {
             <button
               key={t}
               onClick={() => {
-                setTheme(t);
-                toast.success(`Theme set to ${t}.`);
+                savePreferences({ kind: "theme", uiPreferences: { theme: t } });
               }}
+              disabled={loading || saving === "theme"}
               data-testid={`theme-${t}`}
               className={`rounded-md px-4 py-2 text-sm font-medium capitalize ${
                 theme === t

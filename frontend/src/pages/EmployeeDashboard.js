@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import Logo from "../components/Logo";
 import {
-  APPLICATION_STAGES,
   fetchOperationsData,
   saveJob,
   updateJobStatus,
@@ -30,7 +29,14 @@ import {
   resolveReview,
   fetchMessageThread,
   sendHiringMessage,
+  markEmployeeThreadRead,
 } from "../lib/api";
+import {
+  APPLICATION_STATUS_VALUES,
+  getApplicationStatusMeta,
+  getReviewStatusMeta,
+  isWorkflowTransitionError,
+} from "../lib/workflow";
 
 const EMPTY_JOB = {
   id: "",
@@ -50,18 +56,6 @@ const EMPTY_CONSULTANT = {
   project: "",
   monthlyPay: "",
   startDate: "",
-};
-
-const STAGE_LABELS = {
-  applied: "Applied",
-  screening: "Screening",
-  interview: "Interview",
-  selected: "Selected",
-  offer_sent: "Offer sent",
-  offer_signed: "Offer signed",
-  onboarding: "Onboarding",
-  consultant_active: "Consultant active",
-  not_shortlisted: "Not shortlisted",
 };
 
 export default function EmployeeDashboard() {
@@ -111,6 +105,21 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const workflowContextFor = (application) => ({
+    application,
+    documents: data.documents,
+    reviews: data.reviews,
+  });
+
+  const showMutationError = (err, fallback) => {
+    console.error(err);
+    if (isWorkflowTransitionError(err)) {
+      toast.error(err.message, { description: err.details?.nextAction });
+      return;
+    }
+    toast.error(err?.message || fallback);
+  };
+
   useEffect(() => {
     load();
   }, []);
@@ -129,8 +138,13 @@ export default function EmployeeDashboard() {
     let ignore = false;
     setThreadLoading(true);
     fetchMessageThread(activeThreadUid)
-      .then((messages) => {
+      .then(async (messages) => {
         if (!ignore) setThreadMessages(messages);
+        if (messages.some((message) => message.unreadForEmployee)) {
+          await markEmployeeThreadRead(activeThreadUid);
+          if (!ignore) setThreadMessages(await fetchMessageThread(activeThreadUid));
+          load();
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -162,11 +176,11 @@ export default function EmployeeDashboard() {
   const handleStatus = async (application, status) => {
     setBusy(`${application.id}-status`);
     try {
-      await updateApplicationStatus(application, status);
+      await updateApplicationStatus(application, status, workflowContextFor(application));
       toast.success("Application status updated.");
       await load();
     } catch (err) {
-      toast.error(err?.message || "Could not update application.");
+      showMutationError(err, "Could not update application.");
     } finally {
       setBusy("");
     }
@@ -210,7 +224,7 @@ export default function EmployeeDashboard() {
       toast.success("Offer letter sent to candidate portal.");
       await load();
     } catch (err) {
-      toast.error(err?.message || "Offer upload failed.");
+      showMutationError(err, "Offer upload failed.");
     } finally {
       setBusy("");
     }
@@ -233,11 +247,11 @@ export default function EmployeeDashboard() {
   const handleConvert = async (application) => {
     setBusy(`${application.id}-convert`);
     try {
-      await convertToConsultant(application);
+      await convertToConsultant(application, {}, workflowContextFor(application));
       toast.success("Candidate converted to consultant. Ask them to sign in through Consultant login.");
       await load();
     } catch (err) {
-      toast.error(err?.message || "Could not convert candidate.");
+      showMutationError(err, "Could not convert candidate.");
     } finally {
       setBusy("");
     }
@@ -272,10 +286,16 @@ export default function EmployeeDashboard() {
     setBusy(`${review.id}-${status}`);
     try {
       await resolveReview(review, status);
-      toast.success(status === "approved" ? "Review approved." : "Review rejected.");
+      toast.success(
+        status === "approved"
+          ? "Review approved."
+          : status === "needs_changes"
+          ? "Review marked as needs changes."
+          : "Review rejected."
+      );
       await load();
     } catch (err) {
-      toast.error(err?.message || "Could not update review.");
+      showMutationError(err, "Could not update review.");
     } finally {
       setBusy("");
     }
@@ -483,8 +503,8 @@ export default function EmployeeDashboard() {
                       onChange={(e) => handleStatus(application, e.target.value)}
                       className="h-9 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700"
                     >
-                      {[...APPLICATION_STAGES, "not_shortlisted"].map((stage) => (
-                        <option key={stage} value={stage}>{STAGE_LABELS[stage] || stage}</option>
+                      {APPLICATION_STATUS_VALUES.map((stage) => (
+                        <option key={stage} value={stage}>{getApplicationStatusMeta(stage).label}</option>
                       ))}
                     </select>
                   </div>
@@ -492,9 +512,13 @@ export default function EmployeeDashboard() {
                     <FileButton label={busy === `${application.id}-offer` ? "Uploading..." : "Send offer"} onFile={(file) => handleOfferUpload(application, file)} />
                     <FileButton label="Form 12BB" onFile={(file) => handleOnboardingUpload(application, file, "form12bb")} />
                     <FileButton label="Onboarding" onFile={(file) => handleOnboardingUpload(application, file, "onboarding_pack")} />
-                    <button onClick={() => handleConvert(application)} className="inline-flex h-9 items-center gap-1 rounded-md bg-[#0A192F] px-3 text-xs font-semibold text-white hover:bg-[#0e2445]">
+                    <button
+                      onClick={() => handleConvert(application)}
+                      disabled={busy === `${application.id}-convert`}
+                      className="inline-flex h-9 items-center gap-1 rounded-md bg-[#0A192F] px-3 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60"
+                    >
                       <BriefcaseBusiness className="h-3.5 w-3.5" />
-                      Activate consultant
+                      {busy === `${application.id}-convert` ? "Checking..." : "Activate consultant"}
                     </button>
                   </div>
                 </div>
@@ -653,11 +677,26 @@ export default function EmployeeDashboard() {
                     <StatusPill value={review.status} />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button onClick={() => handleReview(review, "approved")} className="inline-flex h-9 items-center gap-1 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700">
+                    <button
+                      onClick={() => handleReview(review, "approved")}
+                      disabled={busy === `${review.id}-approved`}
+                      className="inline-flex h-9 items-center gap-1 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    >
                       <Check className="h-3.5 w-3.5" />
                       Approve
                     </button>
-                    <button onClick={() => handleReview(review, "rejected")} className="inline-flex h-9 items-center gap-1 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700">
+                    <button
+                      onClick={() => handleReview(review, "needs_changes")}
+                      disabled={busy === `${review.id}-needs_changes`}
+                      className="inline-flex h-9 items-center gap-1 rounded-md bg-amber-500 px-3 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                    >
+                      Needs changes
+                    </button>
+                    <button
+                      onClick={() => handleReview(review, "rejected")}
+                      disabled={busy === `${review.id}-rejected`}
+                      className="inline-flex h-9 items-center gap-1 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+                    >
                       <X className="h-3.5 w-3.5" />
                       Reject
                     </button>
@@ -711,6 +750,22 @@ function EmptyState({ children, className = "" }) {
 }
 
 function StatusPill({ value }) {
+  const reviewMeta = getReviewStatusMeta(value);
+  if (reviewMeta && ["pending_review", "approved", "rejected", "needs_changes"].includes(value)) {
+    return (
+      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${reviewMeta.className}`}>
+        {reviewMeta.label}
+      </span>
+    );
+  }
+  const appMeta = getApplicationStatusMeta(value);
+  if (APPLICATION_STATUS_VALUES.includes(value)) {
+    return (
+      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${appMeta.className}`}>
+        {appMeta.label}
+      </span>
+    );
+  }
   const color = value === "published" || value === "approved" || value === "consultant_active"
     ? "bg-emerald-50 text-emerald-700"
     : value === "pending_review" || value === "paused"
