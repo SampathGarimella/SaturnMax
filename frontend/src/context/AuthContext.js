@@ -21,6 +21,16 @@ import {
 
 const AuthContext = createContext(null);
 
+function mapFirebaseUser(fbUser, role) {
+  return {
+    uid: fbUser.uid,
+    email: fbUser.email,
+    name: fbUser.displayName || fbUser.email?.split("@")[0] || "Candidate",
+    photoURL: fbUser.photoURL,
+    role,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}
   const [mode, setMode] = useState("guest"); // firebase | guest
@@ -47,13 +57,7 @@ export function AuthProvider({ children }) {
       unsub = onAuthStateChanged(auth, async (fbUser) => {
         if (fbUser) {
           const role = await loadRoleForUid(fbUser.uid);
-          setUser({
-            uid: fbUser.uid,
-            email: fbUser.email,
-            name: fbUser.displayName || fbUser.email?.split("@")[0] || "Candidate",
-            photoURL: fbUser.photoURL,
-            role,
-          });
+          setUser(mapFirebaseUser(fbUser, role));
           setMode("firebase");
         } else {
           setUser(null);
@@ -93,9 +97,14 @@ export function AuthProvider({ children }) {
         );
       }
       await applyPersistence(keepSignedIn);
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const role = await loadRoleForUid(cred.user.uid);
+      const nextUser = mapFirebaseUser(cred.user, role);
+      setUser(nextUser);
+      setMode("firebase");
+      return nextUser;
     },
-    [applyPersistence]
+    [applyPersistence, loadRoleForUid]
   );
 
   const signUp = useCallback(
@@ -115,8 +124,13 @@ export function AuthProvider({ children }) {
           console.warn("updateProfile failed:", e);
         }
       }
+      const role = await loadRoleForUid(cred.user.uid);
+      const nextUser = mapFirebaseUser(cred.user, role);
+      setUser(nextUser);
+      setMode("firebase");
+      return nextUser;
     },
-    [applyPersistence]
+    [applyPersistence, loadRoleForUid]
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -127,8 +141,13 @@ export function AuthProvider({ children }) {
     }
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-    await signInWithPopup(auth, provider);
-  }, []);
+    const cred = await signInWithPopup(auth, provider);
+    const role = await loadRoleForUid(cred.user.uid);
+    const nextUser = mapFirebaseUser(cred.user, role);
+    setUser(nextUser);
+    setMode("firebase");
+    return nextUser;
+  }, [loadRoleForUid]);
 
   const signInWithLinkedIn = useCallback(async () => {
     // LinkedIn isn't a native Firebase provider. If you've registered LinkedIn
@@ -143,8 +162,13 @@ export function AuthProvider({ children }) {
     provider.addScope("openid");
     provider.addScope("profile");
     provider.addScope("email");
-    await signInWithPopup(auth, provider);
-  }, []);
+    const cred = await signInWithPopup(auth, provider);
+    const role = await loadRoleForUid(cred.user.uid);
+    const nextUser = mapFirebaseUser(cred.user, role);
+    setUser(nextUser);
+    setMode("firebase");
+    return nextUser;
+  }, [loadRoleForUid]);
 
   const sendReset = useCallback(async (email) => {
     if (!isFirebaseConfigured || !auth) {

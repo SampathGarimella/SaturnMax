@@ -13,6 +13,7 @@ const CONFIG = {
     description:
       "View project, client, payout, onboarding, tax, and document details assigned by the operations team.",
     destination: "/consultant-dashboard",
+    allowedRoles: ["consultant"],
     Icon: BriefcaseBusiness,
   },
   employee: {
@@ -21,8 +22,16 @@ const CONFIG = {
     description:
       "Manage candidates, consultants, projects, documents, and recent login activity for the team.",
     destination: "/employee-dashboard",
+    allowedRoles: ["employee", "admin"],
     Icon: UserCog,
   },
+};
+
+const ROLE_PORTAL_LABEL = {
+  admin: "Employee login",
+  employee: "Employee login",
+  consultant: "Consultant login",
+  candidate: "Candidate login",
 };
 
 export default function RoleLoginPage({ role = "consultant" }) {
@@ -32,7 +41,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { signIn, isFirebaseConfigured } = useAuth();
+  const { signIn, signOut, isFirebaseConfigured } = useAuth();
   const Icon = config.Icon;
 
   const handleSubmit = async (e) => {
@@ -43,11 +52,18 @@ export default function RoleLoginPage({ role = "consultant" }) {
     }
     setBusy(true);
     try {
-      await signIn({ email, password, keepSignedIn: true });
+      const signedUser = await signIn({ email, password, keepSignedIn: true });
+      if (!config.allowedRoles.includes(signedUser?.role || "candidate")) {
+        await signOut();
+        toast.error(
+          `This account belongs to ${ROLE_PORTAL_LABEL[signedUser?.role] || "another portal"}.`
+        );
+        return;
+      }
       recordLogin({
         name: email.split("@")[0],
         email,
-        role,
+        role: signedUser.role,
         title: config.title,
         mode: "firebase",
       });

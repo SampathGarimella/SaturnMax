@@ -10,6 +10,13 @@ const TABS = [
   { id: "signup", label: "Create account" },
 ];
 
+const ROLE_PORTAL_LABEL = {
+  admin: "Employee login",
+  employee: "Employee login",
+  consultant: "Consultant login",
+  candidate: "Candidate login",
+};
+
 export default function LoginPage() {
   const [tab, setTab] = useState("signin");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +32,7 @@ export default function LoginPage() {
     signInWithGoogle,
     signInWithLinkedIn,
     sendReset,
+    signOut,
     isFirebaseConfigured,
   } = useAuth();
 
@@ -52,11 +60,19 @@ export default function LoginPage() {
     }
     setBusy(true);
     try {
+      let signedUser = null;
       if (tab === "signin") {
-        await signIn({ email, password, keepSignedIn });
+        signedUser = await signIn({ email, password, keepSignedIn });
+        if (signedUser?.role && signedUser.role !== "candidate") {
+          await signOut();
+          toast.error(
+            `This account belongs to ${ROLE_PORTAL_LABEL[signedUser.role] || "another portal"}.`
+          );
+          return;
+        }
         toast.success("Welcome back!");
       } else {
-        await signUp({ email, password, name, keepSignedIn });
+        signedUser = await signUp({ email, password, name, keepSignedIn });
         toast.success("Account created. Welcome to SaturnMax Technologies Pvt Ltd!");
       }
       navigate("/dashboard");
@@ -74,10 +90,18 @@ export default function LoginPage() {
     }
     setBusy(true);
     try {
+      let signedUser = null;
       if (provider === "Google") {
-        await signInWithGoogle();
+        signedUser = await signInWithGoogle();
       } else {
-        await signInWithLinkedIn();
+        signedUser = await signInWithLinkedIn();
+      }
+      if (signedUser?.role && signedUser.role !== "candidate") {
+        await signOut();
+        toast.error(
+          `This account belongs to ${ROLE_PORTAL_LABEL[signedUser.role] || "another portal"}.`
+        );
+        return;
       }
       toast.success(`Signed in with ${provider}`);
       navigate("/dashboard");
