@@ -107,7 +107,7 @@ const CASE_STUDIES = [
     client: "US SaaS platform",
     result: "Launched an AI support workflow in 21 days",
     detail:
-      "A two-person SaturnMax Technologies Pvt Ltd squad connected product docs, CRM data, and ticket history into a RAG assistant for customer operations.",
+      "A two-person SaturnMax Technologies Pvt Ltd squad connected product docs, CRM data, and ticket history into a RAG assistant for customer workflows.",
   },
   {
     client: "Fintech data team",
@@ -174,7 +174,7 @@ function tagClass(tag) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState("");
@@ -226,16 +226,6 @@ export default function HomePage() {
       })
       .finally(() => setJobsLoading(false));
   }, []);
-
-  useEffect(() => {
-    if (user?.email) {
-      setApplicationForm((current) => ({
-        ...current,
-        email: current.email || user.email,
-        full_name: current.full_name || user.name || "",
-      }));
-    }
-  }, [user?.email, user?.name]);
 
   const handleApplyToJob = (job) => {
     setSelectedJob(job.id);
@@ -335,6 +325,11 @@ export default function HomePage() {
     }
   };
 
+  const handleTopSignOut = async () => {
+    await signOut();
+    toast.success("Signed out.");
+  };
+
   return (
     <div className="app-shell bg-white">
       {/* ---- Header --------------------------------------------------- */}
@@ -357,18 +352,18 @@ export default function HomePage() {
             <a href="#contact" className="link-underline hover:text-slate-900" data-testid="nav-contact">
               Contact
             </a>
-            <Link to="/dashboard" className="link-underline hover:text-slate-900" data-testid="nav-candidate-portal">
-              Candidate portal
-            </Link>
-            <Link to="/consultant-dashboard" className="link-underline hover:text-slate-900" data-testid="nav-consultant-portal">
-              Consultant portal
-            </Link>
-            <Link to="/employee-dashboard/applications" className="link-underline hover:text-slate-900" data-testid="nav-operations-portal">
-              Operations portal
-            </Link>
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <LoginMenu />
+            {user?.uid && (
+              <button
+                onClick={handleTopSignOut}
+                className="hidden sm:inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+                data-testid="top-signout-button"
+              >
+                Sign out
+              </button>
+            )}
             <a
               href="#contact"
               className="hidden sm:inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e2445]"
@@ -680,8 +675,6 @@ export default function HomePage() {
                   onChange={(e) =>
                     setApplicationForm((f) => ({ ...f, email: e.target.value }))
                   }
-                  readOnly={Boolean(user?.email)}
-                  aria-readonly={Boolean(user?.email)}
                   placeholder="rahul@email.com"
                   className={inputClass}
                   data-testid="application-email"

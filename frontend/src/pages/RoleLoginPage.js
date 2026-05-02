@@ -12,7 +12,7 @@ const CONFIG = {
     title: "Consultant login",
     eyebrow: "Consultant portal",
     description:
-      "View project, client, payout, onboarding, tax, and document details assigned by the operations team.",
+      "View project, client, payout, onboarding, tax, and document details assigned by the employee team.",
     destination: "/consultant-dashboard",
     allowedRoles: ["consultant"],
     Icon: BriefcaseBusiness,
@@ -107,7 +107,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <PortalPoint label="Secure access" value="Protected work accounts" />
               <PortalPoint label="Role workspace" value="Personalized portal" />
-              <PortalPoint label="Operations visibility" value="Live work tracking" />
+              <PortalPoint label="Employee visibility" value="Live work tracking" />
               <PortalPoint label="Compliance" value="India-ready workflow" />
             </div>
           </div>

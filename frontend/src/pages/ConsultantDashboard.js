@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   Banknote,
   BriefcaseBusiness,
   Building2,
@@ -28,7 +26,7 @@ const EMPTY_BANK = {
 };
 
 export default function ConsultantDashboard() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [data, setData] = useState({ consultant: null, documents: [], reviews: [] });
   const [bank, setBank] = useState(EMPTY_BANK);
   const [loading, setLoading] = useState(true);
@@ -91,7 +89,7 @@ export default function ConsultantDashboard() {
       {
         label: "Project assignment",
         done: Boolean(consultant.project && consultant.client),
-        action: consultant.project && consultant.client ? "Assigned" : "Waiting for operations",
+        action: consultant.project && consultant.client ? "Assigned" : "Waiting for employee team",
       },
     ],
     [consultant, onboarding]
@@ -116,9 +114,14 @@ export default function ConsultantDashboard() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out.");
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
-      <PortalHeader title="Consultant dashboard" onRefresh={load} />
+      <PortalHeader title="Consultant portal" user={user} onRefresh={load} onSignOut={handleSignOut} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-6">
         {loading ? (
           <div className="text-sm text-slate-500">Loading consultant workspace...</div>
@@ -277,7 +280,7 @@ export default function ConsultantDashboard() {
   );
 }
 
-function PortalHeader({ title, onRefresh }) {
+function PortalHeader({ title, user, onRefresh, onSignOut }) {
   return (
     <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-xl border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 min-h-16 py-2 flex items-center justify-between gap-3">
@@ -287,11 +290,16 @@ function PortalHeader({ title, onRefresh }) {
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </button>
-          <span className="hidden sm:inline text-sm font-medium text-slate-600">{title}</span>
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#2563EB] font-medium">
-            <ArrowLeft className="h-4 w-4" />
-            Website
-          </Link>
+          <span className="hidden sm:inline rounded-full bg-[#2563EB]/10 px-2.5 py-1 text-sm font-medium text-[#1D4ED8]">
+            {title}
+          </span>
+          <span className="hidden md:inline text-sm text-slate-500">{user?.name || user?.email || "Consultant"}</span>
+          <button
+            onClick={onSignOut}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </header>

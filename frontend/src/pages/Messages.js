@@ -185,7 +185,7 @@ export default function Messages() {
         <div className="flex gap-2 items-start rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-xs text-slate-600">
           <Info className="h-4 w-4 mt-0.5 shrink-0" />
           <div>
-            Messaging for this account is not active yet. Please contact the operations team to
+            Messaging for this account is not active yet. Please contact the employee team to
             enable secure message access.
           </div>
         </div>

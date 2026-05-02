@@ -69,7 +69,7 @@ export const APPLICATION_STATUS_META = Object.freeze({
     label: APPLICATION_LABELS.offer_signed,
     className: "bg-emerald-100 text-emerald-800",
     tone: "green",
-    nextAction: "Complete onboarding documents shared by the operations team.",
+    nextAction: "Complete onboarding documents shared by the employee team.",
   },
   onboarding: {
     label: APPLICATION_LABELS.onboarding,

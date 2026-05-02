@@ -106,14 +106,6 @@ export default function DashboardLayout() {
             </NavGroup>
           </nav>
 
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-3 px-5 py-4 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-t border-slate-200"
-            data-testid="sign-out-button"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
         </aside>
 
         <div className="flex flex-col">
@@ -132,6 +124,9 @@ export default function DashboardLayout() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <span className="hidden rounded-full bg-[#2563EB]/10 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8] md:inline">
+                Candidate portal
+              </span>
               <button
                 className="relative h-10 w-10 grid place-items-center rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                 data-testid="notifications-bell"
@@ -148,6 +143,14 @@ export default function DashboardLayout() {
                 View open jobs
                 <ArrowRight className="h-4 w-4" />
               </Link>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                data-testid="sign-out-button"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
             </div>
           </header>
 
