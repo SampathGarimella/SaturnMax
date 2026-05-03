@@ -52,14 +52,10 @@ export default function LoginPage() {
     }
 
     redirectNoticeShown.current = true;
-    const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
     const target = ROLE_HOME[user.role] || "/";
 
-    if (user.role === ROLES.CANDIDATE) {
-      toast.info(`You're already logged in to ${activePortal}.`, {
-        description: `Opening ${activePortal}.`,
-      });
-    } else {
+    if (user.role !== ROLES.CANDIDATE) {
+      const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
       toast.warning(`You're already logged in to ${activePortal}.`, {
         description: "Log out first to use Candidate Portal.",
       });

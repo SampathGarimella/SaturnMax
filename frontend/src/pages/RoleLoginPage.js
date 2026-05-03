@@ -57,15 +57,11 @@ export default function RoleLoginPage({ role = "consultant" }) {
     }
 
     redirectNoticeShown.current = true;
-    const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
     const target = ROLE_HOME[user.role] || "/";
     const samePortal = config.allowedRoles.includes(user.role);
 
-    if (samePortal) {
-      toast.info(`You're already logged in to ${activePortal}.`, {
-        description: `Opening ${activePortal}.`,
-      });
-    } else {
+    if (!samePortal) {
+      const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
       toast.warning(`You're already logged in to ${activePortal}.`, {
         description: `Log out first to use ${config.eyebrow}.`,
       });

@@ -82,10 +82,12 @@ export default function LoginMenu() {
             <div className="text-xs uppercase tracking-[0.18em] font-bold text-[#2563EB]">
               {user ? "Logged in" : "Choose portal"}
             </div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">
-              SaturnMax Technologies Pvt Ltd
-            </div>
-            {user?.email && <div className="mt-0.5 truncate text-xs text-slate-500">{user.email}</div>}
+            {!user && (
+              <div className="mt-1 text-sm font-semibold text-slate-900">
+                SaturnMax Technologies Pvt Ltd
+              </div>
+            )}
+            {user?.email && <div className="mt-1 truncate text-xs text-slate-500">{user.email}</div>}
           </div>
           {user && (
             <div className="border-b border-slate-100 p-2">
