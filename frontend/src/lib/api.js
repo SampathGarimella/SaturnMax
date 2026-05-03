@@ -9,6 +9,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   startAfter,
@@ -28,12 +29,18 @@ import {
   APPLICATION_LABELS,
   APPLICATION_STAGES,
   APPLICATION_STATUS_VALUES,
+  buildConsultantInviteMessage,
   REVIEW_STATUSES,
   assertApplicationTransition,
+  getHiringApplicationStatus,
+  getHiringStageMeta,
   getApplicationStatusMeta,
   getMessageReadPatch,
+  isCandidateApprovedForConversion,
   normalizeApplicationStatus,
+  normalizeHiringStage,
   normalizeMessageData,
+  validateHiringStageTransition,
 } from "./workflow";
 
 export { APPLICATION_STAGES, JOB_STATUSES };
@@ -98,6 +105,31 @@ function splitTags(value) {
     .filter(Boolean);
 }
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function generatedConsultantId(uid = "") {
+  const suffix = String(uid || Math.random().toString(36).slice(2, 8))
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 6)
+    .toUpperCase();
+  return `SMC-${suffix || "NEW001"}`;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function candidateUidFrom(application = {}) {
+  return application.candidate_uid || application.candidateId || application.uid || application.owner_uid || "";
+}
+
+function profileSkills(value) {
+  const tags = splitTags(value);
+  return tags.length ? tags : [];
+}
+
 function mapDoc(snap) {
   const data = snap.data() || {};
   return {
@@ -128,12 +160,17 @@ function normalizeJob(job) {
 function normalizeApplication(app) {
   const status = normalizeApplicationStatus(app.status || app.lifecycle_stage || "applied");
   const meta = getApplicationStatusMeta(status);
+  const workflowStage = normalizeHiringStage(app.workflowStage, status);
+  const hiringMeta = getHiringStageMeta(workflowStage);
   return {
     ...app,
     id: app.id,
     status,
     status_label: meta.label || APPLICATION_LABELS[status] || status,
     status_next_action: meta.nextAction || "",
+    workflowStage,
+    workflowStageLabel: hiringMeta.label,
+    workflowNextAction: hiringMeta.nextAction,
     position_title: app.position_title || "Open role",
     years_experience: app.years_experience || "",
     applied_ago: app.applied_ago || daysAgoLabel(app.created_at || app.createdAt),
@@ -533,7 +570,7 @@ export async function fetchOperationsData() {
     getDocs(query(collection(db, COLLECTIONS.REVIEWS), orderBy("updatedAt", "desc"), limit(150))),
     getDocs(query(collection(db, COLLECTIONS.DOCUMENTS), orderBy("updatedAt", "desc"), limit(200))),
     getDocs(query(collection(db, COLLECTIONS.LEADS), limit(120))),
-    getDocs(query(collection(db, "activityLogs"), orderBy("createdAt", "desc"), limit(60))),
+    getDocs(query(collection(db, COLLECTIONS.ACTIVITY_LOGS), orderBy("createdAt", "desc"), limit(80))),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
   const users = usersSnap.docs.map(mapDoc);
@@ -679,6 +716,143 @@ export async function updateApplicationStatus(application, status, context = {})
   }
 }
 
+function hiringPatchForStage(stage, actor, extra = {}) {
+  const workflowStage = normalizeHiringStage(stage);
+  const status = getHiringApplicationStatus(workflowStage);
+  return {
+    workflowStage,
+    status,
+    lifecycle_stage: status,
+    interviewStatus: extra.interviewStatus || workflowStage,
+    ...extra,
+    ...updateMeta(actor),
+  };
+}
+
+export async function moveHiringStage(application, nextStage, options = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const currentStage = normalizeHiringStage(
+    application.workflowStage,
+    application.status || application.lifecycle_stage
+  );
+  const validation = validateHiringStageTransition(currentStage, nextStage, options);
+  if (!validation.ok) {
+    await safeRecordActivityLog({
+      action: "hiring_stage_transition",
+      outcome: "blocked",
+      targetCollection: COLLECTIONS.APPLICATIONS,
+      targetId: application.id,
+      before: { workflowStage: validation.from },
+      after: { workflowStage: validation.to },
+      reason: validation.reason,
+    });
+    throw new Error(`${validation.reason} ${validation.nextAction}`.trim());
+  }
+  const workflowStage = validation.to;
+  const uid = candidateUidFrom(application);
+  const patch = hiringPatchForStage(workflowStage, user);
+  const batch = writeBatch(db);
+  batch.update(doc(db, COLLECTIONS.APPLICATIONS, application.id), patch);
+  if (uid) {
+    batch.set(
+      doc(db, COLLECTIONS.CANDIDATES, uid),
+      {
+        uid,
+        workflowStage,
+        interviewStatus: workflowStage,
+        ...updateMeta(user),
+      },
+      { merge: true }
+    );
+  }
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: "hiring_stage_transition",
+    outcome: "success",
+    targetCollection: COLLECTIONS.APPLICATIONS,
+    targetId: application.id,
+    before: { workflowStage: validation.from },
+    after: { workflowStage },
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+export async function addInterviewReview({ application, stage, rating, recommendation, notes }) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const uid = candidateUidFrom(application);
+  if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
+  if (!notes?.trim()) throw new Error("Add interview review notes.");
+  if (!rating) throw new Error("Choose a review rating.");
+  const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+    type: "interview_review",
+    candidate_uid: uid,
+    application_id: application.id,
+    stage: normalizeHiringStage(stage || application.workflowStage, application.status),
+    rating,
+    recommendation: recommendation || "continue",
+    notes: notes.trim(),
+    status: "completed",
+    ...createMeta(user),
+  });
+  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
+  await safeRecordActivityLog({
+    action: "interview_review_added",
+    outcome: "success",
+    targetCollection: COLLECTIONS.REVIEWS,
+    targetId: refDoc.id,
+    after: { applicationId: application.id, candidateUid: uid },
+  });
+  return { id: refDoc.id };
+}
+
+export async function decideCandidate(application, decision, reason = "") {
+  requireFirestore();
+  const user = requireAuthUser();
+  const uid = candidateUidFrom(application);
+  if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
+  if (!["approved", "rejected"].includes(decision)) throw new Error("Choose approve or reject.");
+  if (decision === "rejected" && !reason.trim()) throw new Error("Add a rejection reason.");
+
+  const workflowStage = decision === "approved" ? "approved" : normalizeHiringStage(application.workflowStage, application.status);
+  const appPatch =
+    decision === "approved"
+      ? hiringPatchForStage("approved", user, { candidateApprovalStatus: "approved", rejectionReason: "" })
+      : {
+          candidateApprovalStatus: "rejected",
+          rejectionReason: reason.trim(),
+          status: "not_shortlisted",
+          lifecycle_stage: "not_shortlisted",
+          ...updateMeta(user),
+        };
+  const candidatePatch = {
+    uid,
+    workflowStage,
+    candidateApprovalStatus: decision,
+    interviewStatus: decision,
+    rejectionReason: decision === "rejected" ? reason.trim() : "",
+    ...updateMeta(user),
+  };
+  const batch = writeBatch(db);
+  batch.update(doc(db, COLLECTIONS.APPLICATIONS, application.id), appPatch);
+  batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), candidatePatch, { merge: true });
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: decision === "approved" ? "candidate_approved" : "candidate_rejected",
+    outcome: "success",
+    targetCollection: COLLECTIONS.APPLICATIONS,
+    targetId: application.id,
+    after: { candidateApprovalStatus: decision, workflowStage },
+    reason: reason.trim(),
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
 export async function sendOfferLetter(application, file) {
   const ext = file.name.split(".").pop() || "pdf";
   const uploaded = await uploadTrackedFile({
@@ -759,7 +933,7 @@ async function safeRecordActivityLog(payload) {
   if (!isFirebaseConfigured || !db || !auth?.currentUser?.uid) return;
   const actor = auth.currentUser;
   try {
-    await addDoc(collection(db, "activityLogs"), {
+    await addDoc(collection(db, COLLECTIONS.ACTIVITY_LOGS), {
       actorUid: actor.uid,
       actorEmail: actor.email || "",
       actorRole: actor.role || "",
@@ -924,67 +1098,266 @@ export async function updateConsultantProfile(uid, profile) {
 export async function convertToConsultant(application, profile = {}, context = {}) {
   requireFirestore();
   const user = requireAuthUser();
-  const uid = application.candidate_uid;
+  const uid = candidateUidFrom(application);
   if (!uid) throw new Error("Application is missing candidate UID.");
-  try {
-    assertApplicationTransition(application.status || application.lifecycle_stage, "consultant_active", {
-      ...context,
-      application,
-    });
-  } catch (err) {
-    await safeRecordActivityLog({
-      action: "consultant_activation",
-      outcome: "blocked",
-      targetCollection: COLLECTIONS.APPLICATIONS,
-      targetId: application.id,
-      before: { status: normalizeApplicationStatus(application.status || application.lifecycle_stage) },
-      after: { status: "consultant_active" },
-      reason: err?.message || "Activation blocked",
-    });
-    throw err;
-  }
+  const email = normalizeEmail(profile.email || application.email);
+  if (!isValidEmail(email)) throw new Error("Candidate email is required before conversion.");
+  if (!profile.consultantType) throw new Error("Choose a consultant type.");
+  if (!profile.roleTitle) throw new Error("Add a consultant role title.");
+  if (!profile.startDate) throw new Error("Add a consultant start date.");
+  if (!profile.workLocation) throw new Error("Add a work location.");
+
+  const appRef = doc(db, COLLECTIONS.APPLICATIONS, application.id);
+  const candidateRef = doc(db, COLLECTIONS.CANDIDATES, uid);
   const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
-  const consultantSnap = await getDoc(consultantRef);
-  const consultant = {
-    uid,
-    email: application.email,
-    name: application.full_name || application.candidate_name,
-    consultantId: profile.consultantId || `SMC-${uid.slice(0, 6).toUpperCase()}`,
-    role: profile.role || application.position_title || "Consultant",
-    client: profile.client || "",
-    project: profile.project || "",
-    monthlyPay: profile.monthlyPay || "",
-    status: "Active consultant",
-    bankStatus: "pending_review",
-    panStatus: "pending_review",
-    uanStatus: "pending_review",
-    gstStatus: "not_required",
-    startDate: profile.startDate || "",
-    ...(consultantSnap.exists() ? {} : createMeta(user)),
-    ...updateMeta(user),
-  };
-  await setDoc(consultantRef, consultant, { merge: true });
-  await setDoc(
-    doc(db, COLLECTIONS.USERS, uid),
-    {
+  const userRef = doc(db, COLLECTIONS.USERS, uid);
+  const emailIndexRef = doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email);
+  const activityRef = doc(collection(db, COLLECTIONS.ACTIVITY_LOGS));
+
+  const consultant = await runTransaction(db, async (transaction) => {
+    const [appSnap, candidateSnap, consultantSnap, emailIndexSnap] = await Promise.all([
+      transaction.get(appRef),
+      transaction.get(candidateRef),
+      transaction.get(consultantRef),
+      transaction.get(emailIndexRef),
+    ]);
+    const appData = appSnap.exists() ? { id: appSnap.id, ...appSnap.data() } : application;
+    const candidateData = candidateSnap.exists() ? candidateSnap.data() : {};
+    if (consultantSnap.exists() || appData.convertedToConsultantId || candidateData.convertedToConsultantId) {
+      throw new Error("This candidate is already converted to a consultant.");
+    }
+    if (emailIndexSnap.exists() && emailIndexSnap.data()?.uid !== uid) {
+      throw new Error("A consultant with this email already exists.");
+    }
+    if (!isCandidateApprovedForConversion(candidateData, appData) && !context.overrideApproved) {
+      throw new Error("Approve the candidate before converting to consultant.");
+    }
+    if (context.overrideApproved && !context.overrideReason?.trim()) {
+      throw new Error("Add an override reason before converting this candidate.");
+    }
+
+    const name = profile.name || appData.full_name || appData.candidate_name || candidateData.name || "Consultant";
+    const skills = profileSkills(profile.skills || profile.primary_skills || appData.primary_skills || candidateData.primary_skills);
+    const consultantDoc = {
+      uid,
+      email,
+      name,
+      phone: profile.phone || appData.phone || candidateData.phone || "",
+      consultantId: profile.consultantId || generatedConsultantId(uid),
+      consultantType: profile.consultantType,
+      sourceCandidateId: uid,
+      sourceApplicationId: application.id,
+      roleTitle: profile.roleTitle,
+      role: profile.roleTitle,
+      clientName: profile.clientName || "",
+      client: profile.clientName || "",
+      project: profile.clientName || "",
+      startDate: profile.startDate,
+      workLocation: profile.workLocation,
+      rate: profile.rate || "",
+      monthlyPay: profile.rate || "",
+      skills,
+      notes: profile.notes || "",
+      loginEnabled: true,
+      credentialsStatus: "prepared",
+      credentialsPreparedAt: serverTimestamp(),
+      credentialsPreparedByEmployeeId: user.uid,
+      status: "Active consultant",
+      bankStatus: "pending_review",
+      panStatus: "pending_review",
+      uanStatus: "pending_review",
+      gstStatus: "not_required",
+      createdByEmployeeId: user.uid,
+      ...(consultantSnap.exists() ? {} : createMeta(user)),
+      ...updateMeta(user),
+    };
+
+    transaction.set(consultantRef, consultantDoc, { merge: true });
+    transaction.set(userRef, {
       role: "consultant",
-      email: application.email,
-      name: consultant.name,
+      email,
+      name,
       status: "active",
       ...updateMeta(user),
-    },
-    { merge: true }
-  );
-  await updateApplicationStatus(application, "consultant_active", context);
-  await safeRecordActivityLog({
-    action: "consultant_activation",
-    outcome: "success",
-    targetCollection: COLLECTIONS.CONSULTANTS,
-    targetId: uid,
-    before: { applicationId: application.id },
-    after: { status: "consultant_active" },
+    }, { merge: true });
+    transaction.set(emailIndexRef, {
+      email,
+      uid,
+      consultantId: uid,
+      source: "candidate_conversion",
+      ...createMeta(user),
+    }, { merge: true });
+    transaction.set(appRef, {
+      workflowStage: "converted_to_consultant",
+      interviewStatus: "converted",
+      candidateApprovalStatus: "approved",
+      convertedToConsultantId: uid,
+      convertedAt: serverTimestamp(),
+      convertedByEmployeeId: user.uid,
+      consultantType: profile.consultantType,
+      consultantRoleTitle: profile.roleTitle,
+      status: "consultant_active",
+      lifecycle_stage: "consultant_active",
+      ...updateMeta(user),
+    }, { merge: true });
+    transaction.set(candidateRef, {
+      uid,
+      email,
+      name,
+      workflowStage: "converted_to_consultant",
+      interviewStatus: "converted",
+      candidateApprovalStatus: "approved",
+      convertedToConsultantId: uid,
+      convertedAt: serverTimestamp(),
+      convertedByEmployeeId: user.uid,
+      ...updateMeta(user),
+    }, { merge: true });
+    transaction.set(activityRef, {
+      actorUid: user.uid,
+      actorEmail: user.email || "",
+      action: "candidate_converted_to_consultant",
+      outcome: "success",
+      targetCollection: COLLECTIONS.CONSULTANTS,
+      targetId: uid,
+      before: { applicationId: application.id, workflowStage: appData.workflowStage || appData.status },
+      after: { workflowStage: "converted_to_consultant", consultantType: profile.consultantType },
+      reason: context.overrideReason || "",
+      createdAt: serverTimestamp(),
+    });
+    return consultantDoc;
   });
-  return consultant;
+
+  return {
+    consultant,
+    invite: buildConsultantInviteMessage({
+      name: consultant.name,
+      email: consultant.email,
+      consultantLoginUrl: "https://saturnmax.com/consultant-login",
+    }),
+  };
+}
+
+function validateConsultantProfileInput(payload = {}) {
+  const required = [
+    ["fullName", "Full name"],
+    ["email", "Email"],
+    ["phone", "Phone"],
+    ["roleTitle", "Role title"],
+    ["consultantType", "Consultant type"],
+    ["startDate", "Start date"],
+    ["workLocation", "Work location"],
+  ];
+  const missing = required.find(([key]) => !String(payload[key] || "").trim());
+  if (missing) throw new Error(`${missing[1]} is required.`);
+  if (!isValidEmail(payload.email)) throw new Error("Enter a valid consultant email.");
+}
+
+async function findUserByEmail(email) {
+  const exact = await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", email), limit(1)));
+  if (!exact.empty) return exact.docs[0];
+  const lower = normalizeEmail(email);
+  if (lower !== email) {
+    const lowerSnap = await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", lower), limit(1)));
+    if (!lowerSnap.empty) return lowerSnap.docs[0];
+  }
+  return null;
+}
+
+export async function manuallyAddConsultant(payload = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  validateConsultantProfileInput(payload);
+  const email = normalizeEmail(payload.email);
+  const matchedUser = await findUserByEmail(payload.email);
+  const uid = matchedUser?.id || doc(collection(db, COLLECTIONS.CONSULTANTS)).id;
+  const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
+  const emailIndexRef = doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email);
+  const activityRef = doc(collection(db, COLLECTIONS.ACTIVITY_LOGS));
+  const userRef = matchedUser ? doc(db, COLLECTIONS.USERS, matchedUser.id) : null;
+
+  const consultant = await runTransaction(db, async (transaction) => {
+    const [consultantSnap, emailIndexSnap] = await Promise.all([
+      transaction.get(consultantRef),
+      transaction.get(emailIndexRef),
+    ]);
+    if (consultantSnap.exists()) throw new Error("A consultant record already exists for this account.");
+    if (emailIndexSnap.exists()) throw new Error("A consultant with this email already exists.");
+
+    const loginEnabled = Boolean(payload.loginEnabled && matchedUser);
+    const consultantDoc = {
+      uid,
+      authUid: matchedUser?.id || "",
+      email,
+      name: payload.fullName.trim(),
+      phone: payload.phone.trim(),
+      consultantId: payload.consultantId || generatedConsultantId(uid),
+      consultantType: payload.consultantType,
+      sourceCandidateId: "",
+      sourceApplicationId: "",
+      roleTitle: payload.roleTitle.trim(),
+      role: payload.roleTitle.trim(),
+      clientName: payload.clientName || "",
+      client: payload.clientName || "",
+      project: payload.clientName || "",
+      startDate: payload.startDate,
+      workLocation: payload.workLocation,
+      rate: payload.rate || "",
+      monthlyPay: payload.rate || "",
+      skills: profileSkills(payload.skills),
+      notes: payload.notes || "",
+      loginEnabled,
+      loginSetupRequired: !matchedUser,
+      credentialsStatus: payload.prepareEmail ? "prepared" : "not_prepared",
+      credentialsPreparedAt: payload.prepareEmail ? serverTimestamp() : null,
+      credentialsPreparedByEmployeeId: payload.prepareEmail ? user.uid : "",
+      status: loginEnabled ? "Active consultant" : "Profile created",
+      bankStatus: "pending_review",
+      panStatus: "pending_review",
+      uanStatus: "pending_review",
+      gstStatus: "not_required",
+      createdByEmployeeId: user.uid,
+      ...createMeta(user),
+    };
+
+    transaction.set(consultantRef, consultantDoc);
+    transaction.set(emailIndexRef, {
+      email,
+      uid,
+      consultantId: uid,
+      source: "manual_consultant",
+      ...createMeta(user),
+    });
+    if (userRef && payload.loginEnabled) {
+      transaction.set(userRef, {
+        role: "consultant",
+        email,
+        name: payload.fullName.trim(),
+        status: "active",
+        ...updateMeta(user),
+      }, { merge: true });
+    }
+    transaction.set(activityRef, {
+      actorUid: user.uid,
+      actorEmail: user.email || "",
+      action: "manual_consultant_created",
+      outcome: "success",
+      targetCollection: COLLECTIONS.CONSULTANTS,
+      targetId: uid,
+      after: { loginEnabled, email },
+      createdAt: serverTimestamp(),
+    });
+    return consultantDoc;
+  });
+
+  return {
+    consultant,
+    loginSetupRequired: !matchedUser,
+    invite: buildConsultantInviteMessage({
+      name: consultant.name,
+      email: consultant.email,
+      consultantLoginUrl: "https://saturnmax.com/consultant-login",
+    }),
+  };
 }
 
 export async function fetchConsultantDashboard(uid) {

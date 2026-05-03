@@ -2,10 +2,13 @@ import React from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import OperationsApplications from "../OperationsApplications";
+import OperationsHiringCandidates from "../OperationsHiringCandidates";
+import OperationsManualConsultant from "../OperationsManualConsultant";
 import OperationsReviews from "../OperationsReviews";
 import { OperationsContext } from "../OperationsContext";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+let mockRouteParams = {};
 
 jest.mock(
   "react-router-dom",
@@ -14,6 +17,7 @@ jest.mock(
       const ReactMock = require("react");
       return ReactMock.createElement("a", { href: to, ...props }, children);
     },
+    useParams: () => mockRouteParams,
   }),
   { virtual: true }
 );
@@ -29,6 +33,8 @@ const baseData = {
       email: "candidate@saturnmax.com",
       position_title: "React Engineer",
       status: "onboarding",
+      workflowStage: "approved",
+      candidateApprovalStatus: "approved",
       status_next_action: "Complete onboarding and compliance review.",
       updatedAt: 3,
     },
@@ -46,6 +52,7 @@ const baseData = {
   ],
   documents: [
     { id: "doc-1", owner_uid: "candidate-1", application_id: "app-1", type: "signed_offer", status: "approved" },
+    { id: "resume-1", owner_uid: "candidate-1", type: "resume", status: "uploaded", file_url: "https://example.com/resume.pdf" },
   ],
   consultants: [],
   leads: [],
@@ -102,6 +109,37 @@ test("reviews module renders queue filters and activity feed", () => {
   expect(container.textContent).toContain("Pending review");
   expect(container.textContent).toContain("Activity feed");
   expect(container.textContent).toContain("application status transition");
+  act(() => root.unmount());
+  container.remove();
+});
+
+test("hiring candidates module renders workflow actions", () => {
+  mockRouteParams = {};
+  const { container, root } = renderWithOperations(<OperationsHiringCandidates />);
+  expect(container.textContent).toContain("Candidate -> Consultant Workflow");
+  expect(container.textContent).toContain("View Profile");
+  expect(container.textContent).toContain("Add Review");
+  expect(container.textContent).toContain("Convert");
+  act(() => root.unmount());
+  container.remove();
+});
+
+test("candidate detail renders stepper, reviews, and conversion panel", () => {
+  mockRouteParams = { applicationId: "app-1" };
+  const { container, root } = renderWithOperations(<OperationsHiringCandidates />);
+  expect(container.textContent).toContain("Workflow stage");
+  expect(container.textContent).toContain("Interview reviews");
+  expect(container.textContent).toContain("Conversion panel");
+  act(() => root.unmount());
+  container.remove();
+  mockRouteParams = {};
+});
+
+test("manual consultant form explains Firebase Auth setup", () => {
+  const { container, root } = renderWithOperations(<OperationsManualConsultant />);
+  expect(container.textContent).toContain("Manual Add Consultant");
+  expect(container.textContent).toContain("Login setup behavior");
+  expect(container.textContent).toContain("Create consultant");
   act(() => root.unmount());
   container.remove();
 });

@@ -6,8 +6,10 @@ import {
   ClipboardList,
   FileText,
   MessageSquare,
+  PlusCircle,
   RefreshCw,
   UserCog,
+  UserRound,
   Users,
 } from "lucide-react";
 import Logo from "../components/Logo";
@@ -30,12 +32,25 @@ const EMPTY_OPERATIONS_DATA = {
   messageThreads: [],
 };
 
-const EMPLOYEE_NAV = [
-  { to: "/employee-dashboard/jobs", label: "Jobs", Icon: BriefcaseBusiness },
-  { to: "/employee-dashboard/applications", label: "Applications", Icon: ClipboardList },
-  { to: "/employee-dashboard/messages", label: "Messages", Icon: MessageSquare },
-  { to: "/employee-dashboard/consultants", label: "Consultants", Icon: Users },
-  { to: "/employee-dashboard/reviews", label: "Reviews", Icon: FileText },
+const EMPLOYEE_NAV_GROUPS = [
+  {
+    title: "Hiring Workflow",
+    items: [
+      { to: "/employee-dashboard/hiring/candidates", label: "Candidates", Icon: UserRound },
+      { to: "/employee-dashboard/hiring/interviews", label: "Interview Reviews", Icon: ClipboardList },
+      { to: "/employee-dashboard/hiring/convert", label: "Convert to Consultant", Icon: BriefcaseBusiness },
+      { to: "/employee-dashboard/hiring/consultants", label: "Consultants", Icon: Users },
+      { to: "/employee-dashboard/hiring/manual-consultant", label: "Manual Add Consultant", Icon: PlusCircle },
+    ],
+  },
+  {
+    title: "Operations",
+    items: [
+      { to: "/employee-dashboard/jobs", label: "Jobs", Icon: BriefcaseBusiness },
+      { to: "/employee-dashboard/messages", label: "Messages", Icon: MessageSquare },
+      { to: "/employee-dashboard/reviews", label: "Reviews", Icon: FileText },
+    ],
+  },
 ];
 
 export default function EmployeeDashboard() {
@@ -87,7 +102,7 @@ export default function EmployeeDashboard() {
   const stats = useMemo(
     () => [
       { label: "Published jobs", value: data.jobs.filter((job) => job.status === "published").length },
-      { label: "Applications", value: data.applications.length },
+      { label: "Candidates", value: data.applications.length || data.candidates.length },
       { label: "Unread threads", value: data.messageThreads.filter((thread) => thread.unreadCount > 0).length },
       { label: "Pending reviews", value: data.reviews.filter((review) => review.status === "pending_review").length },
     ],
@@ -113,7 +128,7 @@ export default function EmployeeDashboard() {
       <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 md:px-10">
-            <Logo to="/employee-dashboard/applications" />
+            <Logo to="/employee-dashboard/hiring/candidates" />
             <div className="flex items-center gap-2">
               <button
                 onClick={load}
@@ -135,7 +150,7 @@ export default function EmployeeDashboard() {
                 Employee portal
               </div>
               <h1 className="mt-4 font-heading text-3xl font-semibold tracking-tight text-white">
-                Role-based queues for hiring, onboarding, and consultant delivery.
+                Hiring Center for candidate review and consultant conversion.
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-white/65">
                 Use the section tabs to work one queue at a time.
@@ -155,23 +170,30 @@ export default function EmployeeDashboard() {
             </div>
           </section>
 
-          <nav className="mb-6 overflow-x-auto rounded-xl border border-slate-200 bg-white p-2" aria-label="Employee sections">
-            <div className="flex min-w-max gap-2">
-              {EMPLOYEE_NAV.map(({ to, label, Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors ${
-                      isActive
-                        ? "bg-[#2563EB] text-white"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`
-                  }
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {label}
-                </NavLink>
+          <nav className="mb-6 overflow-x-auto rounded-xl border border-slate-200 bg-white p-3" aria-label="Employee sections">
+            <div className="flex min-w-max gap-5">
+              {EMPLOYEE_NAV_GROUPS.map((group) => (
+                <div key={group.title} className="flex items-center gap-2">
+                  <div className="mr-1 hidden text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 lg:block">
+                    {group.title}
+                  </div>
+                  {group.items.map(({ to, label, Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      className={({ isActive }) =>
+                        `inline-flex h-10 items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors ${
+                          isActive
+                            ? "bg-[#2563EB] text-white"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {label}
+                    </NavLink>
+                  ))}
+                </div>
               ))}
             </div>
           </nav>

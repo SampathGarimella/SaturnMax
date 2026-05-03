@@ -128,6 +128,12 @@ service cloud.firestore {
           && resource.data.candidate_uid == request.auth.uid
           && request.resource.data.candidate_uid == resource.data.candidate_uid
           && keepsImmutableFields()
+          && changedKeys().hasOnly([
+            "status",
+            "lifecycle_stage",
+            "updatedAt",
+            "updatedBy"
+          ])
           && request.resource.data.status in ["offer_signed", "onboarding"]);
       allow delete: if isEmployee();
     }
@@ -155,8 +161,14 @@ service cloud.firestore {
       allow read: if isEmployee()
         || (signedIn() && resource.data.owner_uid == request.auth.uid);
       allow create: if isEmployee()
-        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
+        || (signedIn()
+          && request.resource.data.owner_uid == request.auth.uid
+          && !(request.resource.data.type in ["interview_review"]));
       allow update, delete: if isEmployee();
+    }
+
+    match /consultantEmailIndex/{email} {
+      allow read, create, update, delete: if isEmployee();
     }
 
     match /messages/{uid}/thread/{messageId} {

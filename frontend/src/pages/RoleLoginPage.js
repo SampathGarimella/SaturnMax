@@ -28,7 +28,7 @@ const CONFIG = {
     eyebrow: "Employee portal",
     description:
       "Manage candidates, consultants, projects, documents, and recent login activity for the team.",
-    destination: "/employee-dashboard/applications",
+    destination: "/employee-dashboard/hiring/candidates",
     allowedRoles: ["employee", "admin"],
     Icon: UserCog,
   },

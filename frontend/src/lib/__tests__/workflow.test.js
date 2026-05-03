@@ -1,10 +1,15 @@
 import {
   APPLICATION_LABELS,
+  buildConsultantInviteMessage,
   getActivationChecklist,
   getApplicationStatusMeta,
+  getHiringApplicationStatus,
+  getHiringStageMeta,
   getMessageReadPatch,
+  normalizeHiringStage,
   normalizeApplicationStatus,
   normalizeMessageData,
+  validateHiringStageTransition,
   validateApplicationTransition,
 } from "../workflow";
 
@@ -59,6 +64,33 @@ describe("application transition guards", () => {
     expect(checklist.find((item) => item.type === "form12bb")).toMatchObject({
       complete: false,
     });
+  });
+});
+
+describe("hiring workflow source", () => {
+  test("normalizes application statuses to hiring stages", () => {
+    expect(normalizeHiringStage("", "selected")).toBe("approved");
+    expect(getHiringStageMeta("technical_interview").label).toBe("Technical Interview");
+    expect(getHiringApplicationStatus("client_interview")).toBe("interview");
+  });
+
+  test("allows sequential hiring moves and blocks skipped stages", () => {
+    expect(validateHiringStageTransition("applied", "resume_review")).toMatchObject({ ok: true });
+    expect(validateHiringStageTransition("applied", "technical_interview")).toMatchObject({
+      ok: false,
+      nextAction: "Move to Resume Review first.",
+    });
+  });
+
+  test("builds consultant invite text without sending email", () => {
+    const invite = buildConsultantInviteMessage({
+      name: "Priya",
+      email: "priya@saturnmax.com",
+      consultantLoginUrl: "https://saturnmax.com/consultant-login",
+    });
+    expect(invite.subject).toBe("Welcome to SaturnMax Consultant Portal");
+    expect(invite.body).toContain("Priya");
+    expect(invite.body).toContain("priya@saturnmax.com");
   });
 });
 

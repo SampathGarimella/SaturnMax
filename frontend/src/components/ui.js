@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import {
   APPLICATION_STATUS_VALUES,
+  HIRING_WORKFLOW_STAGES,
   getApplicationStatusMeta,
+  getHiringStageMeta,
   getReviewStatusMeta,
   REVIEW_STATUSES,
 } from "../lib/workflow";
@@ -27,6 +29,12 @@ const STATUS_ICONS = {
   onboarding: Clock3,
   consultant_active: CheckCircle2,
   not_shortlisted: XCircle,
+  resume_review: Clock3,
+  technical_interview: CircleDot,
+  client_interview: CircleDot,
+  hr_contract_review: Clock3,
+  converted_to_consultant: CheckCircle2,
+  credentials_sent: CheckCircle2,
   pending_review: Clock3,
   approved: CheckCircle2,
   rejected: XCircle,
@@ -35,7 +43,9 @@ const STATUS_ICONS = {
 
 export function StatusBadge({ value, type = "auto", withIcon = true, className = "" }) {
   const meta =
-    type === "review" || REVIEW_STATUSES.includes(value)
+    type === "hiring" || HIRING_WORKFLOW_STAGES.includes(value)
+      ? getHiringStageMeta(value)
+      : type === "review" || REVIEW_STATUSES.includes(value)
       ? getReviewStatusMeta(value)
       : type === "application" || APPLICATION_STATUS_VALUES.includes(value)
       ? getApplicationStatusMeta(value)

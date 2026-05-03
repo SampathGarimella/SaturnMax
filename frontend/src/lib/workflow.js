@@ -140,6 +140,107 @@ export const ONBOARDING_LABELS = Object.freeze({
   complete: "Complete",
 });
 
+export const HIRING_WORKFLOW_STAGES = Object.freeze([
+  "applied",
+  "resume_review",
+  "screening",
+  "technical_interview",
+  "client_interview",
+  "hr_contract_review",
+  "approved",
+  "converted_to_consultant",
+  "credentials_sent",
+]);
+
+export const HIRING_STAGE_LABELS = Object.freeze({
+  applied: "Applied",
+  resume_review: "Resume Review",
+  screening: "Screening",
+  technical_interview: "Technical Interview",
+  client_interview: "Client Interview",
+  hr_contract_review: "HR / Contract Review",
+  approved: "Approved",
+  converted_to_consultant: "Converted to Consultant",
+  credentials_sent: "Credentials Sent",
+});
+
+export const HIRING_STAGE_META = Object.freeze({
+  applied: {
+    label: HIRING_STAGE_LABELS.applied,
+    className: "bg-slate-100 text-slate-700",
+    nextAction: "Review resume and profile completeness.",
+  },
+  resume_review: {
+    label: HIRING_STAGE_LABELS.resume_review,
+    className: "bg-amber-100 text-amber-800",
+    nextAction: "Add resume feedback or move to screening.",
+  },
+  screening: {
+    label: HIRING_STAGE_LABELS.screening,
+    className: "bg-blue-100 text-blue-800",
+    nextAction: "Complete recruiter screening notes.",
+  },
+  technical_interview: {
+    label: HIRING_STAGE_LABELS.technical_interview,
+    className: "bg-indigo-100 text-indigo-800",
+    nextAction: "Capture technical interview review.",
+  },
+  client_interview: {
+    label: HIRING_STAGE_LABELS.client_interview,
+    className: "bg-violet-100 text-violet-800",
+    nextAction: "Track client feedback and next steps.",
+  },
+  hr_contract_review: {
+    label: HIRING_STAGE_LABELS.hr_contract_review,
+    className: "bg-cyan-100 text-cyan-800",
+    nextAction: "Confirm HR, contract, and commercial details.",
+  },
+  approved: {
+    label: HIRING_STAGE_LABELS.approved,
+    className: "bg-emerald-100 text-emerald-800",
+    nextAction: "Convert candidate to consultant when details are ready.",
+  },
+  converted_to_consultant: {
+    label: HIRING_STAGE_LABELS.converted_to_consultant,
+    className: "bg-emerald-100 text-emerald-800",
+    nextAction: "Prepare consultant portal login instructions.",
+  },
+  credentials_sent: {
+    label: HIRING_STAGE_LABELS.credentials_sent,
+    className: "bg-emerald-100 text-emerald-800",
+    nextAction: "Consultant can access the consultant portal.",
+  },
+});
+
+export const HIRING_STAGE_TO_APPLICATION_STATUS = Object.freeze({
+  applied: "applied",
+  resume_review: "screening",
+  screening: "screening",
+  technical_interview: "interview",
+  client_interview: "interview",
+  hr_contract_review: "interview",
+  approved: "selected",
+  converted_to_consultant: "consultant_active",
+  credentials_sent: "consultant_active",
+});
+
+const HIRING_STAGE_INDEX = HIRING_WORKFLOW_STAGES.reduce((acc, stage, index) => {
+  acc[stage] = index;
+  return acc;
+}, {});
+
+const APPLICATION_STATUS_TO_HIRING_STAGE = Object.freeze({
+  applied: "applied",
+  screening: "screening",
+  interview: "technical_interview",
+  selected: "approved",
+  offer_sent: "hr_contract_review",
+  offer_signed: "hr_contract_review",
+  onboarding: "hr_contract_review",
+  consultant_active: "converted_to_consultant",
+  not_shortlisted: "applied",
+});
+
 const APPROVED_STATUSES = new Set(["approved", "complete"]);
 const REVIEWABLE_DOCUMENT_TYPES = Object.freeze({
   signed_offer: Object.freeze(["signed_offer"]),
@@ -197,6 +298,104 @@ export function getReviewStatusMeta(status) {
   return REVIEW_STATUS_META[status] || {
     label: String(status || "Pending review").replace(/_/g, " "),
     className: "bg-slate-100 text-slate-700",
+  };
+}
+
+export function normalizeHiringStage(stage, fallbackStatus = "applied") {
+  const value = String(stage || "").trim();
+  if (HIRING_WORKFLOW_STAGES.includes(value)) return value;
+  const fromApplication = normalizeApplicationStatus(fallbackStatus);
+  return APPLICATION_STATUS_TO_HIRING_STAGE[fromApplication] || "applied";
+}
+
+export function getHiringStageMeta(stage) {
+  const normalized = normalizeHiringStage(stage);
+  return HIRING_STAGE_META[normalized] || HIRING_STAGE_META.applied;
+}
+
+export function getHiringApplicationStatus(stage) {
+  return HIRING_STAGE_TO_APPLICATION_STATUS[normalizeHiringStage(stage)] || "applied";
+}
+
+export function getNextHiringStage(stage) {
+  const normalized = normalizeHiringStage(stage);
+  const next = HIRING_WORKFLOW_STAGES[HIRING_STAGE_INDEX[normalized] + 1];
+  return next || "";
+}
+
+export function validateHiringStageTransition(from, to, options = {}) {
+  const normalizedFrom = normalizeHiringStage(from, options.fromStatus);
+  const normalizedTo = normalizeHiringStage(to, options.toStatus);
+  const fromIndex = HIRING_STAGE_INDEX[normalizedFrom];
+  const toIndex = HIRING_STAGE_INDEX[normalizedTo];
+
+  if (normalizedFrom === normalizedTo) {
+    return { ok: true, from: normalizedFrom, to: normalizedTo, reason: "", nextAction: "" };
+  }
+
+  if (options.allowJump) {
+    return { ok: true, from: normalizedFrom, to: normalizedTo, reason: "", nextAction: "" };
+  }
+
+  if (fromIndex === undefined || toIndex === undefined) {
+    return {
+      ok: false,
+      from: normalizedFrom,
+      to: normalizedTo,
+      reason: "Unsupported hiring workflow stage.",
+      nextAction: "Refresh the Employee Portal and choose a configured stage.",
+    };
+  }
+
+  if (toIndex !== fromIndex + 1) {
+    const next = getNextHiringStage(normalizedFrom);
+    return {
+      ok: false,
+      from: normalizedFrom,
+      to: normalizedTo,
+      reason: `Cannot move ${getHiringStageMeta(normalizedFrom).label} to ${getHiringStageMeta(normalizedTo).label}.`,
+      nextAction: next
+        ? `Move to ${getHiringStageMeta(next).label} first.`
+        : `${getHiringStageMeta(normalizedFrom).label} is complete.`,
+    };
+  }
+
+  return { ok: true, from: normalizedFrom, to: normalizedTo, reason: "", nextAction: "" };
+}
+
+export function isCandidateApprovedForConversion(candidate = {}, application = {}) {
+  const stage = normalizeHiringStage(
+    application.workflowStage || candidate.workflowStage,
+    application.status || application.lifecycle_stage
+  );
+  return (
+    candidate.candidateApprovalStatus === "approved" ||
+    application.candidateApprovalStatus === "approved" ||
+    ["approved", "converted_to_consultant", "credentials_sent"].includes(stage)
+  );
+}
+
+export function buildConsultantInviteMessage({
+  name = "Consultant",
+  email = "",
+  consultantLoginUrl = "https://saturnmax.com/consultant-login",
+} = {}) {
+  return {
+    subject: "Welcome to SaturnMax Consultant Portal",
+    body: `Hi ${name || "Consultant"},
+
+Your consultant profile has been created with SaturnMax Technologies Pvt Ltd.
+
+Consultant Portal:
+${consultantLoginUrl}
+
+Login Email:
+${email}
+
+Please log in and complete or verify your profile.
+
+Regards,
+SaturnMax Technologies Pvt Ltd`,
   };
 }
 

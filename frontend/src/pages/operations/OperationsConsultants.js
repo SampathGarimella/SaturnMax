@@ -77,8 +77,8 @@ export default function OperationsConsultants() {
     <div className="space-y-5" data-testid="operations-consultants-page">
       <SectionHeader
         eyebrow="Consultants"
-        title="Assignments and payroll readiness"
-        description="Manage active consultant project assignment, client details, pay summary, and India compliance review states."
+        title="Consultant roster and assignments"
+        description="Manage converted and manually added consultants, project assignment, pay summary, login readiness, and India compliance review states."
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
@@ -140,11 +140,14 @@ export default function OperationsConsultants() {
             </div>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Mini label="Client" value={consultant.client || "Pending assignment"} />
-              <Mini label="Project" value={consultant.project || "Pending assignment"} />
+              <Mini label="Type" value={consultant.consultantType || "Not set"} />
+              <Mini label="Role" value={consultant.roleTitle || consultant.role || consultant.project || "Pending role"} />
               <Mini label="Monthly pay" value={consultant.monthlyPay || "Pending"} />
               <Mini label="Start date" value={consultant.startDate || "Pending"} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <StatusBadge value={consultant.loginEnabled ? "login enabled" : "login setup required"} withIcon={false} />
+              {consultant.sourceCandidateId && <StatusBadge value="converted" withIcon={false} />}
               <StatusBadge value={consultant.bankStatus || "pending_review"} type="review" />
               <StatusBadge value={consultant.panStatus || "pending_review"} type="review" />
               <StatusBadge value={consultant.uanStatus || "pending_review"} type="review" />

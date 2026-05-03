@@ -72,6 +72,13 @@ beforeEach(async () => {
         status: "active",
         createdAt: 1,
       }),
+      setDoc(doc(db, "users", "consultant-1"), {
+        role: "consultant",
+        email: "consultant@saturnmax.com",
+        name: "Consultant",
+        status: "active",
+        createdAt: 1,
+      }),
       setDoc(doc(db, "jobs", "published-job"), {
         title: "React Engineer",
         description: "Build production apps",
@@ -100,6 +107,14 @@ beforeEach(async () => {
         owner_uid: "candidate-1",
         type: "signed_offer",
         status: "pending_review",
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "reviews", "interview-1"), {
+        candidate_uid: "candidate-1",
+        application_id: "app-1",
+        type: "interview_review",
+        status: "completed",
+        notes: "Strong technical interview",
         createdAt: 1,
       }),
     ]);
@@ -145,6 +160,54 @@ describe("Firestore security rules", () => {
     await assertSucceeds(updateDoc(doc(db, "applications", "app-1"), { status: "screening" }));
     await assertSucceeds(updateDoc(doc(db, "reviews", "review-1"), { status: "approved" }));
     await assertSucceeds(deleteDoc(doc(db, "jobs", "draft-job")));
+  });
+
+  test("employee can create consultant records and email index, candidates cannot", async () => {
+    const employee = authedDb("employee-1");
+    const candidate = authedDb("candidate-1");
+    await assertSucceeds(
+      setDoc(doc(employee, "consultants", "candidate-1"), {
+        uid: "candidate-1",
+        email: "candidate@saturnmax.com",
+        name: "Candidate",
+        sourceCandidateId: "candidate-1",
+        consultantType: "Contract",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(employee, "consultantEmailIndex", "candidate@saturnmax.com"), {
+        email: "candidate@saturnmax.com",
+        uid: "candidate-1",
+      })
+    );
+    await assertFails(
+      setDoc(doc(candidate, "consultants", "candidate-2"), {
+        uid: "candidate-2",
+        email: "other@saturnmax.com",
+      })
+    );
+    await assertFails(
+      setDoc(doc(candidate, "consultantEmailIndex", "other@saturnmax.com"), {
+        email: "other@saturnmax.com",
+        uid: "candidate-2",
+      })
+    );
+  });
+
+  test("employee-only interview reviews are hidden from candidate and consultant", async () => {
+    const employee = authedDb("employee-1");
+    const candidate = authedDb("candidate-1");
+    const consultant = authedDb("consultant-1");
+    await assertSucceeds(getDoc(doc(employee, "reviews", "interview-1")));
+    await assertFails(getDoc(doc(candidate, "reviews", "interview-1")));
+    await assertFails(getDoc(doc(consultant, "reviews", "interview-1")));
+    await assertFails(
+      setDoc(doc(candidate, "reviews", "candidate-interview"), {
+        owner_uid: "candidate-1",
+        type: "interview_review",
+        status: "completed",
+      })
+    );
   });
 
   test("activity logs are writable by signed-in users and readable by employees", async () => {

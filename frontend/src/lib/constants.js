@@ -18,8 +18,8 @@ export const ROLE_STATUS = Object.freeze({
 export const ROLE_HOME = Object.freeze({
   [ROLES.CANDIDATE]: "/dashboard",
   [ROLES.CONSULTANT]: "/consultant-dashboard",
-  [ROLES.EMPLOYEE]: "/employee-dashboard/applications",
-  [ROLES.ADMIN]: "/employee-dashboard/applications",
+  [ROLES.EMPLOYEE]: "/employee-dashboard/hiring/candidates",
+  [ROLES.ADMIN]: "/employee-dashboard/hiring/candidates",
 });
 
 export const ROLE_PORTAL_ROOT = Object.freeze({
@@ -59,4 +59,6 @@ export const COLLECTIONS = Object.freeze({
   MESSAGES: "messages",
   LEADS: "leads",
   LOGIN_EVENTS: "loginEvents",
+  CONSULTANT_EMAIL_INDEX: "consultantEmailIndex",
+  ACTIVITY_LOGS: "activityLogs",
 });

@@ -7,9 +7,12 @@ import LoginPage from "./pages/LoginPage";
 import RoleLoginPage from "./pages/RoleLoginPage";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
-import OperationsApplications from "./pages/operations/OperationsApplications";
 import OperationsConsultants from "./pages/operations/OperationsConsultants";
+import OperationsConvert from "./pages/operations/OperationsConvert";
+import OperationsHiringCandidates from "./pages/operations/OperationsHiringCandidates";
+import OperationsInterviewReviews from "./pages/operations/OperationsInterviewReviews";
 import OperationsJobs from "./pages/operations/OperationsJobs";
+import OperationsManualConsultant from "./pages/operations/OperationsManualConsultant";
 import OperationsMessages from "./pages/operations/OperationsMessages";
 import OperationsReviews from "./pages/operations/OperationsReviews";
 import DashboardLayout from "./components/DashboardLayout";
@@ -66,12 +69,18 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="applications" replace />} />
+            <Route index element={<Navigate to="hiring/candidates" replace />} />
             <Route path="jobs" element={<OperationsJobs />} />
-            <Route path="applications" element={<OperationsApplications />} />
+            <Route path="applications" element={<Navigate to="/employee-dashboard/hiring/candidates" replace />} />
             <Route path="messages" element={<OperationsMessages />} />
-            <Route path="consultants" element={<OperationsConsultants />} />
+            <Route path="consultants" element={<Navigate to="/employee-dashboard/hiring/consultants" replace />} />
             <Route path="reviews" element={<OperationsReviews />} />
+            <Route path="hiring/candidates" element={<OperationsHiringCandidates />} />
+            <Route path="hiring/candidates/:applicationId" element={<OperationsHiringCandidates />} />
+            <Route path="hiring/interviews" element={<OperationsInterviewReviews />} />
+            <Route path="hiring/convert" element={<OperationsConvert />} />
+            <Route path="hiring/consultants" element={<OperationsConsultants />} />
+            <Route path="hiring/manual-consultant" element={<OperationsManualConsultant />} />
           </Route>
           <Route
             path="/dashboard"
