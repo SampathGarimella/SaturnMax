@@ -136,6 +136,37 @@ sign in** will create/link the Auth user, set `users/{uid}.role = consultant`,
 create `consultants/{uid}`, and send the Firebase password setup email. Customize
 the email template in Firebase Console → Authentication → Templates.
 
+Important: Firebase's built-in **Password reset** template is shared by:
+- Candidate **Forgot password?** on `/login`
+- Manual consultant password setup invitations
+
+Do not make that template consultant-only unless you move consultant invitations
+to a custom email provider later. Use neutral wording such as:
+
+```txt
+Subject: Set or reset your SaturnMax account password
+
+Hi,
+
+Use the link below to set or reset your SaturnMax account password.
+
+%LINK%
+
+Candidate Portal:
+https://saturnmax.com/login
+
+Consultant Portal:
+https://saturnmax.com/consultant-login
+
+If you did not request this email, contact hr@saturnmax.com.
+
+Regards,
+SaturnMax Technologies Pvt Ltd
+```
+
+Consultant and employee login pages do not expose website password reset links;
+they direct users to `hr@saturnmax.com` for password assistance.
+
 ## 8. Is a backend needed?
 
 Firebase can store the normal app data:

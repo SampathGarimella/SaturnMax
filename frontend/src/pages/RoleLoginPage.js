@@ -165,6 +165,13 @@ export default function RoleLoginPage({ role = "consultant" }) {
           <p className="mt-2 text-sm text-slate-500">
             Use your assigned work credentials to access this portal.
           </p>
+          <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+            Password resets for consultant and employee accounts are handled by HR. Contact{" "}
+            <a href="mailto:hr@saturnmax.com" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+              hr@saturnmax.com
+            </a>{" "}
+            for assistance.
+          </p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block">
