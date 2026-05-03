@@ -113,8 +113,28 @@ Once Firebase is configured:
 - ✅ `/dashboard/profile` resume upload writes to Firebase Storage
 - ✅ Employees can send offer letters and onboarding documents
 - ✅ Candidates can upload signed offer/onboarding documents
+- ✅ Employees can convert approved candidates into consultants
+- ✅ Manual consultant invite emails work after deploying Firebase Functions
 - ✅ `/consultant-login` and `/employee-login` can use Firebase Auth accounts
 - ✅ Consultants can view project/pay/documents and submit bank details for review
+
+### Manual consultant invitation emails
+
+The Employee Portal can create a consultant profile from **Manual Add Consultant**.
+To also create/link the Firebase Auth user and send the password setup email,
+deploy the callable function:
+
+```bash
+cd functions
+npm install
+cd ..
+firebase deploy --only functions:createManualConsultantInvite,firestore:rules
+```
+
+After that deployment, checking **Send invitation email to create password and
+sign in** will create/link the Auth user, set `users/{uid}.role = consultant`,
+create `consultants/{uid}`, and send the Firebase password setup email. Customize
+the email template in Firebase Console → Authentication → Templates.
 
 ## 8. Is a backend needed?
 
@@ -127,8 +147,8 @@ Firebase can store the normal app data:
 
 A backend is still recommended for trusted operations:
 
-- Creating employee/admin/consultant Auth accounts from inside the app
-- Sending emails from a protected sender
+- Creating employee/admin accounts from inside the app
+- Sending branded/custom emails from a protected sender
 - Resume parsing, virus scanning, and document verification
 - Payroll, payouts, invoices, or tax forms
 - Any integration that uses private API keys

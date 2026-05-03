@@ -18,6 +18,7 @@ const EMPTY_FORM = {
   rate: "",
   loginEnabled: true,
   prepareEmail: true,
+  sendInvitationEmail: true,
   notes: "",
 };
 
@@ -39,7 +40,11 @@ export default function OperationsManualConsultant() {
     try {
       const created = await manuallyAddConsultant(form);
       setResult(created);
-      toast.success("Consultant profile created.");
+      toast.success(
+        created.emailSent
+          ? "Consultant created and invitation email sent."
+          : "Consultant profile created."
+      );
       setForm(EMPTY_FORM);
       await load();
     } catch (err) {
@@ -64,7 +69,7 @@ export default function OperationsManualConsultant() {
       <SectionHeader
         eyebrow="Hiring Workflow"
         title="Manual Add Consultant"
-        description="Create a consultant profile directly. Login can only be enabled when a matching Firebase user document already exists."
+        description="Create a consultant profile directly and send a Firebase password setup email when the consultant invite function is deployed."
       />
 
       {inlineError && <InlineError title={inlineError.title} body={inlineError.body} onRetry={() => setInlineError(null)} />}
@@ -98,6 +103,10 @@ export default function OperationsManualConsultant() {
               <input type="checkbox" className="mt-1" checked={form.prepareEmail} onChange={(event) => update("prepareEmail", event.target.checked)} />
               Prepare invitation email text
             </label>
+            <label className="flex items-start gap-3 text-sm font-semibold text-slate-700 sm:col-span-2">
+              <input type="checkbox" className="mt-1" checked={form.sendInvitationEmail} onChange={(event) => update("sendInvitationEmail", event.target.checked)} />
+              Send invitation email to create password and sign in
+            </label>
           </div>
 
           <div className="mt-5 flex justify-end">
@@ -115,12 +124,24 @@ export default function OperationsManualConsultant() {
               <h2 className="font-heading text-lg font-semibold text-slate-900">Login setup behavior</h2>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              React cannot securely create Firebase Auth users. If this email already has a user document, the app can assign consultant role. Otherwise the profile is saved and marked as login setup required.
+              When Firebase Functions are deployed, the app securely creates or links the Firebase Auth user, assigns consultant role, and sends a Firebase password setup email. If Functions are not deployed, the app falls back to Firestore-only profile creation and shows setup guidance.
             </p>
           </div>
           {result && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-              <h2 className="font-heading text-lg font-semibold text-emerald-950">Consultant created</h2>
+              <h2 className="font-heading text-lg font-semibold text-emerald-950">
+                {result.emailSent ? "Invitation email sent" : "Consultant created"}
+              </h2>
+              {result.emailSent && (
+                <p className="mt-2 text-sm leading-relaxed text-emerald-900">
+                  The consultant can open the email, create a password, and sign in at the Consultant Portal.
+                </p>
+              )}
+              {result.functionFallback && (
+                <p className="mt-2 text-sm leading-relaxed text-amber-900">
+                  Automatic invite email needs the Firebase Function deployment. This profile was saved, but no Auth invitation email was sent.
+                </p>
+              )}
               {result.loginSetupRequired && (
                 <p className="mt-2 text-sm leading-relaxed text-emerald-900">
                   Login is not enabled yet. Create this user in Firebase Authentication, then add/update{" "}

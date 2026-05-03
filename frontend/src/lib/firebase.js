@@ -15,6 +15,7 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -37,6 +38,7 @@ export const isFirebaseConfigured = Boolean(
 let app = null;
 let auth = null;
 let db = null;
+let functions = null;
 let storage = null;
 
 if (isFirebaseConfigured) {
@@ -44,6 +46,7 @@ if (isFirebaseConfigured) {
     app = getApps()[0] || initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    functions = getFunctions(app, process.env.REACT_APP_FIREBASE_FUNCTIONS_REGION || "us-central1");
     storage = getStorage(app);
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -57,4 +60,4 @@ if (isFirebaseConfigured) {
   );
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, functions, storage };

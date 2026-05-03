@@ -17,8 +17,10 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
-import { auth, db, isFirebaseConfigured, storage } from "./firebase";
+import { auth, db, functions, isFirebaseConfigured, storage } from "./firebase";
 import {
   COLLECTIONS,
   JOB_STATUSES,
@@ -1263,11 +1265,103 @@ async function findUserByEmail(email) {
   return null;
 }
 
+function callableInviteUnavailable(error) {
+  const code = String(error?.code || "");
+  return [
+    "functions/not-found",
+    "functions/unavailable",
+    "functions/internal",
+    "unavailable",
+    "not-found",
+  ].includes(code);
+}
+
+async function createManualConsultantWithFunction(payload) {
+  if (!functions || payload.useCloudFunction === false) return null;
+  const callable = httpsCallable(functions, "createManualConsultantInvite");
+  try {
+    const response = await callable(payload);
+    return response.data || null;
+  } catch (err) {
+    if (callableInviteUnavailable(err)) {
+      console.warn("Consultant invite function unavailable; falling back to Firestore-only create.", err);
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function sendConsultantPasswordInvite(email) {
+  if (!auth) throw new Error("Firebase Auth is not configured.");
+  const address = normalizeEmail(email);
+  if (!isValidEmail(address)) throw new Error("Enter a valid consultant email.");
+  await sendPasswordResetEmail(auth, address, {
+    url: "https://saturnmax.com/consultant-login",
+    handleCodeInApp: false,
+  });
+}
+
+export async function markConsultantInvitationSent(uid, email) {
+  requireFirestore();
+  const user = requireAuthUser();
+  if (!uid) return;
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, COLLECTIONS.CONSULTANTS, uid),
+    {
+      credentialsStatus: "sent",
+      credentialsSentAt: serverTimestamp(),
+      credentialsSentByEmployeeId: user.uid,
+      loginEnabled: true,
+      loginSetupRequired: false,
+      ...updateMeta(user),
+    },
+    { merge: true }
+  );
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: "consultant_invitation_email_sent",
+    outcome: "success",
+    targetCollection: COLLECTIONS.CONSULTANTS,
+    targetId: uid,
+    after: { email: normalizeEmail(email), credentialsStatus: "sent" },
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
 export async function manuallyAddConsultant(payload = {}) {
   requireFirestore();
   const user = requireAuthUser();
   validateConsultantProfileInput(payload);
   const email = normalizeEmail(payload.email);
+
+  if (payload.sendInvitationEmail) {
+    const functionResult = await createManualConsultantWithFunction(payload);
+    if (functionResult?.uid && functionResult?.email) {
+      await sendConsultantPasswordInvite(functionResult.email);
+      await markConsultantInvitationSent(functionResult.uid, functionResult.email);
+      return {
+        consultant: {
+          uid: functionResult.uid,
+          email: functionResult.email,
+          name: functionResult.name,
+          loginEnabled: true,
+          credentialsStatus: "sent",
+        },
+        loginSetupRequired: false,
+        emailSent: true,
+        authUserCreated: Boolean(functionResult.authUserCreated),
+        invite: buildConsultantInviteMessage({
+          name: functionResult.name,
+          email: functionResult.email,
+          consultantLoginUrl: "https://saturnmax.com/consultant-login",
+        }),
+      };
+    }
+  }
+
   const matchedUser = await findUserByEmail(payload.email);
   const uid = matchedUser?.id || doc(collection(db, COLLECTIONS.CONSULTANTS)).id;
   const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
@@ -1283,7 +1377,7 @@ export async function manuallyAddConsultant(payload = {}) {
     if (consultantSnap.exists()) throw new Error("A consultant record already exists for this account.");
     if (emailIndexSnap.exists()) throw new Error("A consultant with this email already exists.");
 
-    const loginEnabled = Boolean(payload.loginEnabled && matchedUser);
+    const loginEnabled = Boolean((payload.loginEnabled || payload.sendInvitationEmail) && matchedUser);
     const consultantDoc = {
       uid,
       authUid: matchedUser?.id || "",
@@ -1307,9 +1401,9 @@ export async function manuallyAddConsultant(payload = {}) {
       notes: payload.notes || "",
       loginEnabled,
       loginSetupRequired: !matchedUser,
-      credentialsStatus: payload.prepareEmail ? "prepared" : "not_prepared",
-      credentialsPreparedAt: payload.prepareEmail ? serverTimestamp() : null,
-      credentialsPreparedByEmployeeId: payload.prepareEmail ? user.uid : "",
+      credentialsStatus: payload.sendInvitationEmail && matchedUser ? "invite_pending_send" : payload.prepareEmail ? "prepared" : "not_prepared",
+      credentialsPreparedAt: payload.prepareEmail || payload.sendInvitationEmail ? serverTimestamp() : null,
+      credentialsPreparedByEmployeeId: payload.prepareEmail || payload.sendInvitationEmail ? user.uid : "",
       status: loginEnabled ? "Active consultant" : "Profile created",
       bankStatus: "pending_review",
       panStatus: "pending_review",
@@ -1349,9 +1443,18 @@ export async function manuallyAddConsultant(payload = {}) {
     return consultantDoc;
   });
 
+  let emailSent = false;
+  if (payload.sendInvitationEmail && matchedUser) {
+    await sendConsultantPasswordInvite(email);
+    await markConsultantInvitationSent(uid, email);
+    emailSent = true;
+  }
+
   return {
     consultant,
     loginSetupRequired: !matchedUser,
+    functionFallback: Boolean(payload.sendInvitationEmail && !matchedUser),
+    emailSent,
     invite: buildConsultantInviteMessage({
       name: consultant.name,
       email: consultant.email,
