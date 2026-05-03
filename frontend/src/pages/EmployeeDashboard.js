@@ -1,19 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { toast } from "sonner";
 import {
   BriefcaseBusiness,
   ClipboardList,
   FileText,
-  LogOut,
   MessageSquare,
   RefreshCw,
   UserCog,
   Users,
 } from "lucide-react";
 import Logo from "../components/Logo";
+import LoginMenu from "../components/LoginMenu";
 import { InlineError, LoadingState } from "../components/ui";
-import { useAuth } from "../context/AuthContext";
 import { fetchOperationsData } from "../lib/api";
 import { isWorkflowTransitionError } from "../lib/workflow";
 import { OperationsContext } from "./operations/OperationsContext";
@@ -40,8 +39,6 @@ const EMPLOYEE_NAV = [
 ];
 
 export default function EmployeeDashboard() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [data, setData] = useState(EMPTY_OPERATIONS_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -111,12 +108,6 @@ export default function EmployeeDashboard() {
     [busy, data, error, load, loading, showMutationError, workflowContextFor]
   );
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success("Signed out.");
-    navigate("/");
-  };
-
   return (
     <OperationsContext.Provider value={contextValue}>
       <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
@@ -124,12 +115,6 @@ export default function EmployeeDashboard() {
           <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 md:px-10">
             <Logo to="/employee-dashboard/applications" />
             <div className="flex items-center gap-2">
-              <span className="hidden rounded-full bg-[#2563EB]/10 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8] sm:inline">
-                Employee portal
-              </span>
-              <span className="hidden text-sm text-slate-500 lg:inline">
-                {user?.name || user?.email || "Employee"}
-              </span>
               <button
                 onClick={load}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
@@ -137,13 +122,7 @@ export default function EmployeeDashboard() {
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 Refresh
               </button>
-              <button
-                onClick={handleSignOut}
-                className="hidden h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
-              >
-                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                Sign out
-              </button>
+              <LoginMenu />
             </div>
           </div>
         </header>
@@ -159,7 +138,7 @@ export default function EmployeeDashboard() {
                 Role-based queues for hiring, onboarding, and consultant delivery.
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-white/65">
-                Signed in as {user?.email || "employee user"}. Use the section tabs to work one queue at a time.
+                Use the section tabs to work one queue at a time.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -177,7 +177,7 @@ export default function Settings() {
             </div>
             <button
               onClick={() =>
-                toast.error("For account deletion, contact hello@saturnmaxtech.com for verification.")
+                toast.error("For account deletion, contact hello@saturnmax.com for verification.")
               }
               className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
               data-testid="delete-account"

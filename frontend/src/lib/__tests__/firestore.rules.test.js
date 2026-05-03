@@ -53,21 +53,21 @@ beforeEach(async () => {
     await Promise.all([
       setDoc(doc(db, "users", "candidate-1"), {
         role: "candidate",
-        email: "candidate@saturnmaxtech.com",
+        email: "candidate@saturnmax.com",
         name: "Candidate",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "candidate-2"), {
         role: "candidate",
-        email: "other@saturnmaxtech.com",
+        email: "other@saturnmax.com",
         name: "Other Candidate",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "employee-1"), {
         role: "employee",
-        email: "employee@saturnmaxtech.com",
+        email: "employee@saturnmax.com",
         name: "Employee",
         status: "active",
         createdAt: 1,

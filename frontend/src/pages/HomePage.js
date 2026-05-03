@@ -174,7 +174,7 @@ function tagClass(tag) {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [selectedJob, setSelectedJob] = useState("");
@@ -325,11 +325,6 @@ export default function HomePage() {
     }
   };
 
-  const handleTopSignOut = async () => {
-    await signOut();
-    toast.success("Signed out.");
-  };
-
   return (
     <div className="app-shell bg-white">
       {/* ---- Header --------------------------------------------------- */}
@@ -355,15 +350,6 @@ export default function HomePage() {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <LoginMenu />
-            {user?.uid && (
-              <button
-                onClick={handleTopSignOut}
-                className="hidden sm:inline-flex h-10 items-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
-                data-testid="top-signout-button"
-              >
-                Sign out
-              </button>
-            )}
             <a
               href="#contact"
               className="hidden sm:inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e2445]"
@@ -558,7 +544,7 @@ export default function HomePage() {
             )}
             {!jobsLoading && jobs.length === 0 && (
               <div className="p-8 text-center text-slate-500 text-sm">
-                No open roles are published right now. Please check back soon or contact careers@saturnmaxtech.com.
+                No open roles are published right now. Please check back soon or contact careers@saturnmax.com.
               </div>
             )}
             {jobs.map((job) => (
@@ -950,17 +936,17 @@ export default function HomePage() {
                   <InfoRow
                     Icon={Mail}
                     label="General enquiries"
-                    value="hello@saturnmaxtech.com"
+                    value="hello@saturnmax.com"
                   />
                   <InfoRow
                     Icon={Mail}
                     label="Careers"
-                    value="careers@saturnmaxtech.com"
+                    value="careers@saturnmax.com"
                   />
                   <InfoRow
                     Icon={Mail}
                     label="US client partnerships"
-                    value="us@saturnmaxtech.com"
+                    value="us@saturnmax.com"
                   />
                 </div>
               </div>

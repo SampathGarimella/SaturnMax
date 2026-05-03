@@ -76,7 +76,7 @@ RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "12"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
-RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "careers@saturnmaxtech.com").strip()
+RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "careers@saturnmax.com").strip()
 
 if resend is not None and RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -674,7 +674,7 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
                   <td style="padding:28px;">
                     <h2 style="margin:0 0 12px 0;font-size:20px;">New application: {data.position_title}</h2>
                     <p style="margin:0 0 20px 0;color:#475569;font-size:14px;">
-                      A new candidate just applied via saturnmaxtech.com.
+                      A new candidate just applied via saturnmax.com.
                     </p>
                     <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
                       <tr><td style="color:#64748b;width:150px;">Name</td><td><strong>{data.full_name}</strong></td></tr>

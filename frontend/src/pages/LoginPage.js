@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
+import LoginMenu from "../components/LoginMenu";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_PORTAL_LABEL, ROLE_STATUS, ROLES } from "../lib/constants";
 
@@ -147,14 +148,17 @@ export default function LoginPage() {
       <header className="border-b border-slate-200 bg-white/70 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <Logo />
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium"
-            data-testid="back-to-website"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to website
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium"
+              data-testid="back-to-home"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+            <LoginMenu />
+          </div>
         </div>
       </header>
 
@@ -359,8 +363,8 @@ export default function LoginPage() {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href="mailto:hello@saturnmaxtech.com" className="font-semibold underline">
-                    hello@saturnmaxtech.com
+                  <a href="mailto:hello@saturnmax.com" className="font-semibold underline">
+                    hello@saturnmax.com
                   </a>{" "}
                   for immediate access support.
                 </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, UserCog, BriefcaseBusiness } from "lucide-react";
 import Logo from "../components/Logo";
+import LoginMenu from "../components/LoginMenu";
 import { useAuth } from "../context/AuthContext";
 import { recordLoginEvent } from "../lib/api";
 import { ROLE_PORTAL_LABEL, ROLE_STATUS } from "../lib/constants";
@@ -22,7 +23,7 @@ const CONFIG = {
     eyebrow: "Employee portal",
     description:
       "Manage candidates, consultants, projects, documents, and recent login activity for the team.",
-    destination: "/employee-dashboard",
+    destination: "/employee-dashboard/applications",
     allowedRoles: ["employee", "admin"],
     Icon: UserCog,
   },
@@ -80,13 +81,16 @@ export default function RoleLoginPage({ role = "consultant" }) {
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <Logo />
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to website
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Home
+            </Link>
+            <LoginMenu />
+          </div>
         </div>
       </header>
 
@@ -170,8 +174,8 @@ export default function RoleLoginPage({ role = "consultant" }) {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href="mailto:hello@saturnmaxtech.com" className="font-semibold underline">
-                    hello@saturnmaxtech.com
+                  <a href="mailto:hello@saturnmax.com" className="font-semibold underline">
+                    hello@saturnmax.com
                   </a>{" "}
                   for access support.
                 </div>

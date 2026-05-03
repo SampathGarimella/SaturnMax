@@ -16,7 +16,7 @@
 
 ## User personas
 - **Candidate** — browses jobs, applies, tracks status, chats with HR, uploads resume.
-- **HR / Hiring team** (`careers@saturnmaxtech.com`) — receives applications + contact emails, replies via Firestore messages.
+- **HR / Hiring team** (`careers@saturnmax.com`) — receives applications + contact emails, replies via Firestore messages.
 - **US client** — reaches out via contact form.
 
 ## What's been implemented
@@ -56,7 +56,7 @@
 ### P0
 - Add real `REACT_APP_FIREBASE_*` config + `RESEND_API_KEY` to respective `.env` files (pending user).
 - Verify Firebase Console: Auth providers enabled, Firestore rules pasted, Storage rules pasted, authorized domains set.
-- Decide final domain — `saturnmax.com` vs `saturnmaxtech.com` (pending user). Email addresses will need one-liner update once confirmed.
+- Final domain confirmed as `saturnmax.com`; keep product copy, contact emails, and Firebase authorized domains aligned to it.
 
 ### P1
 - Persist profile edits (name/phone/portfolio) to Firestore under `candidates/{uid}` once Firebase is live.

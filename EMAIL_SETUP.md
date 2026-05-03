@@ -12,8 +12,8 @@ SaturnMax Technologies Pvt Ltd uses **Resend** for transactional email (job-appl
 ## 2. Verify a sending domain (recommended)
 
 1. In Resend, open **Domains → Add Domain**.
-2. Add `saturnmaxtech.com` and follow the DNS instructions (SPF, DKIM, DMARC records).
-3. Once the domain is verified, update `SENDER_EMAIL` in `/app/backend/.env` to something like `no-reply@saturnmaxtech.com`.
+2. Add `saturnmax.com` and follow the DNS instructions (SPF, DKIM, DMARC records).
+3. Once the domain is verified, update `SENDER_EMAIL` in `/app/backend/.env` to something like `no-reply@saturnmax.com`.
 
 > **Before domain verification** you can keep `SENDER_EMAIL=onboarding@resend.dev` — Resend allows this sandbox sender, but it can only deliver to the verified email on your Resend account.
 
@@ -23,8 +23,8 @@ Open `/app/backend/.env` and set:
 
 ```dotenv
 RESEND_API_KEY=re_your_real_key_here
-SENDER_EMAIL=onboarding@resend.dev            # or no-reply@saturnmaxtech.com after verifying
-RECIPIENT_EMAIL=careers@saturnmaxtech.com     # where applications + contact messages go
+SENDER_EMAIL=onboarding@resend.dev            # or no-reply@saturnmax.com after verifying
+RECIPIENT_EMAIL=careers@saturnmax.com     # where applications + contact messages go
 ```
 
 ## 4. Restart the backend
@@ -42,7 +42,7 @@ The site keeps working either way — applications and messages are always store
 ## 5. Test it
 
 1. Visit the home page and submit the "Apply for a position" form (or the contact form).
-2. Check your inbox at `careers@saturnmaxtech.com`.
+2. Check your inbox at `careers@saturnmax.com`.
 
 ---
 

@@ -79,10 +79,10 @@ role checks.
 Authentication → **Users → Add user**:
 
 ```txt
-admin.test@saturnmaxtech.com       role: admin
-employee.test@saturnmaxtech.com    role: employee
-candidate.test@saturnmaxtech.com   role: candidate
-consultant.test@saturnmaxtech.com  role: consultant
+admin.test@saturnmax.com       role: admin
+employee.test@saturnmax.com    role: employee
+candidate.test@saturnmax.com   role: candidate
+consultant.test@saturnmax.com  role: consultant
 ```
 
 For each Auth user, copy the Firebase UID and create Firestore document

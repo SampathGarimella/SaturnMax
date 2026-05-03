@@ -69,7 +69,7 @@ function AccessState({ title, body, home = "/" }) {
           </Link>
         </div>
         <a
-          href="mailto:hello@saturnmaxtech.com"
+          href="mailto:hello@saturnmax.com"
           className="mt-5 inline-flex text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8]"
         >
           Contact access support

@@ -26,7 +26,7 @@ const baseData = {
       full_name: "Candidate One",
       candidate_name: "Candidate One",
       candidate_uid: "candidate-1",
-      email: "candidate@saturnmaxtech.com",
+      email: "candidate@saturnmax.com",
       position_title: "React Engineer",
       status: "onboarding",
       status_next_action: "Complete onboarding and compliance review.",

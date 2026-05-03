@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Outlet, NavLink, useNavigate, Link, useLocation } from "react-router-dom";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Briefcase,
@@ -7,11 +7,11 @@ import {
   MessageSquare,
   User,
   Settings as SettingsIcon,
-  LogOut,
   Bell,
   ArrowRight,
 } from "lucide-react";
 import Logo from "./Logo";
+import LoginMenu from "./LoginMenu";
 import { fetchDashboard } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -31,9 +31,8 @@ const NAV_ACCOUNT = [
 export default function DashboardLayout() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading, mode, signOut } = useAuth();
+  const { user, loading: authLoading, mode } = useAuth();
 
   useEffect(() => {
     if (authLoading || !user?.uid) return;
@@ -47,12 +46,6 @@ export default function DashboardLayout() {
       })
       .finally(() => setLoading(false));
   }, [authLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success("Signed out.");
-    navigate("/");
-  };
 
   const reload = () => {
     if (!user?.uid) return;
@@ -124,9 +117,6 @@ export default function DashboardLayout() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="hidden rounded-full bg-[#2563EB]/10 px-2.5 py-1 text-xs font-semibold text-[#1D4ED8] md:inline">
-                Candidate portal
-              </span>
               <button
                 className="relative h-10 w-10 grid place-items-center rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                 data-testid="notifications-bell"
@@ -143,14 +133,7 @@ export default function DashboardLayout() {
                 View open jobs
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <button
-                onClick={handleSignOut}
-                className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                data-testid="sign-out-button"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
+              <LoginMenu />
             </div>
           </header>
 
