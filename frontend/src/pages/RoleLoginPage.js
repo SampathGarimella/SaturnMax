@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff, UserCog, BriefcaseBusiness } from "lucide-react";
@@ -6,7 +6,12 @@ import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import { useAuth } from "../context/AuthContext";
 import { recordLoginEvent } from "../lib/api";
-import { ROLE_PORTAL_LABEL, ROLE_STATUS } from "../lib/constants";
+import {
+  ROLE_HOME,
+  ROLE_PORTAL_LABEL,
+  ROLE_PORTAL_NAME,
+  ROLE_STATUS,
+} from "../lib/constants";
 
 const CONFIG = {
   consultant: {
@@ -36,8 +41,46 @@ export default function RoleLoginPage({ role = "consultant" }) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const { signIn, signOut, isFirebaseConfigured } = useAuth();
+  const { signIn, signOut, user, loading, isFirebaseConfigured } = useAuth();
   const Icon = config.Icon;
+  const redirectNoticeShown = useRef(false);
+
+  useEffect(() => {
+    if (
+      loading ||
+      redirectNoticeShown.current ||
+      !user?.uid ||
+      user.roleStatus !== ROLE_STATUS.READY ||
+      !user.role
+    ) {
+      return;
+    }
+
+    redirectNoticeShown.current = true;
+    const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
+    const target = ROLE_HOME[user.role] || "/";
+    const samePortal = config.allowedRoles.includes(user.role);
+
+    if (samePortal) {
+      toast.info(`You're already logged in to ${activePortal}.`, {
+        description: `Opening ${activePortal}.`,
+      });
+    } else {
+      toast.warning(`You're already logged in to ${activePortal}.`, {
+        description: `Log out first to use ${config.eyebrow}.`,
+      });
+    }
+
+    navigate(target, { replace: true });
+  }, [
+    config.allowedRoles,
+    config.eyebrow,
+    loading,
+    navigate,
+    user?.role,
+    user?.roleStatus,
+    user?.uid,
+  ]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,7 +110,9 @@ export default function RoleLoginPage({ role = "consultant" }) {
         title: config.title,
         mode: "firebase",
       }).catch(() => {});
-      toast.success(`Welcome to the ${config.eyebrow.toLowerCase()}.`);
+      toast.success("Welcome back.", {
+        description: `Opening ${config.eyebrow}.`,
+      });
       navigate(config.destination);
     } catch (err) {
       toast.error(err?.message || "Sign-in failed. Please verify your credentials.");

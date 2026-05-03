@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import { useAuth } from "../context/AuthContext";
-import { ROLE_PORTAL_LABEL, ROLE_STATUS, ROLES } from "../lib/constants";
+import {
+  ROLE_HOME,
+  ROLE_PORTAL_LABEL,
+  ROLE_PORTAL_NAME,
+  ROLE_STATUS,
+  ROLES,
+} from "../lib/constants";
 
 const TABS = [
   { id: "signin", label: "Sign in" },
@@ -28,8 +34,39 @@ export default function LoginPage() {
     signInWithLinkedIn,
     sendReset,
     signOut,
+    user,
+    loading,
     isFirebaseConfigured,
   } = useAuth();
+  const redirectNoticeShown = useRef(false);
+
+  useEffect(() => {
+    if (
+      loading ||
+      redirectNoticeShown.current ||
+      !user?.uid ||
+      user.roleStatus !== ROLE_STATUS.READY ||
+      !user.role
+    ) {
+      return;
+    }
+
+    redirectNoticeShown.current = true;
+    const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
+    const target = ROLE_HOME[user.role] || "/";
+
+    if (user.role === ROLES.CANDIDATE) {
+      toast.info(`You're already logged in to ${activePortal}.`, {
+        description: `Opening ${activePortal}.`,
+      });
+    } else {
+      toast.warning(`You're already logged in to ${activePortal}.`, {
+        description: "Log out first to use Candidate Portal.",
+      });
+    }
+
+    navigate(target, { replace: true });
+  }, [loading, navigate, user?.role, user?.roleStatus, user?.uid]);
 
   const handleError = (err) => {
     const code = err?.code || "";
@@ -70,7 +107,9 @@ export default function LoginPage() {
           );
           return;
         }
-        toast.success("Welcome back!");
+        toast.success("Welcome back.", {
+          description: "Opening Candidate Portal.",
+        });
       } else {
         signedUser = await signUp({ email, password, name, keepSignedIn });
         if (signedUser?.roleStatus !== ROLE_STATUS.READY) {
@@ -78,7 +117,9 @@ export default function LoginPage() {
           navigate("/dashboard");
           return;
         }
-        toast.success("Account created. Welcome to SaturnMax Technologies Pvt Ltd!");
+        toast.success("Account created.", {
+          description: "Opening Candidate Portal.",
+        });
       }
       navigate("/dashboard");
     } catch (err) {
@@ -113,7 +154,9 @@ export default function LoginPage() {
         );
         return;
       }
-      toast.success(`Signed in with ${provider}`);
+      toast.success(`Signed in with ${provider}.`, {
+        description: "Opening Candidate Portal.",
+      });
       navigate("/dashboard");
     } catch (err) {
       if (err?.code === "auth/operation-not-allowed" && provider === "LinkedIn") {

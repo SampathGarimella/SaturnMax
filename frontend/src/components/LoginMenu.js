@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BriefcaseBusiness, ChevronDown, Home, LogIn, LogOut, UserCog, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { ROLE_HOME, ROLE_PORTAL_NAME, ROLE_PORTAL_ROOT } from "../lib/constants";
 
 const LOGIN_OPTIONS = [
   {
@@ -27,13 +28,16 @@ export default function LoginMenu() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const homePath = useMemo(() => {
-    if (!user?.role) return "/";
-    if (user.role === "consultant") return "/consultant-dashboard";
-    if (user.role === "employee" || user.role === "admin") return "/employee-dashboard/applications";
-    return "/dashboard";
-  }, [user?.role]);
-  const showHomeLink = user && location.pathname !== "/";
+  const portalHome = ROLE_HOME[user?.role] || "/";
+  const portalName = ROLE_PORTAL_NAME[user?.role] || "Portal";
+  const portalRoot = ROLE_PORTAL_ROOT[user?.role] || portalHome;
+  const isInPortal =
+    Boolean(user) &&
+    Boolean(portalRoot) &&
+    portalRoot !== "/" &&
+    (location.pathname === portalRoot || location.pathname.startsWith(`${portalRoot}/`));
+  const showHomeLink = user && isInPortal;
+  const showPortalLink = user && !isInPortal;
 
   const handleLogOut = async () => {
     await signOut();
@@ -103,22 +107,24 @@ export default function LoginMenu() {
                   </span>
                 </Link>
               )}
-              <Link
-                to={homePath}
-                className="flex items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
-                role="menuitem"
-                onClick={() => setOpen(false)}
-              >
-                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
-                  <UserRound className="h-4 w-4" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-slate-900">Go to portal</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
-                    Continue your workspace
+              {showPortalLink && (
+                <Link
+                  to={portalHome}
+                  className="flex items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
+                    <UserRound className="h-4 w-4" />
                   </span>
-                </span>
-              </Link>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">Go to portal</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                      Continue to {portalName}
+                    </span>
+                  </span>
+                </Link>
+              )}
             </div>
           )}
           <div className="p-2">

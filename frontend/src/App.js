@@ -28,11 +28,20 @@ function App() {
       <BrowserRouter>
         <Toaster
           position="top-right"
-          richColors
+          closeButton
+          duration={4000}
           toastOptions={{
             classNames: {
               toast:
-                "font-body border border-slate-200 shadow-lg rounded-lg bg-white text-slate-900",
+                "font-body rounded-xl border border-slate-200 bg-white text-slate-900 shadow-xl",
+              title: "text-sm font-semibold",
+              description: "text-xs text-slate-500",
+              success: "border-emerald-200 bg-white text-slate-900",
+              error: "border-rose-200 bg-white text-slate-900",
+              warning: "border-amber-200 bg-white text-slate-900",
+              info: "border-blue-200 bg-white text-slate-900",
+              closeButton:
+                "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900",
             },
           }}
         />
