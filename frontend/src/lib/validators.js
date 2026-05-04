@@ -8,6 +8,8 @@ export const DEFAULT_NOTIFICATION_PREFERENCES = Object.freeze({
   applicationUpdates: true,
   newRoles: true,
   recruiterMessages: true,
+  documentRequests: true,
+  interviewChanges: true,
   weeklyDigest: false,
 });
 
@@ -33,6 +35,14 @@ export function resolveRoleDocument(data) {
       role: null,
       status: ROLE_STATUS.UNKNOWN,
       message: "Your account role is not recognized.",
+    };
+  }
+
+  if (data.status === "inactive" || data.disabled === true) {
+    return {
+      role: null,
+      status: ROLE_STATUS.ERROR,
+      message: "Your account is inactive. Contact hr@saturnmax.com.",
     };
   }
 
@@ -75,7 +85,7 @@ export function isValidAccountNumber(value) {
 export function normalizeUserPreferences(data = {}) {
   const notificationPreferences = data.notificationPreferences || {};
   const uiPreferences = data.uiPreferences || {};
-  const theme = ["light", "system"].includes(uiPreferences.theme)
+  const theme = ["light", "dark", "system"].includes(uiPreferences.theme)
     ? uiPreferences.theme
     : DEFAULT_UI_PREFERENCES.theme;
 

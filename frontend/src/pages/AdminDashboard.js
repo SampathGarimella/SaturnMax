@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  BookOpenCheck,
   BriefcaseBusiness,
   KeyRound,
   Plus,
@@ -33,6 +34,7 @@ import {
   saveJob,
   updateJobStatus,
 } from "../lib/api";
+import { PERMISSION_MATRIX } from "../lib/constants";
 
 const EMPTY_DATA = {
   jobs: [],
@@ -43,6 +45,7 @@ const EMPTY_DATA = {
   reviews: [],
   activityLogs: [],
   messageThreads: [],
+  leads: [],
 };
 
 const EMPTY_USER = {
@@ -64,6 +67,11 @@ const EMPTY_JOB = {
   department: "Engineering",
   employment_type: "Full-time",
   work_mode: "Remote",
+  owner: "",
+  clientName: "",
+  priority: "Medium",
+  hiringType: "Full-time",
+  location: "Remote",
   experience: "2-5 yrs exp",
   tags: "Full-time, Remote",
   description: "",
@@ -75,6 +83,7 @@ const TABS = [
   { id: "consultants", label: "Consultants", Icon: UserCog },
   { id: "jobs", label: "Jobs", Icon: BriefcaseBusiness },
   { id: "activity", label: "Activity", Icon: ShieldCheck },
+  { id: "permissions", label: "Permissions", Icon: BookOpenCheck },
 ];
 
 export default function AdminDashboard() {
@@ -212,7 +221,7 @@ export default function AdminDashboard() {
     setBusy(`${deleteJobTarget.id}-delete`);
     try {
       await deleteJob(deleteJobTarget.id);
-      toast.success("Job deleted.");
+      toast.success("Job archived.");
       setDeleteJobTarget(null);
       await load();
     } catch (err) {
@@ -322,15 +331,16 @@ export default function AdminDashboard() {
               />
             )}
             {tab === "activity" && <ActivityPanel logs={data.activityLogs} />}
+            {tab === "permissions" && <PermissionsPanel />}
           </div>
         )}
       </main>
 
       <ConfirmModal
         open={Boolean(deleteJobTarget)}
-        title="Delete job?"
-        body={deleteJobTarget ? `This removes ${deleteJobTarget.title} from the public careers page.` : ""}
-        confirmLabel="Delete job"
+        title="Archive job?"
+        body={deleteJobTarget ? `This removes ${deleteJobTarget.title} from public careers while keeping applications and history.` : ""}
+        confirmLabel="Archive job"
         destructive
         busy={Boolean(busy && busy.endsWith("-delete"))}
         onConfirm={removeJob}
@@ -339,7 +349,7 @@ export default function AdminDashboard() {
       <ConfirmModal
         open={Boolean(deactivateTarget)}
         title="Deactivate account?"
-        body={deactivateTarget ? `This disables ${deactivateTarget.email || deactivateTarget.name} in the portal records. Cloud Function deployment is required to disable Firebase Auth login.` : ""}
+        body={deactivateTarget ? `This stops portal access for ${deactivateTarget.email || deactivateTarget.name}. Records and activity history remain for audit and support.` : ""}
         confirmLabel="Deactivate"
         destructive
         busy={Boolean(busy && busy.endsWith("-deactivate"))}
@@ -353,13 +363,13 @@ export default function AdminDashboard() {
 function AccountsPanel({ users, form, setForm, busy, onSave, onEdit, onReset, onDeactivate }) {
   return (
     <section className="space-y-5">
-      <SectionHeader eyebrow="Accounts" title="Manage portal users and roles" description="Admins can create records, assign roles, modify details, send password setup/reset emails, and deactivate accounts." />
+      <SectionHeader eyebrow="Accounts" title="Manage portal users and roles" description="Choose the account type first, then create or update only the fields needed for that portal role. Setup/reset emails use the neutral Firebase password template." />
       <form onSubmit={onSave} className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
+        <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
+          Candidates may self-sign up. Consultants, employees, and admins should be created or invited by SaturnMax from this admin page.
+        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <Field label="Full name"><input className={inputClass} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
-          <Field label="Email"><input type="email" className={inputClass} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
-          <Field label="Phone"><input className={inputClass} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></Field>
-          <Field label="Role">
+          <Field label="Account type">
             <select className={inputClass} value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
               <option value="candidate">Candidate</option>
               <option value="consultant">Consultant</option>
@@ -367,6 +377,9 @@ function AccountsPanel({ users, form, setForm, busy, onSave, onEdit, onReset, on
               <option value="admin">Admin</option>
             </select>
           </Field>
+          <Field label="Full name"><input className={inputClass} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></Field>
+          <Field label="Email"><input type="email" className={inputClass} value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
+          <Field label="Phone"><input className={inputClass} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></Field>
           <Field label="Title"><input className={inputClass} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></Field>
           <Field label="Department"><input className={inputClass} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} /></Field>
           <Field label="Location"><input className={inputClass} value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} /></Field>
@@ -406,8 +419,8 @@ function AccountsPanel({ users, form, setForm, busy, onSave, onEdit, onReset, on
             <StatusBadge value={item.status || "active"} withIcon={false} />
             <div className="flex flex-wrap gap-2 lg:justify-end">
               <button onClick={() => onEdit(item)} className={smallButtonClass}>Edit</button>
-              <button onClick={() => onReset(item)} className={smallButtonClass}><KeyRound className="h-3.5 w-3.5" /> Reset</button>
-              <button onClick={() => onDeactivate(item)} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" /> Remove</button>
+              <button onClick={() => onReset(item)} className={smallButtonClass}><KeyRound className="h-3.5 w-3.5" /> Invite/Reset</button>
+              <button onClick={() => onDeactivate(item)} className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" /> Deactivate</button>
             </div>
           </article>
         ))}
@@ -456,6 +469,18 @@ function JobsPanel({ jobs, form, setForm, busy, onSave, onDelete, onStatus }) {
           <Field label="Employment type"><input className={inputClass} value={form.employment_type} onChange={(e) => setForm((f) => ({ ...f, employment_type: e.target.value }))} /></Field>
           <Field label="Work mode"><input className={inputClass} value={form.work_mode} onChange={(e) => setForm((f) => ({ ...f, work_mode: e.target.value }))} /></Field>
           <Field label="Experience"><input className={inputClass} value={form.experience} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} /></Field>
+          <Field label="Internal owner"><input className={inputClass} value={form.owner} onChange={(e) => setForm((f) => ({ ...f, owner: e.target.value }))} /></Field>
+          <Field label="Client name"><input className={inputClass} value={form.clientName} onChange={(e) => setForm((f) => ({ ...f, clientName: e.target.value }))} /></Field>
+          <Field label="Priority">
+            <select className={inputClass} value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+              <option>Urgent</option>
+            </select>
+          </Field>
+          <Field label="Hiring type"><input className={inputClass} value={form.hiringType} onChange={(e) => setForm((f) => ({ ...f, hiringType: e.target.value }))} /></Field>
+          <Field label="Location"><input className={inputClass} value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} /></Field>
           <Field label="Tags"><input className={inputClass} value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} /></Field>
           <Field label="Status">
             <select className={inputClass} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
@@ -463,6 +488,7 @@ function JobsPanel({ jobs, form, setForm, busy, onSave, onDelete, onStatus }) {
               <option value="published">Published</option>
               <option value="paused">Paused</option>
               <option value="closed">Closed</option>
+              <option value="archived">Archived</option>
             </select>
           </Field>
           <Field label="Description" className="md:col-span-2"><textarea className={`${inputClass} h-28 resize-none py-3`} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} /></Field>
@@ -490,8 +516,8 @@ function JobsPanel({ jobs, form, setForm, busy, onSave, onDelete, onStatus }) {
             <p className="mt-3 line-clamp-3 text-sm text-slate-600">{job.description}</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={() => setForm({ ...job, tags: (job.tags || []).join(", ") })} className={smallButtonClass}>Edit</button>
-              {["published", "paused", "closed"].map((status) => <button key={status} onClick={() => onStatus(job, status)} className={smallButtonClass}>{status}</button>)}
-              <button onClick={() => onDelete(job)} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Delete</button>
+              {["published", "paused", "closed", "archived"].map((status) => <button key={status} onClick={() => onStatus(job, status)} className={smallButtonClass}>{status}</button>)}
+              <button onClick={() => onDelete(job)} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100">Archive</button>
             </div>
           </article>
         ))}
@@ -514,6 +540,33 @@ function ActivityPanel({ logs }) {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function PermissionsPanel() {
+  return (
+    <section className="space-y-5">
+      <SectionHeader
+        eyebrow="Permissions"
+        title="Role permission matrix"
+        description="This is the working access chart used to keep candidate, consultant, employee, and admin responsibilities separate."
+      />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {PERMISSION_MATRIX.map((row) => (
+          <article key={row.role} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="font-heading text-lg font-semibold text-slate-900">{row.role}</div>
+            <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950">
+              <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">Can do</div>
+              <p className="mt-1 leading-relaxed">{row.canDo}</p>
+            </div>
+            <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-950">
+              <div className="text-xs font-bold uppercase tracking-wide text-rose-700">Cannot do</div>
+              <p className="mt-1 leading-relaxed">{row.cannotDo}</p>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   );

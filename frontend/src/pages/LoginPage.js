@@ -19,7 +19,8 @@ const TABS = [
 ];
 
 export default function LoginPage() {
-  const [tab, setTab] = useState("signin");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("mode") === "signup" ? "signup" : "signin");
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,9 +28,9 @@ export default function LoginPage() {
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const applyJob = searchParams.get("applyJob") || "";
+  const applyJob = searchParams.get("applyJob") || window.sessionStorage.getItem("saturnmax.pendingApplyJob") || "";
   const candidateTarget = applyJob ? `/dashboard/jobs?applyJob=${encodeURIComponent(applyJob)}` : "/dashboard";
+  const linkedInEnabled = process.env.REACT_APP_ENABLE_LINKEDIN_LOGIN === "true";
   const {
     signIn,
     signUp,
@@ -73,6 +74,7 @@ export default function LoginPage() {
       "auth/invalid-credential": "Wrong email or password.",
       "auth/invalid-email": "That email address isn't valid.",
       "auth/user-not-found": "No account found with that email.",
+      "auth/user-disabled": "Your account is inactive. Contact hr@saturnmax.com.",
       "auth/wrong-password": "Wrong email or password.",
       "auth/email-already-in-use": "An account with that email already exists.",
       "auth/weak-password": "Password must be at least 6 characters.",
@@ -117,9 +119,10 @@ export default function LoginPage() {
           return;
         }
         toast.success("Account created.", {
-          description: "Opening Candidate Portal.",
+          description: "Please verify your email from the link we sent. Opening Candidate Portal.",
         });
       }
+      if (applyJob) window.sessionStorage.setItem("saturnmax.pendingApplyJob", applyJob);
       navigate(candidateTarget);
     } catch (err) {
       handleError(err);
@@ -245,7 +248,7 @@ export default function LoginPage() {
               </>
             )}
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className={`mt-6 grid gap-3 ${linkedInEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
               <OAuthButton
                 onClick={() => handleOAuth("Google")}
                 dataTestId="oauth-google"
@@ -254,14 +257,16 @@ export default function LoginPage() {
                 <GoogleGlyph />
                 Google
               </OAuthButton>
-              <OAuthButton
-                onClick={() => handleOAuth("LinkedIn")}
-                dataTestId="oauth-linkedin"
-                disabled={busy}
-              >
-                <LinkedInGlyph />
-                LinkedIn
-              </OAuthButton>
+              {linkedInEnabled && (
+                <OAuthButton
+                  onClick={() => handleOAuth("LinkedIn")}
+                  dataTestId="oauth-linkedin"
+                  disabled={busy}
+                >
+                  <LinkedInGlyph />
+                  LinkedIn
+                </OAuthButton>
+              )}
             </div>
 
             <div className="my-6 flex items-center gap-3">
@@ -353,6 +358,12 @@ export default function LoginPage() {
                 </label>
               )}
 
+              {tab === "signup" && (
+                <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+                  By creating a candidate account, you agree that SaturnMax Technologies may use your submitted profile, resume, application, and contact details for hiring, consulting, and communication purposes.
+                </p>
+              )}
+
               <button
                 type="submit"
                 disabled={busy}
@@ -418,13 +429,13 @@ export default function LoginPage() {
             <PortalLink
               to="/consultant-login"
               Icon={BriefcaseBusiness}
-              title="Consultant login"
+              title="Consultant Login"
               body="Project, pay, tax, onboarding, and documents."
             />
             <PortalLink
               to="/employee-login"
               Icon={UserCog}
-              title="Employee login"
+              title="Employee/Admin Login"
               body="Candidates, consultants, client projects, and records."
             />
           </div>

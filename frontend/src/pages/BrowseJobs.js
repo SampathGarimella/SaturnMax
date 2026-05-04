@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { ArrowRight, Briefcase, UploadCloud, X } from "lucide-react";
-import { fetchJobs, markResumeUploaded, submitApplication } from "../lib/api";
+import { fetchJobs, markResumeUploaded, submitApplication, validateUploadFile } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 const TAG_STYLES = {
@@ -26,6 +26,7 @@ function tagClass(tag) {
 export default function BrowseJobs() {
   const { data, reload } = useOutletContext();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,7 @@ export default function BrowseJobs() {
   const [submitting, setSubmitting] = useState(false);
   const candidate = data?.candidate || {};
   const [form, setForm] = useState(() => buildApplicationForm(candidate));
+  const draftKey = selectedJob?.id && user?.uid ? `saturnmax.applicationDraft.${user.uid}.${selectedJob.id}` : "";
 
   useEffect(() => {
     fetchJobs()
@@ -65,10 +67,20 @@ export default function BrowseJobs() {
   );
 
   const openApply = (job) => {
+    const savedDraftKey = user?.uid ? `saturnmax.applicationDraft.${user.uid}.${job.id}` : "";
+    let savedDraft = {};
+    if (savedDraftKey) {
+      try {
+        savedDraft = JSON.parse(window.localStorage.getItem(savedDraftKey) || "{}");
+      } catch {
+        savedDraft = {};
+      }
+    }
     setSelectedJob(job);
     setForm((current) => ({
       ...buildApplicationForm(candidate),
       ...current,
+      ...savedDraft,
       full_name: current.full_name || candidate.name || user?.name || "",
       email: current.email || candidate.email || user?.email || "",
       position_title: job.title,
@@ -84,6 +96,26 @@ export default function BrowseJobs() {
 
   const updateForm = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  useEffect(() => {
+    if (!draftKey || !selectedJob) return;
+    const draft = { ...form, position_id: selectedJob.id, position_title: selectedJob.title };
+    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draftKey, form, selectedJob]);
+
+  const handleResumeSelect = (file) => {
+    if (!file) {
+      setResumeFile(null);
+      return;
+    }
+    try {
+      validateUploadFile(file, { allowedExtensions: new Set(["pdf", "doc", "docx"]) });
+      setResumeFile(file);
+    } catch (err) {
+      setResumeFile(null);
+      toast.error(err?.message || "Choose a PDF, DOC, or DOCX resume under 5 MB.");
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -111,6 +143,8 @@ export default function BrowseJobs() {
         position_title: selectedJob.title,
       });
       toast.success("Application submitted.");
+      if (draftKey) window.localStorage.removeItem(draftKey);
+      window.sessionStorage.removeItem("saturnmax.pendingApplyJob");
       closeApply();
       reload?.();
     } catch (err) {
@@ -171,12 +205,17 @@ export default function BrowseJobs() {
               <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => openApply(job)}
-                  disabled={existingApplicationJobIds.has(job.id)}
+                  onClick={() => {
+                    if (existingApplicationJobIds.has(job.id)) {
+                      navigate("/dashboard/applications");
+                      return;
+                    }
+                    openApply(job);
+                  }}
                   className="text-sm font-medium text-[#2563EB] hover:text-[#1D4ED8] disabled:text-slate-400 inline-flex items-center gap-1"
                   data-testid={`browse-job-apply-${job.id}`}
                 >
-                  {existingApplicationJobIds.has(job.id) ? "Applied" : "Apply now"}
+                  {existingApplicationJobIds.has(job.id) ? "Applied - view status" : "Apply now"}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </button>
                 <span className="text-xs text-slate-400">{job.employment_type}</span>
@@ -232,13 +271,17 @@ export default function BrowseJobs() {
               <Field label="Resume">
                 <label className="flex h-11 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-700 hover:bg-slate-50">
                   <UploadCloud className="h-4 w-4 text-slate-400" />
-                  <span className="truncate">{resumeFile ? resumeFile.name : candidate.resume_url ? "Resume on profile, or upload a new one" : "Upload PDF, DOC, or DOCX"}</span>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => setResumeFile(e.target.files?.[0] || null)} />
+                  <span className="truncate">{resumeFile ? resumeFile.name : candidate.resume_url ? "Resume on profile, or upload a new one" : "Upload PDF, DOC, or DOCX under 5 MB"}</span>
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => handleResumeSelect(e.target.files?.[0] || null)} />
                 </label>
+                <span className="mt-1 block text-[11px] text-slate-500">Allowed: PDF, DOC, DOCX. Maximum size: 5 MB.</span>
               </Field>
               <Field label="Primary skills" className="md:col-span-2"><input className={inputClass} value={form.primary_skills} onChange={(e) => updateForm("primary_skills", e.target.value)} /></Field>
               <Field label="Brief introduction" className="md:col-span-2"><textarea rows={4} className={`${inputClass} h-28 resize-none py-3`} value={form.introduction} onChange={(e) => updateForm("introduction", e.target.value)} /></Field>
             </div>
+            <p className="mt-4 text-xs leading-relaxed text-slate-500">
+              By applying, you agree that SaturnMax Technologies may use your profile, resume, application, and contact details for hiring, consulting, and communication purposes. Your draft is saved on this device until submitted.
+            </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
               <button type="button" onClick={closeApply} disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                 Cancel

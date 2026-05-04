@@ -6,6 +6,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
   setPersistence,
@@ -27,6 +28,7 @@ function mapFirebaseUser(fbUser, role) {
     email: fbUser.email,
     name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
     photoURL: fbUser.photoURL,
+    emailVerified: Boolean(fbUser.emailVerified),
     role,
   };
 }
@@ -154,6 +156,14 @@ export function AuthProvider({ children }) {
         }
       }
       await ensureCandidateUser({ ...cred.user, name });
+      try {
+        await sendEmailVerification(cred.user, {
+          url: "https://saturnmax.com/dashboard",
+          handleCodeInApp: false,
+        });
+      } catch (e) {
+        console.warn("sendEmailVerification failed:", e);
+      }
       const result = await loadRoleForUid(cred.user.uid);
       return applyRoleResult(cred.user, result);
     },

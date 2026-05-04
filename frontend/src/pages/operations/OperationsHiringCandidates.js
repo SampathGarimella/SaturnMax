@@ -21,6 +21,7 @@ import {
 } from "../../components/ui";
 import {
   addInterviewReview,
+  assignCandidate,
   convertToConsultant,
   decideCandidate,
   moveHiringStage,
@@ -206,6 +207,20 @@ export default function OperationsHiringCandidates() {
     }
   };
 
+  const handleAssignSelf = async (row) => {
+    setBusy(`${row.key}-assign`);
+    setInlineError(null);
+    try {
+      await assignCandidate(row.application);
+      toast.success("Candidate assigned to you.");
+      await load();
+    } catch (err) {
+      setInlineError(showMutationError(err, "Could not assign candidate."));
+    } finally {
+      setBusy("");
+    }
+  };
+
   const handleReject = async () => {
     if (!rejectTarget) return;
     setBusy(`${rejectTarget.key}-reject`);
@@ -276,8 +291,8 @@ export default function OperationsHiringCandidates() {
         overrideApproved: convertForm.overrideApproved,
         overrideReason: convertForm.overrideReason,
       });
-      setPreparedInvite(result.invite);
-      toast.success("Candidate converted to consultant.");
+      setPreparedInvite({ ...result.invite, emailSent: result.emailSent });
+      toast.success(result.emailSent ? "Candidate converted and invite email sent." : "Candidate converted. Invite email needs manual follow-up.");
       await load();
     } catch (err) {
       setInlineError(showMutationError(err, "Could not convert candidate."));
@@ -305,6 +320,7 @@ export default function OperationsHiringCandidates() {
         busy={busy}
         inlineError={inlineError}
         onReview={(row) => setReviewTarget(row)}
+        onAssign={handleAssignSelf}
         onNext={handleNextStage}
         onApprove={handleApprove}
         onReject={(row) => setRejectTarget(row)}
@@ -391,6 +407,7 @@ export default function OperationsHiringCandidates() {
             row={row}
             busy={busy}
             onReview={() => setReviewTarget(row)}
+            onAssign={() => handleAssignSelf(row)}
             onNext={() => handleNextStage(row)}
             onApprove={() => handleApprove(row)}
             onReject={() => setRejectTarget(row)}
@@ -421,8 +438,9 @@ export default function OperationsHiringCandidates() {
   );
 }
 
-function CandidateRow({ row, busy, onReview, onNext, onApprove, onReject, onConvert }) {
-  const next = getNextHiringStage(row.workflowStage);
+function CandidateRow({ row, busy, onReview, onAssign, onNext, onApprove, onReject, onConvert }) {
+  const next = row.candidateApprovalStatus === "rejected" ? "" : getNextHiringStage(row.workflowStage);
+  const canApprove = row.workflowStage === "hr_contract_review" || row.workflowStage === "approved";
   return (
     <article className="grid grid-cols-1 gap-4 border-b border-slate-100 p-4 last:border-b-0 lg:grid-cols-[1.1fr_1fr_0.9fr_0.8fr_0.8fr_1.2fr] lg:items-center">
       <div className="min-w-0">
@@ -449,11 +467,16 @@ function CandidateRow({ row, busy, onReview, onNext, onApprove, onReject, onConv
       </div>
       <div className="flex flex-wrap gap-2">
         <Link to={`/employee-dashboard/hiring/candidates/${row.key}`} className={smallButtonClass}>View Profile</Link>
+        <button onClick={onAssign} className={smallButtonClass} disabled={busy === `${row.key}-assign`}>
+          {busy === `${row.key}-assign` ? "Assigning..." : row.assignedEmployeeId ? "Reassign to me" : "Assign to me"}
+        </button>
         <button onClick={onReview} disabled={row.isProfileOnly} className={smallButtonClass}>Add Review</button>
         <button onClick={onNext} disabled={!next || row.isProfileOnly || busy === `${row.key}-next`} className={smallButtonClass}>
           {busy === `${row.key}-next` ? "Moving..." : "Next Stage"}
         </button>
-        <button onClick={onApprove} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60">Approve</button>
+        {canApprove && (
+          <button onClick={onApprove} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60">Approve</button>
+        )}
         <button onClick={onReject} disabled={row.isProfileOnly} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60">Reject</button>
         <button onClick={onConvert} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} className="rounded-md bg-[#0A192F] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60">Convert</button>
       </div>
@@ -461,7 +484,7 @@ function CandidateRow({ row, busy, onReview, onNext, onApprove, onReject, onConv
   );
 }
 
-function CandidateDetail({ row, data, busy, inlineError, onReview, onNext, onApprove, onReject, onConvert, children }) {
+function CandidateDetail({ row, data, busy, inlineError, onReview, onAssign, onNext, onApprove, onReject, onConvert, children }) {
   if (!row) {
     return (
       <div className="space-y-5">
@@ -489,9 +512,12 @@ function CandidateDetail({ row, data, busy, inlineError, onReview, onNext, onApp
         description={`${row.email || "email missing"} / ${row.phone || "phone missing"}`}
         actions={
           <>
+            <button onClick={() => onAssign(row)} className={smallButtonClass}>Assign to me</button>
             <button onClick={() => onReview(row)} disabled={row.isProfileOnly} className={smallButtonClass}><Plus className="h-3.5 w-3.5" /> Add Review</button>
-            <button onClick={() => onNext(row)} disabled={row.isProfileOnly || busy === `${row.key}-next`} className={smallButtonClass}>Move to Next Stage</button>
-            <button onClick={() => onApprove(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+            <button onClick={() => onNext(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "rejected" || busy === `${row.key}-next`} className={smallButtonClass}>Move to Next Stage</button>
+            {(row.workflowStage === "hr_contract_review" || row.workflowStage === "approved") && (
+              <button onClick={() => onApprove(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+            )}
             <button onClick={() => onReject(row)} disabled={row.isProfileOnly} className="inline-flex h-10 items-center gap-2 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"><XCircle className="h-3.5 w-3.5" /> Reject</button>
             <button onClick={() => onConvert(row)} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-3 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60"><BriefcaseBusiness className="h-3.5 w-3.5" /> Convert</button>
           </>
@@ -501,6 +527,9 @@ function CandidateDetail({ row, data, busy, inlineError, onReview, onNext, onApp
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-5">
           <Card title="Workflow stage">
+            <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
+              Required action now: {getHiringStageMeta(row.workflowStage).nextAction}
+            </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {HIRING_WORKFLOW_STAGES.map((stage) => {
                 const active = HIRING_WORKFLOW_STAGES.indexOf(stage) <= HIRING_WORKFLOW_STAGES.indexOf(row.workflowStage);
@@ -683,7 +712,10 @@ function WorkflowModals(props) {
             )}
             {preparedInvite && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="font-semibold text-emerald-900">Consultant invite prepared</div>
+                <div className="font-semibold text-emerald-900">{preparedInvite.emailSent ? "Consultant invite email sent" : "Consultant invite prepared"}</div>
+                {preparedInvite.emailSent && (
+                  <p className="mt-2 text-sm text-emerald-900">The consultant can use the password setup email and then sign in to the Consultant Portal.</p>
+                )}
                 <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg bg-white p-3 text-xs text-slate-700">{`Subject: ${preparedInvite.subject}\n\n${preparedInvite.body}`}</pre>
                 <button type="button" onClick={copyInvite} className="mt-3 rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Copy invite</button>
               </div>

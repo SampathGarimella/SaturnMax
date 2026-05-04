@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
-import { fetchUserPreferences, saveUserPreferences } from "../lib/api";
+import { fetchUserPreferences, requestCandidateAccountClosure, saveUserPreferences } from "../lib/api";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   DEFAULT_UI_PREFERENCES,
 } from "../lib/validators";
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, sendReset } = useAuth();
   const [emailPrefs, setEmailPrefs] = useState(DEFAULT_NOTIFICATION_PREFERENCES);
   const [theme, setTheme] = useState(DEFAULT_UI_PREFERENCES.theme);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
+  const [closureRequested, setClosureRequested] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -46,6 +47,13 @@ export default function Settings() {
     const nextTheme = next.uiPreferences?.theme || theme;
     setEmailPrefs(nextEmailPrefs);
     setTheme(nextTheme);
+    if (next.kind === "theme") {
+      const dashboardTheme = nextTheme === "system"
+        ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : nextTheme;
+      document.documentElement.dataset.dashboardTheme = dashboardTheme;
+      window.localStorage.setItem("saturnmax-dashboard-theme", dashboardTheme);
+    }
     setSaving(next.kind || "settings");
     try {
       const saved = await saveUserPreferences({
@@ -88,6 +96,8 @@ export default function Settings() {
             { id: "applicationUpdates", label: "Application status updates" },
             { id: "newRoles", label: "New roles matching my preferences" },
             { id: "recruiterMessages", label: "Recruiter direct messages" },
+            { id: "documentRequests", label: "Document requests and review outcomes" },
+            { id: "interviewChanges", label: "Interview schedule changes" },
             { id: "weeklyDigest", label: "Weekly digest of activity" },
           ].map((row) => (
             <label
@@ -125,7 +135,7 @@ export default function Settings() {
           Appearance
         </div>
         <div className="mt-4 flex gap-2">
-          {["light", "system"].map((t) => (
+          {["light", "dark", "system"].map((t) => (
             <button
               key={t}
               onClick={() => {
@@ -161,7 +171,14 @@ export default function Settings() {
               </div>
             </div>
             <button
-              onClick={() => toast.info("Password reset support is available via account services.")}
+              onClick={async () => {
+                try {
+                  await sendReset(user.email);
+                  toast.success(`Password reset link sent to ${user.email}.`);
+                } catch (err) {
+                  toast.error(err?.message || "Could not send password reset.");
+                }
+              }}
               className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
               data-testid="change-password"
             >
@@ -176,13 +193,20 @@ export default function Settings() {
               </div>
             </div>
             <button
-              onClick={() =>
-                toast.error("For account deletion, contact hello@saturnmax.com for verification.")
-              }
+              onClick={async () => {
+                try {
+                  await requestCandidateAccountClosure();
+                  setClosureRequested(true);
+                  toast.success("Account closure request sent for review.");
+                } catch (err) {
+                  toast.error(err?.message || "Could not request account closure.");
+                }
+              }}
+              disabled={closureRequested}
               className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
               data-testid="delete-account"
             >
-              Delete
+              {closureRequested ? "Requested" : "Request closure"}
             </button>
           </div>
         </div>

@@ -31,6 +31,10 @@ describe("role validators", () => {
       role: ROLES.EMPLOYEE,
       status: ROLE_STATUS.READY,
     });
+    expect(resolveRoleDocument({ role: ROLES.CANDIDATE, status: "inactive" })).toMatchObject({
+      role: null,
+      status: ROLE_STATUS.ERROR,
+    });
   });
 
   test("preserves existing privileged role in candidate profile merge", () => {
@@ -65,11 +69,13 @@ describe("settings preference mappers", () => {
     ).toEqual({
       notificationPreferences: {
         applicationUpdates: true,
+        documentRequests: true,
+        interviewChanges: true,
         newRoles: true,
         recruiterMessages: true,
         weeklyDigest: true,
       },
-      uiPreferences: { theme: "light" },
+      uiPreferences: { theme: "dark" },
     });
   });
 

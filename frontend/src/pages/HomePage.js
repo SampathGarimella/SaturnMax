@@ -173,6 +173,7 @@ export default function HomePage() {
     message: "",
   });
   const [contactLoading, setContactLoading] = useState(false);
+  const [contactSubmitted, setContactSubmitted] = useState(false);
 
   useEffect(() => {
     fetchJobs()
@@ -188,8 +189,9 @@ export default function HomePage() {
 
   const handleApplyToJob = (job) => {
     const target = `/dashboard/jobs?applyJob=${encodeURIComponent(job.id)}`;
+    window.sessionStorage.setItem("saturnmax.pendingApplyJob", job.id);
     if (!user?.uid) {
-      navigate(`/login?applyJob=${encodeURIComponent(job.id)}`);
+      navigate(`/login?mode=signin&applyJob=${encodeURIComponent(job.id)}`);
       return;
     }
     if (user.role && user.role !== "candidate") {
@@ -199,12 +201,25 @@ export default function HomePage() {
     navigate(target);
   };
 
+  const handleCreateTechProfile = () => {
+    if (user?.role === "candidate") {
+      navigate("/dashboard/profile");
+      return;
+    }
+    if (user?.role && user.role !== "candidate") {
+      toast.error("Log out first to create or open a candidate tech profile.");
+      return;
+    }
+    navigate("/login?mode=signup");
+  };
+
   const handleContactSubmit = async (e) => {
     e.preventDefault();
     setContactLoading(true);
     try {
       await submitContact(contactForm);
-      toast.success("Message sent. Our team will reply within 24h.");
+      setContactSubmitted(true);
+      toast.success("Thanks, our team will contact you soon.");
       setContactForm({
         name: "",
         email: "",
@@ -497,7 +512,11 @@ export default function HomePage() {
                 Recruiters can review your profile, application history, messages, and interview status in one workflow.
               </p>
               <Link
-                to="/login"
+                to="/login?mode=signup"
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleCreateTechProfile();
+                }}
                 className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#0A192F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0e2445]"
               >
                 Create tech profile
@@ -558,7 +577,11 @@ export default function HomePage() {
               </p>
             </div>
             <Link
-              to="/login"
+              to="/login?mode=signup"
+              onClick={(event) => {
+                event.preventDefault();
+                handleCreateTechProfile();
+              }}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
             >
               Create tech profile
@@ -656,6 +679,11 @@ export default function HomePage() {
               data-testid="contact-form"
             >
               <div className="text-sm font-semibold text-slate-900">Send us a message</div>
+              {contactSubmitted && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">
+                  Thanks, our team will contact you soon. Your enquiry is now in the SaturnMax lead queue.
+                </div>
+              )}
               <Field label="Your name">
                 <input
                   required
@@ -753,6 +781,9 @@ export default function HomePage() {
                   data-testid="contact-message"
                 />
               </Field>
+              <p className="text-xs leading-relaxed text-slate-500">
+                By submitting this form, you agree that SaturnMax Technologies may use your details for hiring, consulting, and communication purposes.
+              </p>
               <button
                 type="submit"
                 disabled={contactLoading}

@@ -72,6 +72,13 @@ beforeEach(async () => {
         status: "active",
         createdAt: 1,
       }),
+      setDoc(doc(db, "users", "admin-1"), {
+        role: "admin",
+        email: "admin@saturnmax.com",
+        name: "Admin",
+        status: "active",
+        createdAt: 1,
+      }),
       setDoc(doc(db, "users", "consultant-1"), {
         role: "consultant",
         email: "consultant@saturnmax.com",
@@ -162,12 +169,21 @@ describe("Firestore security rules", () => {
     await assertSucceeds(deleteDoc(doc(db, "jobs", "draft-job")));
   });
 
-  test("employee/admin rules allow account setup records and candidate profile fields", async () => {
+  test("admin rules allow account setup while employees can convert candidates", async () => {
     const employee = authedDb("employee-1");
+    const admin = authedDb("admin-1");
     const candidate = authedDb("candidate-1");
     const otherCandidate = authedDb("candidate-2");
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(employee, "users", "new-consultant"), {
+        role: "consultant",
+        email: "new.consultant@saturnmax.com",
+        name: "New Consultant",
+        status: "active",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(admin, "users", "new-consultant"), {
         role: "consultant",
         email: "new.consultant@saturnmax.com",
         name: "New Consultant",
@@ -197,6 +213,14 @@ describe("Firestore security rules", () => {
         expected_ctc_lpa: "18",
         updatedAt: 2,
         updatedBy: "candidate-1",
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(employee, "users", "candidate-1"), {
+        role: "consultant",
+        status: "active",
+        updatedAt: 3,
+        updatedBy: "employee-1",
       })
     );
     await assertFails(

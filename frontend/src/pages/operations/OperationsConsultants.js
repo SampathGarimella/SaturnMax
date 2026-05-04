@@ -9,6 +9,7 @@ import {
   StatusBadge,
 } from "../../components/ui";
 import { updateConsultantProfile } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 import { useOperations } from "./OperationsContext";
 import { compactName, sortRecent } from "./operationsUtils";
 
@@ -22,6 +23,8 @@ const EMPTY_CONSULTANT = {
 
 export default function OperationsConsultants() {
   const { data, busy, setBusy, load, showMutationError } = useOperations();
+  const { user } = useAuth();
+  const canEditSensitive = user?.role === "admin";
   const [consultantForm, setConsultantForm] = useState(EMPTY_CONSULTANT);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
@@ -59,7 +62,7 @@ export default function OperationsConsultants() {
       await updateConsultantProfile(consultantForm.uid, {
         client: consultantForm.client,
         project: consultantForm.project,
-        monthlyPay: consultantForm.monthlyPay,
+        ...(canEditSensitive ? { monthlyPay: consultantForm.monthlyPay } : {}),
         startDate: consultantForm.startDate,
         status: "Active consultant",
       });
@@ -99,9 +102,15 @@ export default function OperationsConsultants() {
           <Field label="Project">
             <input className={inputClass} value={consultantForm.project} onChange={(e) => setConsultantForm((f) => ({ ...f, project: e.target.value }))} />
           </Field>
-          <Field label="Monthly pay">
-            <input className={inputClass} value={consultantForm.monthlyPay} onChange={(e) => setConsultantForm((f) => ({ ...f, monthlyPay: e.target.value }))} placeholder="INR 1,80,000" />
-          </Field>
+          {canEditSensitive ? (
+            <Field label="Monthly pay">
+              <input className={inputClass} value={consultantForm.monthlyPay} onChange={(e) => setConsultantForm((f) => ({ ...f, monthlyPay: e.target.value }))} placeholder="INR 1,80,000" />
+            </Field>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              Pay fields are admin-only. Employees can update project assignment and start date.
+            </div>
+          )}
           <Field label="Start date">
             <input className={inputClass} value={consultantForm.startDate} onChange={(e) => setConsultantForm((f) => ({ ...f, startDate: e.target.value }))} placeholder="June 1, 2026" />
           </Field>

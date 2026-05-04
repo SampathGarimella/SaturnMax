@@ -37,15 +37,66 @@ export const ROLE_PORTAL_NAME = Object.freeze({
 });
 
 export const ROLE_PORTAL_LABEL = Object.freeze({
-  [ROLES.ADMIN]: "Admin login",
-  [ROLES.EMPLOYEE]: "Employee login",
-  [ROLES.CONSULTANT]: "Consultant login",
-  [ROLES.CANDIDATE]: "Candidate login",
+  [ROLES.ADMIN]: "Employee/Admin Login",
+  [ROLES.EMPLOYEE]: "Employee/Admin Login",
+  [ROLES.CONSULTANT]: "Consultant Login",
+  [ROLES.CANDIDATE]: "Candidate Login",
 });
 
 export { APPLICATION_LABELS, APPLICATION_STAGES } from "./workflow";
 
-export const JOB_STATUSES = Object.freeze(["draft", "published", "paused", "closed"]);
+export const JOB_STATUSES = Object.freeze(["draft", "published", "paused", "closed", "archived"]);
+
+export const LEAD_STATUSES = Object.freeze([
+  "new",
+  "contacted",
+  "qualified",
+  "not_relevant",
+  "converted",
+]);
+
+export const LEAD_STATUS_LABELS = Object.freeze({
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  not_relevant: "Not Relevant",
+  converted: "Converted",
+});
+
+export const PUBLIC_APPLICATION_STATUS_LABELS = Object.freeze({
+  applied: "Submitted",
+  screening: "Under Review",
+  interview: "Interview",
+  selected: "Offer",
+  offer_sent: "Offer",
+  offer_signed: "Offer",
+  onboarding: "Converted",
+  consultant_active: "Converted",
+  not_shortlisted: "Not Selected",
+});
+
+export const PERMISSION_MATRIX = Object.freeze([
+  {
+    role: "Candidate",
+    canDo: "Sign up, verify email, create profile, upload resume, apply to jobs, track public status, message hiring team, submit requested documents, manage own settings.",
+    cannotDo: "Read internal reviews, edit roles, view pay/bank data, create consultants, manage jobs, or access employee/admin queues.",
+  },
+  {
+    role: "Consultant",
+    canDo: "View assigned consultant profile, project snapshot, onboarding checklist, documents, review outcomes, submit bank/compliance updates for approval, and contact HR/operations.",
+    cannotDo: "Edit pay, client/project assignment, approval status, bank approval, PAN/UAN approval, roles, users, jobs, or internal hiring reviews.",
+  },
+  {
+    role: "Employee",
+    canDo: "Manage hiring operations, jobs, candidates, applications, messages, leads, reviews, consultant profiles, document requests, and candidate conversion workflows.",
+    cannotDo: "Perform system-level role administration, deactivate accounts, or edit sensitive pay/bank/tax fields unless admin/HR permissions are granted.",
+  },
+  {
+    role: "Admin",
+    canDo: "Manage accounts, roles, password setup emails, deactivation, jobs, consultant records, activity history, sensitive fields, and system operations.",
+    cannotDo: "Bypass audit history or expose private candidate/consultant data publicly.",
+  },
+]);
 
 export const COLLECTIONS = Object.freeze({
   USERS: "users",

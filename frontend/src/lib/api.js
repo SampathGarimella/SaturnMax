@@ -2,7 +2,6 @@ import {
   addDoc,
   collection,
   collectionGroup,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -24,6 +23,7 @@ import { auth, db, functions, isFirebaseConfigured, storage } from "./firebase";
 import {
   COLLECTIONS,
   JOB_STATUSES,
+  LEAD_STATUSES,
   ROLES,
   ROLE_VALUES,
 } from "./constants";
@@ -124,6 +124,22 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
+const ALLOWED_UPLOAD_EXTENSIONS = new Set(["pdf", "doc", "docx", "png", "jpg", "jpeg"]);
+const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+export function validateUploadFile(file, options = {}) {
+  if (!file) throw new Error("Choose a file first.");
+  const allowed = options.allowedExtensions || ALLOWED_UPLOAD_EXTENSIONS;
+  const maxBytes = options.maxBytes || DEFAULT_MAX_UPLOAD_BYTES;
+  const ext = String(file.name || "").split(".").pop().toLowerCase();
+  if (!allowed.has(ext)) {
+    throw new Error(`Unsupported file type. Upload ${Array.from(allowed).join(", ").toUpperCase()} files only.`);
+  }
+  if (file.size > maxBytes) {
+    throw new Error(`File is too large. Maximum size is ${Math.round(maxBytes / 1024 / 1024)} MB.`);
+  }
+}
+
 function candidateUidFrom(application = {}) {
   return application.candidate_uid || application.candidateId || application.uid || application.owner_uid || "";
 }
@@ -151,6 +167,11 @@ function normalizeJob(job) {
     department: job.department || "Engineering",
     employment_type: job.employment_type || "Full-time",
     work_mode: job.work_mode || "Remote",
+    owner: job.owner || job.jobOwner || "",
+    clientName: job.clientName || job.client_name || "",
+    priority: job.priority || "Medium",
+    hiringType: job.hiringType || job.hiring_type || job.employment_type || "Full-time",
+    location: job.location || job.workLocation || job.work_mode || "Remote",
     experience: job.experience || "0-3 yrs exp",
     tags: tags.length ? tags : ["Full-time", "Remote"],
     description: job.description || "",
@@ -234,6 +255,7 @@ function emptyDashboard(user) {
       id: user?.uid || "new",
       uid: user?.uid || "",
       email: user?.email || "",
+      emailVerified: Boolean(user?.emailVerified),
       name: user?.name || user?.displayName || "Candidate",
       role_label: "Job Candidate",
       profile_complete_percent: 25,
@@ -331,6 +353,11 @@ export async function saveJob(payload) {
     department: payload.department?.trim() || "Engineering",
     employment_type: payload.employment_type || "Full-time",
     work_mode: payload.work_mode || "Remote",
+    owner: payload.owner?.trim() || "",
+    clientName: payload.clientName?.trim() || "",
+    priority: payload.priority || "Medium",
+    hiringType: payload.hiringType || payload.employment_type || "Full-time",
+    location: payload.location?.trim() || payload.work_mode || "Remote",
     experience: payload.experience?.trim() || "0-3 yrs exp",
     tags,
     description: payload.description?.trim(),
@@ -364,7 +391,40 @@ export async function updateJobStatus(jobId, status) {
 
 export async function deleteJob(jobId) {
   requireFirestore();
-  await deleteDoc(doc(db, COLLECTIONS.JOBS, jobId));
+  const user = requireAuthUser();
+  const apps = await getDocs(
+    query(collection(db, COLLECTIONS.APPLICATIONS), where("position_id", "==", jobId), limit(1))
+  );
+  if (!apps.empty) {
+    await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
+      status: "archived",
+      archivedAt: serverTimestamp(),
+      archivedBy: user.uid,
+      ...updateMeta(user),
+    });
+    await safeRecordActivityLog({
+      action: "job_archived_with_applications",
+      outcome: "success",
+      targetCollection: COLLECTIONS.JOBS,
+      targetId: jobId,
+      after: { status: "archived" },
+    });
+    return { archived: true };
+  }
+  await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
+    status: "archived",
+    archivedAt: serverTimestamp(),
+    archivedBy: user.uid,
+    ...updateMeta(user),
+  });
+  await safeRecordActivityLog({
+    action: "job_archived",
+    outcome: "success",
+    targetCollection: COLLECTIONS.JOBS,
+    targetId: jobId,
+    after: { status: "archived" },
+  });
+  return { archived: true };
 }
 
 export async function submitApplication(payload) {
@@ -379,6 +439,20 @@ export async function submitApplication(payload) {
   const existingUser = userSnap.exists() ? userSnap.data() : null;
   if (existingUser?.role && existingUser.role !== ROLES.CANDIDATE) {
     throw new Error("Please use a candidate account to apply for jobs.");
+  }
+
+  if (payload.position_id) {
+    const duplicateSnap = await getDocs(
+      query(
+        collection(db, COLLECTIONS.APPLICATIONS),
+        where("candidate_uid", "==", user.uid),
+        where("position_id", "==", payload.position_id),
+        limit(1)
+      )
+    );
+    if (!duplicateSnap.empty) {
+      throw new Error("You already applied to this job. Open My Applications to track the existing application.");
+    }
   }
 
   const candidateProfile = {
@@ -419,6 +493,7 @@ export async function submitApplication(payload) {
     candidate_name: payload.full_name,
     status: "applied",
     lifecycle_stage: "applied",
+    public_status: "submitted",
     ...createMeta(user),
   });
   await setDoc(appRef, { id: appRef.id }, { merge: true });
@@ -433,9 +508,49 @@ export async function submitContact(payload) {
   const refDoc = await addDoc(collection(db, COLLECTIONS.LEADS), {
     ...payload,
     status: "new",
+    leadStatus: "new",
     source: "website",
+    consent: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  });
+  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
+  return { id: refDoc.id };
+}
+
+export async function updateLeadStatus(leadId, patch = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const nextStatus = patch.status || patch.leadStatus || "new";
+  if (!LEAD_STATUSES.includes(nextStatus)) throw new Error("Choose a valid lead status.");
+  await updateDoc(doc(db, COLLECTIONS.LEADS, leadId), {
+    status: nextStatus,
+    leadStatus: nextStatus,
+    assignedEmployeeId: patch.assignedEmployeeId || "",
+    notes: patch.notes || "",
+    lastContactedAt: patch.lastContactedAt || null,
+    ...updateMeta(user),
+  });
+  await safeRecordActivityLog({
+    action: "lead_status_updated",
+    outcome: "success",
+    targetCollection: COLLECTIONS.LEADS,
+    targetId: leadId,
+    after: { status: nextStatus, assignedEmployeeId: patch.assignedEmployeeId || "" },
+  });
+}
+
+export async function requestCandidateAccountClosure(message = "") {
+  requireFirestore();
+  const user = requireAuthUser();
+  const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+    owner_uid: user.uid,
+    type: "account_closure_request",
+    title: "Candidate account closure request",
+    status: "pending_review",
+    details: message || "Candidate requested account deletion or data removal.",
+    email: user.email || "",
+    ...createMeta(user),
   });
   await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id };
@@ -488,6 +603,7 @@ export async function fetchDashboard(userArg) {
       ...candidate,
       uid: user.uid,
       email: candidate.email || user.email,
+      emailVerified: Boolean(user.emailVerified),
       name: candidate.name || user.displayName || user.email?.split("@")[0] || "Candidate",
       role_label: candidate.role_label || "Job Candidate",
       profile_complete_percent: completion,
@@ -518,7 +634,7 @@ export async function uploadTrackedFile({ file, path, ownerUid, applicationId, t
   requireFirestore();
   const user = auth?.currentUser;
   if (!storage) throw new Error("Storage is not configured.");
-  if (!file) throw new Error("Choose a file first.");
+  validateUploadFile(file);
   const fileRef = ref(storage, path);
   const task = uploadBytesResumable(fileRef, file, { contentType: file.type });
   await new Promise((resolve, reject) => {
@@ -942,6 +1058,35 @@ export async function decideCandidate(application, decision, reason = "") {
   await batch.commit();
 }
 
+export async function assignCandidate(application, assignedEmployeeId = "") {
+  requireFirestore();
+  const user = requireAuthUser();
+  const uid = candidateUidFrom(application);
+  if (!application?.id && !uid) throw new Error("Choose a candidate first.");
+  const patch = {
+    assignedEmployeeId: assignedEmployeeId || user.uid,
+    ...updateMeta(user),
+  };
+  const batch = writeBatch(db);
+  if (application?.id) {
+    batch.set(doc(db, COLLECTIONS.APPLICATIONS, application.id), patch, { merge: true });
+  }
+  if (uid) {
+    batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), { uid, ...patch }, { merge: true });
+  }
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: "candidate_assigned",
+    outcome: "success",
+    targetCollection: application?.id ? COLLECTIONS.APPLICATIONS : COLLECTIONS.CANDIDATES,
+    targetId: application?.id || uid,
+    after: { assignedEmployeeId: patch.assignedEmployeeId },
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
 export async function sendOfferLetter(application, file) {
   const ext = file.name.split(".").pop() || "pdf";
   const uploaded = await uploadTrackedFile({
@@ -1315,9 +1460,39 @@ export async function convertToConsultant(application, profile = {}, context = {
     });
     return consultantDoc;
   });
+  let emailSent = false;
+  try {
+    await sendConsultantPasswordInvite(consultant.email);
+    await markConsultantInvitationSent(uid, consultant.email);
+    await Promise.all([
+      updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
+        workflowStage: "credentials_sent",
+        credentialsSentAt: serverTimestamp(),
+        credentialsSentByEmployeeId: user.uid,
+        ...updateMeta(user),
+      }),
+      setDoc(doc(db, COLLECTIONS.CANDIDATES, uid), {
+        workflowStage: "credentials_sent",
+        credentialsSentAt: serverTimestamp(),
+        credentialsSentByEmployeeId: user.uid,
+        ...updateMeta(user),
+      }, { merge: true }),
+    ]);
+    emailSent = true;
+  } catch (err) {
+    console.warn("Consultant conversion invite email failed:", err);
+    await safeRecordActivityLog({
+      action: "consultant_conversion_invite_failed",
+      outcome: "blocked",
+      targetCollection: COLLECTIONS.CONSULTANTS,
+      targetId: uid,
+      reason: err?.message || "Password setup email failed",
+    });
+  }
 
   return {
     consultant,
+    emailSent,
     invite: buildConsultantInviteMessage({
       name: consultant.name,
       email: consultant.email,
@@ -1591,7 +1766,7 @@ export async function adminUpsertPortalUser(payload = {}) {
   const functionResult = await adminUpsertPortalUserWithFunction({ ...payload, email, role });
   if (functionResult?.uid) {
     if (payload.sendReset) {
-      await adminSendPasswordReset(email, role === ROLES.CONSULTANT ? "https://saturnmax.com/consultant-login" : "https://saturnmax.com/login");
+      await adminSendPasswordReset(email, portalResetUrl(role));
     }
     return { ...functionResult, functionBacked: true };
   }
@@ -1660,9 +1835,15 @@ export async function adminUpsertPortalUser(payload = {}) {
   });
   await batch.commit();
   if (payload.sendReset && matchedUser) {
-    await adminSendPasswordReset(email, role === ROLES.CONSULTANT ? "https://saturnmax.com/consultant-login" : "https://saturnmax.com/login");
+    await adminSendPasswordReset(email, portalResetUrl(role));
   }
   return { uid, email, role, loginSetupRequired: !matchedUser, functionBacked: false };
+}
+
+function portalResetUrl(role) {
+  if (role === ROLES.CONSULTANT) return "https://saturnmax.com/consultant-login";
+  if (role === ROLES.EMPLOYEE || role === ROLES.ADMIN) return "https://saturnmax.com/employee-login";
+  return "https://saturnmax.com/login";
 }
 
 export async function adminDeactivatePortalUser(target = {}) {
@@ -1756,6 +1937,23 @@ export async function submitBankReview(details) {
     title: "Bank account details",
     status: "pending_review",
     details: `Bank: ${details.bank_name || "Not provided"} / IFSC: ${details.ifsc || "Not provided"}`,
+  });
+}
+
+export async function sendConsultantSupportRequest({ category = "general", message = "" } = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const body = message.trim();
+  if (!body) throw new Error("Enter a support message.");
+  return createReview({
+    owner_uid: user.uid,
+    consultant_uid: user.uid,
+    type: "consultant_support",
+    title: `Consultant support: ${String(category || "general").replace(/_/g, " ")}`,
+    status: "pending_review",
+    details: body,
+    category,
+    email: user.email || "",
   });
 }
 

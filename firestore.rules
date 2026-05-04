@@ -29,6 +29,10 @@ service cloud.firestore {
       return role() == "employee" || role() == "admin";
     }
 
+    function isAdmin() {
+      return role() == "admin";
+    }
+
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -47,11 +51,20 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if ownsOwner(uid) || isEmployee();
-      allow create: if isEmployee()
+      allow create: if isAdmin()
         || (ownsOwner(uid) && request.resource.data.role == "candidate");
-      allow update: if isEmployee()
+      allow update: if isAdmin()
+        || (isEmployee()
+          && resource.data.role == "candidate"
+          && request.resource.data.role == "consultant"
+          && keepsImmutableFields()
+          && changedKeys().hasOnly(["role", "email", "name", "status", "updatedAt", "updatedBy"]))
         || (ownsOwner(uid)
           && request.resource.data.role == resource.data.role
+          && (
+            request.resource.data.status == resource.data.status
+            || (!("status" in resource.data) && request.resource.data.status == "active")
+          )
           && keepsImmutableFields()
           && changedKeys().hasOnly([
             "email",
@@ -68,7 +81,7 @@ service cloud.firestore {
             "updatedAt",
             "updatedBy"
           ]));
-      allow delete: if isEmployee();
+      allow delete: if isAdmin();
     }
 
     match /jobs/{jobId} {

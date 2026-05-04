@@ -19,6 +19,11 @@ const EMPTY_JOB = {
   department: "Engineering",
   employment_type: "Full-time",
   work_mode: "Remote",
+  owner: "",
+  clientName: "",
+  priority: "Medium",
+  hiringType: "Full-time",
+  location: "Remote",
   experience: "2-5 yrs exp",
   tags: "Full-time, Remote",
   description: "",
@@ -37,6 +42,17 @@ export default function OperationsJobs() {
       .filter((job) => status === "all" || job.status === status)
       .filter((job) => textIncludes(job, query, ["title", "department", "description", "employment_type", "work_mode"]));
   }, [data.jobs, query, status]);
+  const jobCounts = useMemo(() => {
+    return (data.applications || []).reduce((acc, application) => {
+      const id = application.position_id;
+      if (!id) return acc;
+      acc[id] = acc[id] || { total: 0, review: 0, converted: 0 };
+      acc[id].total += 1;
+      if (["screening", "interview", "selected"].includes(application.status)) acc[id].review += 1;
+      if (application.status === "consultant_active" || application.convertedToConsultantId) acc[id].converted += 1;
+      return acc;
+    }, {});
+  }, [data.applications]);
 
   const handleSaveJob = async (event) => {
     event.preventDefault();
@@ -71,7 +87,7 @@ export default function OperationsJobs() {
     setBusy(`${deleteTarget.id}-delete`);
     try {
       await deleteJob(deleteTarget.id);
-      toast.success("Job deleted.");
+      toast.success("Job archived.");
       setDeleteTarget(null);
       await load();
     } catch (err) {
@@ -114,6 +130,31 @@ export default function OperationsJobs() {
           <Field label="Experience">
             <input className={inputClass} value={jobForm.experience} onChange={(e) => setJobForm((f) => ({ ...f, experience: e.target.value }))} />
           </Field>
+          <Field label="Internal owner">
+            <input className={inputClass} value={jobForm.owner} onChange={(e) => setJobForm((f) => ({ ...f, owner: e.target.value }))} />
+          </Field>
+          <Field label="Client name">
+            <input className={inputClass} value={jobForm.clientName} onChange={(e) => setJobForm((f) => ({ ...f, clientName: e.target.value }))} />
+          </Field>
+          <Field label="Priority">
+            <select className={inputClass} value={jobForm.priority} onChange={(e) => setJobForm((f) => ({ ...f, priority: e.target.value }))}>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+              <option>Urgent</option>
+            </select>
+          </Field>
+          <Field label="Hiring type">
+            <select className={inputClass} value={jobForm.hiringType} onChange={(e) => setJobForm((f) => ({ ...f, hiringType: e.target.value }))}>
+              <option>Full-time</option>
+              <option>Contract</option>
+              <option>Bench</option>
+              <option>Client-assigned</option>
+            </select>
+          </Field>
+          <Field label="Location">
+            <input className={inputClass} value={jobForm.location} onChange={(e) => setJobForm((f) => ({ ...f, location: e.target.value }))} />
+          </Field>
           <Field label="Tags">
             <input className={inputClass} value={jobForm.tags} onChange={(e) => setJobForm((f) => ({ ...f, tags: e.target.value }))} />
           </Field>
@@ -123,6 +164,7 @@ export default function OperationsJobs() {
               <option value="published">Published</option>
               <option value="paused">Paused</option>
               <option value="closed">Closed</option>
+              <option value="archived">Archived</option>
             </select>
           </Field>
           <Field label="Description" className="md:col-span-2">
@@ -150,6 +192,7 @@ export default function OperationsJobs() {
           <option value="draft">Draft</option>
           <option value="paused">Paused</option>
           <option value="closed">Closed</option>
+          <option value="archived">Archived</option>
         </select>
       </ActionBar>
 
@@ -159,36 +202,49 @@ export default function OperationsJobs() {
         )}
         {jobs.map((job) => (
           <article key={job.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            {(() => {
+              const counts = jobCounts[job.id] || { total: 0, review: 0, converted: 0 };
+              return (
+                <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h2 className="font-heading text-lg font-semibold text-slate-900">{job.title}</h2>
                 <div className="mt-1 text-xs text-slate-500">{job.department} / {job.employment_type} / {job.work_mode}</div>
+                <div className="mt-1 text-xs text-slate-400">Owner: {job.owner || "Unassigned"} / Client: {job.clientName || "Internal"} / Priority: {job.priority || "Medium"}</div>
               </div>
               <StatusBadge value={job.status} />
             </div>
             <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-slate-600">{job.description}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+              <MiniCount label="Applied" value={counts.total} />
+              <MiniCount label="In review" value={counts.review} />
+              <MiniCount label="Converted" value={counts.converted} />
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button onClick={() => setJobForm({ ...job, tags: (job.tags || []).join(", ") })} className={smallButtonClass}>
                 Edit
               </button>
-              {["published", "paused", "closed"].map((nextStatus) => (
+              {["published", "paused", "closed", "archived"].map((nextStatus) => (
                 <button key={nextStatus} onClick={() => handleJobStatus(job, nextStatus)} disabled={busy === `${job.id}-${nextStatus}`} className={smallButtonClass}>
                   {busy === `${job.id}-${nextStatus}` ? "Saving..." : nextStatus}
                 </button>
               ))}
               <button onClick={() => setDeleteTarget(job)} disabled={busy === `${job.id}-delete`} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60">
-                Delete
+                Archive
               </button>
             </div>
+                </>
+              );
+            })()}
           </article>
         ))}
       </div>
 
       <ConfirmModal
         open={Boolean(deleteTarget)}
-        title="Delete job?"
-        body={deleteTarget ? `This removes "${deleteTarget.title}" from Firestore and the public site.` : ""}
-        confirmLabel="Delete job"
+        title="Archive job?"
+        body={deleteTarget ? `This closes "${deleteTarget.title}" on the public site while keeping applications and audit history safe.` : ""}
+        confirmLabel="Archive job"
         destructive
         busy={Boolean(busy && busy.endsWith("-delete"))}
         onConfirm={handleDelete}
@@ -210,5 +266,14 @@ function Field({ label, children, className = "" }) {
       <span className="mb-1.5 block text-xs font-medium text-slate-600">{label}</span>
       {children}
     </label>
+  );
+}
+
+function MiniCount({ label, value }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div className="font-heading text-lg font-semibold text-slate-900">{value}</div>
+      <div className="text-[11px] text-slate-500">{label}</div>
+    </div>
   );
 }

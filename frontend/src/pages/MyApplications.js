@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { uploadSignedCandidateDocument } from "../lib/api";
 import { getApplicationStatusMeta, isWorkflowTransitionError } from "../lib/workflow";
 import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
+import { PUBLIC_APPLICATION_STATUS_LABELS } from "../lib/constants";
 
 export default function MyApplications() {
   const { data, loading, reload } = useOutletContext();
@@ -87,7 +88,29 @@ export default function MyApplications() {
                     {meta.nextAction}
                   </p>
                 </div>
-                <StatusBadge value={a.status} />
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <StatusBadge value={a.status} />
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700">
+                    Candidate status: {PUBLIC_APPLICATION_STATUS_LABELS[a.status] || meta.label}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <div className="font-semibold text-slate-900">Interview schedule</div>
+                {a.interview_date || a.interviewTime || a.meeting_link ? (
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <span>Date/time: {a.interview_date || a.interviewTime || "To be confirmed"}</span>
+                    <span>Interviewer: {a.interviewer || "Hiring team"}</span>
+                    {a.meeting_link && (
+                      <a href={a.meeting_link} target="_blank" rel="noreferrer" className="font-semibold text-[#2563EB]">
+                        Open meeting link
+                      </a>
+                    )}
+                    <span>Status: {a.interviewStatus || "Not scheduled"}</span>
+                  </div>
+                ) : (
+                  <div className="mt-1">No interview scheduled yet. The hiring team will share details here when ready.</div>
+                )}
               </div>
               <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
                 {offer ? (

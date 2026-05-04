@@ -13,6 +13,7 @@ import OperationsConvert from "./pages/operations/OperationsConvert";
 import OperationsHiringCandidates from "./pages/operations/OperationsHiringCandidates";
 import OperationsInterviewReviews from "./pages/operations/OperationsInterviewReviews";
 import OperationsJobs from "./pages/operations/OperationsJobs";
+import OperationsLeads from "./pages/operations/OperationsLeads";
 import OperationsManualConsultant from "./pages/operations/OperationsManualConsultant";
 import OperationsMessages from "./pages/operations/OperationsMessages";
 import OperationsReviews from "./pages/operations/OperationsReviews";
@@ -89,6 +90,7 @@ function App() {
           >
             <Route index element={<Navigate to="hiring/candidates" replace />} />
             <Route path="jobs" element={<OperationsJobs />} />
+            <Route path="leads" element={<OperationsLeads />} />
             <Route path="applications" element={<Navigate to="/employee-dashboard/hiring/candidates" replace />} />
             <Route path="messages" element={<OperationsMessages />} />
             <Route path="consultants" element={<Navigate to="/employee-dashboard/hiring/consultants" replace />} />

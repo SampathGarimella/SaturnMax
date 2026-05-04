@@ -78,8 +78,8 @@ export default function DashboardLayout() {
                 <div className="text-xs text-slate-500 flex items-center gap-1.5">
                   {data?.candidate?.role_label || "Job Candidate"}
                   {mode === "firebase" && (
-                    <span className="rounded-full bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider">
-                      Verified
+                    <span className={`rounded-full text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider ${user?.emailVerified ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                      {user?.emailVerified ? "Verified" : "Verify email"}
                     </span>
                   )}
                 </div>

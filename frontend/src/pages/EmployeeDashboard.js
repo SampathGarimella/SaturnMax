@@ -11,6 +11,7 @@ import {
   UserCog,
   UserRound,
   Users,
+  Building2,
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
@@ -35,13 +36,13 @@ const EMPTY_OPERATIONS_DATA = {
 
 const EMPLOYEE_NAV_GROUPS = [
   {
-    title: "Hiring Workflow",
+    title: "Hiring",
     items: [
       { to: "/employee-dashboard/hiring/candidates", label: "Candidates", Icon: UserRound },
-      { to: "/employee-dashboard/hiring/interviews", label: "Interview Reviews", Icon: ClipboardList },
-      { to: "/employee-dashboard/hiring/convert", label: "Convert to Consultant", Icon: BriefcaseBusiness },
+      { to: "/employee-dashboard/hiring/interviews", label: "Interviews", Icon: ClipboardList },
+      { to: "/employee-dashboard/hiring/convert", label: "Conversions", Icon: BriefcaseBusiness },
       { to: "/employee-dashboard/hiring/consultants", label: "Consultants", Icon: Users },
-      { to: "/employee-dashboard/hiring/manual-consultant", label: "Manual Add Consultant", Icon: PlusCircle },
+      { to: "/employee-dashboard/hiring/manual-consultant", label: "Manual Add", Icon: PlusCircle },
     ],
   },
   {
@@ -50,6 +51,7 @@ const EMPLOYEE_NAV_GROUPS = [
       { to: "/employee-dashboard/jobs", label: "Jobs", Icon: BriefcaseBusiness },
       { to: "/employee-dashboard/messages", label: "Messages", Icon: MessageSquare },
       { to: "/employee-dashboard/reviews", label: "Reviews", Icon: FileText },
+      { to: "/employee-dashboard/leads", label: "Leads", Icon: Building2 },
       { to: "/employee-dashboard/profile", label: "Profile", Icon: UserCog },
     ],
   },

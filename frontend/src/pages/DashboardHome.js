@@ -65,6 +65,11 @@ export default function DashboardHome() {
   return (
     <div className="space-y-6" data-testid="dashboard-home">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
+        {!candidate.emailVerified && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Verify your email from the link SaturnMax sent after signup. Verified email helps the hiring team contact you reliably.
+          </div>
+        )}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2563EB]">

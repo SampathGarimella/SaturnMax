@@ -7,19 +7,19 @@ import { ROLE_HOME, ROLE_PORTAL_NAME, ROLE_PORTAL_ROOT } from "../lib/constants"
 
 const LOGIN_OPTIONS = [
   {
-    to: "/login",
-    label: "Candidate login",
+    to: "/login?mode=signin",
+    label: "Candidate Login",
     body: "Apply, upload resume, track interviews",
     Icon: UserRound,
   },
   {
     to: "/consultant-login",
-    label: "Consultant login",
+    label: "Consultant Login",
     Icon: BriefcaseBusiness,
   },
   {
     to: "/employee-login",
-    label: "Employee login",
+    label: "Employee/Admin Login",
     Icon: UserCog,
   },
 ];

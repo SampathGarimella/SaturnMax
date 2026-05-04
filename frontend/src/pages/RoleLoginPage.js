@@ -22,8 +22,8 @@ const CONFIG = {
     Icon: BriefcaseBusiness,
   },
   employee: {
-    title: "Employee login",
-    eyebrow: "Employee portal",
+    title: "Employee/Admin Login",
+    eyebrow: "Operations portal",
     destination: "/employee-dashboard/hiring/candidates",
     allowedRoles: ["employee", "admin"],
     Icon: UserCog,
@@ -107,7 +107,11 @@ export default function RoleLoginPage({ role = "consultant" }) {
       });
       navigate(ROLE_HOME[signedUser.role] || config.destination);
     } catch (err) {
-      toast.error(err?.message || "Sign-in failed. Please verify your credentials.");
+      if (err?.code === "auth/user-disabled") {
+        toast.error("Your account is inactive. Contact hr@saturnmax.com.");
+      } else {
+        toast.error(err?.message || "Sign-in failed. Please verify your credentials.");
+      }
     } finally {
       setBusy(false);
     }
@@ -156,11 +160,11 @@ export default function RoleLoginPage({ role = "consultant" }) {
             Use your assigned work credentials to access this portal.
           </p>
           <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
-            Password resets for consultant and employee accounts are handled by HR. Contact{" "}
+            Use your invitation email to set your password. Contact{" "}
             <a href="mailto:hr@saturnmax.com" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
               hr@saturnmax.com
             </a>{" "}
-            for assistance.
+            if you need a new invite or password setup link.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">

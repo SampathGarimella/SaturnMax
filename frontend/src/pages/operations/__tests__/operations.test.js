@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import OperationsApplications from "../OperationsApplications";
 import OperationsHiringCandidates from "../OperationsHiringCandidates";
+import OperationsLeads from "../OperationsLeads";
 import OperationsManualConsultant from "../OperationsManualConsultant";
 import OperationsReviews from "../OperationsReviews";
 import { OperationsContext } from "../OperationsContext";
@@ -55,7 +56,18 @@ const baseData = {
     { id: "resume-1", owner_uid: "candidate-1", type: "resume", status: "uploaded", file_url: "https://example.com/resume.pdf" },
   ],
   consultants: [],
-  leads: [],
+  leads: [
+    {
+      id: "lead-1",
+      name: "Client Lead",
+      email: "client@saturnmax.com",
+      company: "Acme",
+      subject: "I want to hire a dev team",
+      message: "Need React engineers",
+      status: "new",
+      updatedAt: 5,
+    },
+  ],
   users: [],
   candidates: [],
   activityLogs: [
@@ -140,6 +152,15 @@ test("manual consultant form explains Firebase Auth setup", () => {
   expect(container.textContent).toContain("Manual Add Consultant");
   expect(container.textContent).toContain("Login setup behavior");
   expect(container.textContent).toContain("Create consultant");
+  act(() => root.unmount());
+  container.remove();
+});
+
+test("leads module renders lead status workflow", () => {
+  const { container, root } = renderWithOperations(<OperationsLeads />);
+  expect(container.textContent).toContain("Lead management");
+  expect(container.textContent).toContain("Client Lead");
+  expect(container.textContent).toContain("Save lead");
   act(() => root.unmount());
   container.remove();
 });

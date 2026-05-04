@@ -9,6 +9,7 @@ import {
   CircleDot,
   FileText,
   Landmark,
+  MessageSquare,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -17,7 +18,12 @@ import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import DashboardThemeToggle from "../components/DashboardThemeToggle";
 import { useAuth } from "../context/AuthContext";
-import { fetchConsultantDashboard, submitBankReview, updateOwnUserProfile } from "../lib/api";
+import {
+  fetchConsultantDashboard,
+  sendConsultantSupportRequest,
+  submitBankReview,
+  updateOwnUserProfile,
+} from "../lib/api";
 import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
 
 const EMPTY_BANK = {
@@ -207,6 +213,10 @@ export default function ConsultantDashboard({ profileOnly = false }) {
               </Panel>
 
               <Panel title="Bank payout details" subtitle="Submit account details for employee/admin review">
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Bank details are submitted for employee/admin review and cannot be used for payout until approved.
+                  {consultant.bankStatus === "approved" ? " Approved bank details require a new update request before changes are used." : ""}
+                </div>
                 <form onSubmit={handleBankSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Field label="Account holder">
                     <input className={inputClass} value={bank.account_holder} onChange={(e) => setBank((f) => ({ ...f, account_holder: e.target.value }))} />
@@ -223,7 +233,7 @@ export default function ConsultantDashboard({ profileOnly = false }) {
                   <div className="md:col-span-2 flex justify-end">
                     <button disabled={busy} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60 md:w-auto">
                       <Send className="h-4 w-4" />
-                      Send for review
+                      {consultant.bankStatus === "approved" ? "Request bank update" : "Send for review"}
                     </button>
                   </div>
                 </form>
@@ -268,10 +278,12 @@ export default function ConsultantDashboard({ profileOnly = false }) {
                   <MiniCard Icon={Banknote} label="Monthly pay" value={consultant.monthlyPay || "Pending"} />
                 </div>
                 <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                  Salary slips, Form 16, and payroll files will appear here after the finance team uploads them.
+                  This is an information snapshot, not payroll processing. Salary slips, Form 16, and payroll files will appear here after the finance team uploads them.
                 </div>
               </Panel>
             </section>
+
+            <ConsultantSupportPanel reload={load} />
           </>
         )}
       </main>
@@ -311,8 +323,7 @@ function ConsultantProfileEditor({ consultant, user, reload }) {
     name: cleanDisplayName(consultant.name, consultant.email) || user?.name || "",
     email: consultant.email || user?.email || "",
     phone: consultant.phone || "",
-    title: consultant.roleTitle || consultant.role || "",
-    location: consultant.workLocation || consultant.location || "",
+    location: consultant.location || "",
     bio: consultant.bio || consultant.notes || "",
   });
   const [saving, setSaving] = useState(false);
@@ -343,9 +354,11 @@ function ConsultantProfileEditor({ consultant, user, reload }) {
         <Field label="Full name"><input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} /></Field>
         <Field label="Email"><input className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} /></Field>
         <Field label="Phone"><input className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} /></Field>
-        <Field label="Role title"><input className={inputClass} value={form.title} onChange={(e) => update("title", e.target.value)} /></Field>
         <Field label="Location"><input className={inputClass} value={form.location} onChange={(e) => update("location", e.target.value)} /></Field>
         <Field label="Notes" className="md:col-span-2"><textarea className={`${inputClass} h-28 resize-none py-3`} value={form.bio} onChange={(e) => update("bio", e.target.value)} /></Field>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:col-span-2">
+          Client, project, pay, start date, consultant status, bank approval, PAN approval, UAN approval, and compliance status are managed by employee/admin teams.
+        </div>
         <div className="flex justify-end md:col-span-2">
           <button disabled={saving} className="inline-flex h-11 items-center justify-center rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
             {saving ? "Saving..." : "Save profile"}
@@ -353,6 +366,51 @@ function ConsultantProfileEditor({ consultant, user, reload }) {
         </div>
       </form>
     </section>
+  );
+}
+
+function ConsultantSupportPanel({ reload }) {
+  const [category, setCategory] = useState("general");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setSending(true);
+    try {
+      await sendConsultantSupportRequest({ category, message });
+      toast.success("Support request sent to operations.");
+      setMessage("");
+      reload?.();
+    } catch (err) {
+      toast.error(err?.message || "Could not send support request.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Panel title="Support" subtitle="Contact HR or operations about bank, documents, payroll, project, or account questions">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-4 md:grid-cols-[0.35fr_1fr_auto] md:items-end">
+        <Field label="Category">
+          <select className={inputClass} value={category} onChange={(event) => setCategory(event.target.value)}>
+            <option value="general">General support</option>
+            <option value="bank">Bank</option>
+            <option value="documents">Documents</option>
+            <option value="payroll">Payroll</option>
+            <option value="project">Project</option>
+            <option value="account">Account</option>
+          </select>
+        </Field>
+        <Field label="Message">
+          <input className={inputClass} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Tell the team what you need help with" />
+        </Field>
+        <button disabled={sending} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
+          <MessageSquare className="h-4 w-4" />
+          {sending ? "Sending..." : "Send"}
+        </button>
+      </form>
+    </Panel>
   );
 }
 
