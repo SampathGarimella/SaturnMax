@@ -80,7 +80,7 @@ const STEPS = [
   {
     n: "02",
     title: "Paid pilot",
-    blurb: "$3-5k scoped 2-week engagement.",
+    blurb: "Scoped 2-week pilot engagement.",
     Icon: Rocket,
   },
   {
@@ -165,7 +165,7 @@ export default function HomePage() {
     email: "",
     company: "",
     subject: "I want to hire a dev team",
-    budget_range: "$10k-$25k",
+    budget_range: "10k-25k",
     timeline: "This month",
     message: "",
   });
@@ -222,7 +222,7 @@ export default function HomePage() {
         email: "",
         company: "",
         subject: "I want to hire a dev team",
-        budget_range: "$10k-$25k",
+        budget_range: "10k-25k",
         timeline: "This month",
         message: "",
       });
@@ -742,10 +742,10 @@ export default function HomePage() {
                     className={inputClass}
                     data-testid="contact-budget"
                   >
-                    <option>Under $10k</option>
-                    <option>$10k-$25k</option>
-                    <option>$25k-$75k</option>
-                    <option>$75k+</option>
+                    <option>Under 10k</option>
+                    <option>10k-25k</option>
+                    <option>25k-75k</option>
+                    <option>75k+</option>
                     <option>Not sure yet</option>
                   </select>
                 </Field>
