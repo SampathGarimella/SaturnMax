@@ -16,11 +16,8 @@ import {
   MapPin,
   Clock,
   Check,
-  Building2,
   ClipboardCheck,
-  FileText,
   ShieldCheck,
-  Target,
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
@@ -797,29 +794,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- Operating model ----------------------------------------- */}
-      <section className="py-16 md:py-20 bg-white border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 md:px-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <ModelCard
-              Icon={Building2}
-              title="Client dashboard"
-              body="Project requests, status updates, documents, and account messages are the next production dashboard track."
-            />
-            <ModelCard
-              Icon={FileText}
-              title="Admin workflow"
-              body="Leads, applications, jobs, and homepage content should move into a managed admin queue."
-            />
-            <ModelCard
-              Icon={Target}
-              title="Hiring pipeline"
-              body="Candidates get application status, messages, resume readiness, and interview next steps in one place."
-            />
-          </div>
-        </div>
-      </section>
-
       {/* ---- Footer CTA ---------------------------------------------- */}
       <section className="bg-[#0A192F] text-white">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-14 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -845,7 +819,7 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} SaturnMax Technologies
+            © {new Date().getFullYear()} SaturnMax Technologies Private Limited
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>
@@ -882,18 +856,6 @@ function InfoRow({ Icon, label, value }) {
         <div className="text-xs text-slate-500">{label}</div>
         <div className="text-sm text-slate-900 break-words">{value}</div>
       </div>
-    </div>
-  );
-}
-
-function ModelCard({ Icon, title, body }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-6">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB]">
-        <Icon className="h-5 w-5" />
-      </span>
-      <h3 className="mt-4 font-heading text-lg font-semibold text-slate-900">{title}</h3>
-      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{body}</p>
     </div>
   );
 }
