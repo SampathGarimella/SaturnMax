@@ -1,58 +1,49 @@
-# Email setup - SaturnMax Technologies Pvt Ltd
+# Email Setup
 
-SaturnMax Technologies Pvt Ltd uses **Resend** for transactional email (job-application notifications + contact-form messages). The backend code is already wired - you just need to provide an API key.
+SaturnMax currently uses Firebase Authentication email templates for password setup and reset links.
 
----
+## Current Production Email Flows
 
-## 1. Sign up for Resend & grab an API key
+- Candidate forgot password from `/login`
+- Consultant invitation/password setup from Manual Add Consultant
+- Admin-created employee/admin/consultant password setup or reset
 
-1. Go to https://resend.com and sign up (free tier is generous).
-2. Open **API Keys** → **Create API Key**. Copy the value — it starts with `re_`.
+Firebase uses the same **Password reset** template for both forgot-password and invite/setup links, so keep the wording neutral.
 
-## 2. Verify a sending domain (recommended)
+Recommended template:
 
-1. In Resend, open **Domains → Add Domain**.
-2. Add `saturnmax.com` and follow the DNS instructions (SPF, DKIM, DMARC records).
-3. Once the domain is verified, update `SENDER_EMAIL` in `/app/backend/.env` to something like `no-reply@saturnmax.com`.
+```txt
+Subject: Set or reset your %APP_NAME% account password
 
-> **Before domain verification** you can keep `SENDER_EMAIL=onboarding@resend.dev` — Resend allows this sandbox sender, but it can only deliver to the verified email on your Resend account.
+Hi,
 
-## 3. Paste the key into the backend
+Use the link below to set or reset the password for %EMAIL%.
 
-Open `/app/backend/.env` and set:
+%LINK%
 
-```dotenv
-RESEND_API_KEY=re_your_real_key_here
-SENDER_EMAIL=onboarding@resend.dev            # or no-reply@saturnmax.com after verifying
-RECIPIENT_EMAIL=careers@saturnmax.com     # where applications + contact messages go
+Candidate Portal:
+https://saturnmax.com/login
+
+Consultant Portal:
+https://saturnmax.com/consultant-login
+
+Employee/Admin Portal:
+https://saturnmax.com/employee-login
+
+If you did not request this email, contact hr@saturnmax.com.
+
+Regards,
+%APP_NAME%
 ```
 
-## 4. Restart the backend
+## Where To Configure It
 
-```bash
-sudo supervisorctl restart backend
-```
+Firebase Console -> Authentication -> Templates -> Password reset.
 
-You should see `Resend configured — transactional emails enabled.` in the backend logs (`/var/log/supervisor/backend.err.log`). Until the key is set you'll see the warning:
+Also confirm `saturnmax.com` is listed in Firebase Console -> Authentication -> Settings -> Authorized domains.
 
-> `RESEND_API_KEY is empty. Emails will be skipped gracefully.`
+## What Is Not Active Yet
 
-The site keeps working either way — applications and messages are always stored in MongoDB.
+Application confirmation emails, candidate status update emails, contact-form notifications, and internal alert emails are not sent by a custom provider yet. The data is stored in Firestore, and employees/admins see it in the portal.
 
-## 5. Test it
-
-1. Visit the home page and submit the "Apply for a position" form (or the contact form).
-2. Check your inbox at `careers@saturnmax.com`.
-
----
-
-## Where emails are triggered
-
-- **New candidate application** — `POST /api/applications` → asynchronous email to `RECIPIENT_EMAIL`.
-- **Contact form message** — `POST /api/contact` → asynchronous email to `RECIPIENT_EMAIL`.
-
-Both are "fire and forget" via `asyncio.create_task` so the user never sees email latency in the UI. If Resend returns an error, it's logged but the HTTP response still succeeds (graceful fallback).
-
-## Switching providers
-
-If you want SendGrid or Postmark instead of Resend, only `send_email_async()` in `/app/backend/server.py` needs to change — the rest of the flow is provider-agnostic.
+When you are ready, add a Cloud Function with a provider such as Resend, Postmark, SendGrid, or Firebase Extensions. Do not re-enable the deprecated FastAPI/Mongo email path.

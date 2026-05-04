@@ -5,6 +5,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function emailVerified() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
     function userPath(uid) {
       return /databases/$(database)/documents/users/$(uid);
     }
@@ -41,12 +45,181 @@ service cloud.firestore {
       return !changedKeys().hasAny(["createdAt", "createdBy"]);
     }
 
-    function ownsCandidate(candidateUid) {
-      return signedIn() && request.auth.uid == candidateUid;
-    }
-
     function ownsOwner(ownerUid) {
       return signedIn() && request.auth.uid == ownerUid;
+    }
+
+    function optionalString(field, maxSize) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string && request.resource.data[field].size() <= maxSize);
+    }
+
+    function requiredString(field, maxSize) {
+      return field in request.resource.data
+        && request.resource.data[field] is string
+        && request.resource.data[field].size() > 0
+        && request.resource.data[field].size() <= maxSize;
+    }
+
+    function optionalBool(field) {
+      return !(field in request.resource.data) || request.resource.data[field] is bool;
+    }
+
+    function optionalNewLeadStatus(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == "new";
+    }
+
+    function validLeadCreate() {
+      return request.resource.data.keys().hasOnly([
+          "id",
+          "name",
+          "email",
+          "company",
+          "subject",
+          "budget_range",
+          "timeline",
+          "message",
+          "status",
+          "leadStatus",
+          "source",
+          "consent",
+          "createdAt",
+          "updatedAt"
+        ])
+        && optionalString("id", 160)
+        && requiredString("name", 120)
+        && requiredString("email", 160)
+        && optionalString("company", 160)
+        && optionalString("subject", 200)
+        && optionalString("budget_range", 80)
+        && optionalString("timeline", 80)
+        && requiredString("message", 3000)
+        && optionalNewLeadStatus("status")
+        && optionalNewLeadStatus("leadStatus")
+        && (!("source" in request.resource.data) || request.resource.data.source == "website")
+        && optionalBool("consent");
+    }
+
+    function safeDocumentStatus(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] in ["uploaded", "submitted", "pending_review", "requested"];
+    }
+
+    function safeReviewStatus(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] in ["pending_review", "submitted"];
+    }
+
+    function safeDocumentType(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] in [
+          "resume",
+          "offer_letter",
+          "signed_offer",
+          "signed_onboarding",
+          "signed_onboarding_document",
+          "onboarding_pack",
+          "onboarding",
+          "form12bb",
+          "form_12bb",
+          "pan",
+          "pan_details",
+          "pan_card",
+          "uan",
+          "uan_details",
+          "epf",
+          "epfo",
+          "bank_details",
+          "identity",
+          "tax",
+          "compliance",
+          "other"
+        ];
+    }
+
+    function validOwnerDocumentCreate() {
+      return signedIn()
+        && request.resource.data.owner_uid == request.auth.uid
+        && safeDocumentType("type")
+        && safeDocumentStatus("status")
+        && safeDocumentStatus("approvalStatus");
+    }
+
+    function validOwnerReviewCreate() {
+      return signedIn()
+        && request.resource.data.owner_uid == request.auth.uid
+        && safeDocumentType("type")
+        && safeReviewStatus("status")
+        && !(request.resource.data.type in ["interview_review"]);
+    }
+
+    function employeeConsultantUpdateAllowed() {
+      return keepsImmutableFields()
+        && changedKeys().hasOnly([
+          "client",
+          "clientName",
+          "project",
+          "role",
+          "roleTitle",
+          "startDate",
+          "workLocation",
+          "status",
+          "loginEnabled",
+          "loginSetupRequired",
+          "credentialsStatus",
+          "credentialsSentAt",
+          "credentialsSentByEmployeeId",
+          "credentialsPreparedAt",
+          "credentialsPreparedByEmployeeId",
+          "notes",
+          "bankStatus",
+          "panStatus",
+          "uanStatus",
+          "gstStatus",
+          "bankReviewedAt",
+          "bankReviewedBy",
+          "panReviewedAt",
+          "panReviewedBy",
+          "uanReviewedAt",
+          "uanReviewedBy",
+          "updatedAt",
+          "updatedBy"
+        ]);
+    }
+
+    function consultantSelfUpdateAllowed() {
+      return keepsImmutableFields()
+        && changedKeys().hasOnly([
+          "bankDetails",
+          "bankStatus",
+          "panDetails",
+          "panStatus",
+          "uanDetails",
+          "uanStatus",
+          "name",
+          "email",
+          "phone",
+          "title",
+          "department",
+          "location",
+          "bio",
+          "updatedAt",
+          "updatedBy"
+        ])
+        && (!("bankStatus" in request.resource.data) || request.resource.data.bankStatus in ["pending_review", "needs_changes"])
+        && (!("panStatus" in request.resource.data) || request.resource.data.panStatus in ["pending_review", "needs_changes"])
+        && (!("uanStatus" in request.resource.data) || request.resource.data.uanStatus in ["pending_review", "needs_changes"]);
+    }
+
+    function validActivityLogCreate() {
+      return isEmployee()
+        && request.resource.data.actorUid == request.auth.uid
+        && optionalString("action", 120)
+        && optionalString("outcome", 80)
+        && optionalString("targetCollection", 120)
+        && optionalString("targetId", 200)
+        && optionalString("reason", 1000);
     }
 
     match /users/{uid} {
@@ -54,11 +227,6 @@ service cloud.firestore {
       allow create: if isAdmin()
         || (ownsOwner(uid) && request.resource.data.role == "candidate");
       allow update: if isAdmin()
-        || (isEmployee()
-          && resource.data.role == "candidate"
-          && request.resource.data.role == "consultant"
-          && keepsImmutableFields()
-          && changedKeys().hasOnly(["role", "email", "name", "status", "updatedAt", "updatedBy"]))
         || (ownsOwner(uid)
           && request.resource.data.role == resource.data.role
           && (
@@ -81,12 +249,13 @@ service cloud.firestore {
             "updatedAt",
             "updatedBy"
           ]));
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
 
     match /jobs/{jobId} {
       allow read: if resource.data.status == "published" || isEmployee();
-      allow create, update, delete: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if false;
     }
 
     match /candidates/{uid} {
@@ -116,36 +285,20 @@ service cloud.firestore {
             "updatedAt",
             "updatedBy"
           ]));
-      allow delete: if isEmployee();
+      allow delete: if false;
     }
 
     match /consultants/{uid} {
       allow read: if ownsOwner(uid) || isEmployee();
-      allow create, delete: if isEmployee();
-      allow update: if isEmployee()
-        || (ownsOwner(uid)
-          && isConsultant()
-          && keepsImmutableFields()
-          && changedKeys().hasOnly([
-            "bankDetails",
-            "bankStatus",
-            "panDetails",
-            "panStatus",
-            "uanDetails",
-            "uanStatus",
-            "name",
-            "email",
-            "phone",
-            "title",
-            "location",
-            "bio",
-            "updatedAt",
-            "updatedBy"
-          ]));
+      allow create: if isAdmin();
+      allow update: if (isAdmin() && keepsImmutableFields())
+        || (isEmployee() && employeeConsultantUpdateAllowed())
+        || (ownsOwner(uid) && isConsultant() && consultantSelfUpdateAllowed());
+      allow delete: if false;
     }
 
     match /applications/{applicationId} {
-      allow create: if signedIn()
+      allow create: if emailVerified()
         && isCandidate()
         && request.resource.data.candidate_uid == request.auth.uid;
       allow read: if isEmployee()
@@ -163,40 +316,43 @@ service cloud.firestore {
             "updatedBy"
           ])
           && request.resource.data.status in ["offer_signed", "onboarding"]);
-      allow delete: if isEmployee();
+      allow delete: if false;
     }
 
     match /leads/{leadId} {
-      allow create: if true;
-      allow read, update, delete: if isEmployee();
+      allow create: if validLeadCreate();
+      allow read, update: if isEmployee();
+      allow delete: if false;
     }
 
     match /onboarding/{applicationId} {
       allow read: if isEmployee()
         || (signedIn() && resource.data.candidate_uid == request.auth.uid);
-      allow create, update, delete: if isEmployee();
+      allow create, update: if isEmployee();
+      allow delete: if false;
     }
 
     match /documents/{documentId} {
       allow read: if isEmployee()
         || (signedIn() && resource.data.owner_uid == request.auth.uid);
-      allow create: if isEmployee()
-        || (signedIn() && request.resource.data.owner_uid == request.auth.uid);
-      allow update, delete: if isEmployee();
+      allow create: if isEmployee() || validOwnerDocumentCreate();
+      allow update: if isEmployee();
+      allow delete: if false;
     }
 
     match /reviews/{reviewId} {
       allow read: if isEmployee()
-        || (signedIn() && resource.data.owner_uid == request.auth.uid);
-      allow create: if isEmployee()
         || (signedIn()
-          && request.resource.data.owner_uid == request.auth.uid
-          && !(request.resource.data.type in ["interview_review"]));
-      allow update, delete: if isEmployee();
+          && resource.data.owner_uid == request.auth.uid
+          && !(resource.data.type in ["interview_review"]));
+      allow create: if isEmployee() || validOwnerReviewCreate();
+      allow update: if isEmployee();
+      allow delete: if false;
     }
 
     match /consultantEmailIndex/{email} {
-      allow read, create, update, delete: if isEmployee();
+      allow read, create, update: if isAdmin();
+      allow delete: if false;
     }
 
     match /messages/{uid}/thread/{messageId} {
@@ -232,11 +388,12 @@ service cloud.firestore {
 
     match /loginEvents/{eventId} {
       allow create: if signedIn();
-      allow read, update, delete: if isEmployee();
+      allow read, update: if isEmployee();
+      allow delete: if false;
     }
 
     match /activityLogs/{logId} {
-      allow create: if signedIn();
+      allow create: if validActivityLogCreate();
       allow read: if isEmployee();
       allow update, delete: if false;
     }

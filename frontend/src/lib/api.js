@@ -8,7 +8,6 @@ import {
   limit,
   orderBy,
   query,
-  runTransaction,
   serverTimestamp,
   setDoc,
   startAfter,
@@ -112,14 +111,6 @@ function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function generatedConsultantId(uid = "") {
-  const suffix = String(uid || Math.random().toString(36).slice(2, 8))
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 6)
-    .toUpperCase();
-  return `SMC-${suffix || "NEW001"}`;
-}
-
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
@@ -142,11 +133,6 @@ export function validateUploadFile(file, options = {}) {
 
 function candidateUidFrom(application = {}) {
   return application.candidate_uid || application.candidateId || application.uid || application.owner_uid || "";
-}
-
-function profileSkills(value) {
-  const tags = splitTags(value);
-  return tags.length ? tags : [];
 }
 
 function mapDoc(snap) {
@@ -430,6 +416,9 @@ export async function deleteJob(jobId) {
 export async function submitApplication(payload) {
   requireFirestore();
   const user = requireAuthUser();
+  if (user.emailVerified === false) {
+    throw new Error("Please verify your email before applying. Check your inbox for the verification link.");
+  }
   if (!payload.full_name || !payload.email || !payload.phone || !payload.position_title) {
     throw new Error("Please complete name, email, phone, and position.");
   }
@@ -487,7 +476,9 @@ export async function submitApplication(payload) {
     { merge: true }
   );
 
-  const appRef = await addDoc(collection(db, COLLECTIONS.APPLICATIONS), {
+  const appRef = doc(collection(db, COLLECTIONS.APPLICATIONS));
+  await setDoc(appRef, {
+    id: appRef.id,
     ...payload,
     candidate_uid: user.uid,
     candidate_name: payload.full_name,
@@ -496,7 +487,6 @@ export async function submitApplication(payload) {
     public_status: "submitted",
     ...createMeta(user),
   });
-  await setDoc(appRef, { id: appRef.id }, { merge: true });
   return { id: appRef.id, ...payload, status: "applied" };
 }
 
@@ -505,7 +495,9 @@ export async function submitContact(payload) {
   if (!payload.name || !payload.email || !payload.message) {
     throw new Error("Please complete name, email, and message.");
   }
-  const refDoc = await addDoc(collection(db, COLLECTIONS.LEADS), {
+  const refDoc = doc(collection(db, COLLECTIONS.LEADS));
+  await setDoc(refDoc, {
+    id: refDoc.id,
     ...payload,
     status: "new",
     leadStatus: "new",
@@ -514,7 +506,6 @@ export async function submitContact(payload) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id };
 }
 
@@ -1294,11 +1285,8 @@ export async function resolveReview(review, status) {
       doc(db, COLLECTIONS.CONSULTANTS, review.owner_uid),
       {
         bankStatus: status === "approved" ? "approved" : reviewDocumentStatus(status),
-        bankDetails: {
-          status: status === "approved" ? "approved" : reviewDocumentStatus(status),
-          reviewedAt: serverTimestamp(),
-          reviewedBy: user.uid,
-        },
+        bankReviewedAt: serverTimestamp(),
+        bankReviewedBy: user.uid,
         ...updateMeta(user),
       },
       { merge: true }
@@ -1332,6 +1320,9 @@ export async function updateConsultantProfile(uid, profile) {
 export async function convertToConsultant(application, profile = {}, context = {}) {
   requireFirestore();
   const user = requireAuthUser();
+  if (!functions) {
+    throw new Error("Consultant conversion requires Firebase Cloud Functions. Deploy convertCandidateToConsultant first.");
+  }
   const uid = candidateUidFrom(application);
   if (!uid) throw new Error("Application is missing candidate UID.");
   const email = normalizeEmail(profile.email || application.email);
@@ -1341,125 +1332,25 @@ export async function convertToConsultant(application, profile = {}, context = {
   if (!profile.startDate) throw new Error("Add a consultant start date.");
   if (!profile.workLocation) throw new Error("Add a work location.");
 
-  const appRef = doc(db, COLLECTIONS.APPLICATIONS, application.id);
-  const candidateRef = doc(db, COLLECTIONS.CANDIDATES, uid);
-  const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
-  const userRef = doc(db, COLLECTIONS.USERS, uid);
-  const emailIndexRef = doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email);
-  const activityRef = doc(collection(db, COLLECTIONS.ACTIVITY_LOGS));
+  if (!isCandidateApprovedForConversion({}, application) && context.overrideApproved && !context.overrideReason?.trim()) {
+    throw new Error("Add an override reason before converting this candidate.");
+  }
 
-  const consultant = await runTransaction(db, async (transaction) => {
-    const [appSnap, candidateSnap, consultantSnap, emailIndexSnap] = await Promise.all([
-      transaction.get(appRef),
-      transaction.get(candidateRef),
-      transaction.get(consultantRef),
-      transaction.get(emailIndexRef),
-    ]);
-    const appData = appSnap.exists() ? { id: appSnap.id, ...appSnap.data() } : application;
-    const candidateData = candidateSnap.exists() ? candidateSnap.data() : {};
-    if (consultantSnap.exists() || appData.convertedToConsultantId || candidateData.convertedToConsultantId) {
-      throw new Error("This candidate is already converted to a consultant.");
-    }
-    if (emailIndexSnap.exists() && emailIndexSnap.data()?.uid !== uid) {
-      throw new Error("A consultant with this email already exists.");
-    }
-    if (!isCandidateApprovedForConversion(candidateData, appData) && !context.overrideApproved) {
-      throw new Error("Approve the candidate before converting to consultant.");
-    }
-    if (context.overrideApproved && !context.overrideReason?.trim()) {
-      throw new Error("Add an override reason before converting this candidate.");
-    }
-
-    const name = profile.name || appData.full_name || appData.candidate_name || candidateData.name || "Consultant";
-    const skills = profileSkills(profile.skills || profile.primary_skills || appData.primary_skills || candidateData.primary_skills);
-    const consultantDoc = {
-      uid,
+  const callable = httpsCallable(functions, "convertCandidateToConsultant");
+  const response = await callable({
+    applicationId: application.id,
+    profile: {
+      ...profile,
       email,
-      name,
-      phone: profile.phone || appData.phone || candidateData.phone || "",
-      consultantId: profile.consultantId || generatedConsultantId(uid),
-      consultantType: profile.consultantType,
-      sourceCandidateId: uid,
-      sourceApplicationId: application.id,
-      roleTitle: profile.roleTitle,
-      role: profile.roleTitle,
-      clientName: profile.clientName || "",
-      client: profile.clientName || "",
-      project: profile.clientName || "",
-      startDate: profile.startDate,
-      workLocation: profile.workLocation,
-      rate: profile.rate || "",
-      monthlyPay: profile.rate || "",
-      skills,
-      notes: profile.notes || "",
-      loginEnabled: true,
-      credentialsStatus: "prepared",
-      credentialsPreparedAt: serverTimestamp(),
-      credentialsPreparedByEmployeeId: user.uid,
-      status: "Active consultant",
-      bankStatus: "pending_review",
-      panStatus: "pending_review",
-      uanStatus: "pending_review",
-      gstStatus: "not_required",
-      createdByEmployeeId: user.uid,
-      ...(consultantSnap.exists() ? {} : createMeta(user)),
-      ...updateMeta(user),
-    };
-
-    transaction.set(consultantRef, consultantDoc, { merge: true });
-    transaction.set(userRef, {
-      role: "consultant",
-      email,
-      name,
-      status: "active",
-      ...updateMeta(user),
-    }, { merge: true });
-    transaction.set(emailIndexRef, {
-      email,
-      uid,
-      consultantId: uid,
-      source: "candidate_conversion",
-      ...createMeta(user),
-    }, { merge: true });
-    transaction.set(appRef, {
-      workflowStage: "converted_to_consultant",
-      interviewStatus: "converted",
-      candidateApprovalStatus: "approved",
-      convertedToConsultantId: uid,
-      convertedAt: serverTimestamp(),
-      convertedByEmployeeId: user.uid,
-      consultantType: profile.consultantType,
-      consultantRoleTitle: profile.roleTitle,
-      status: "consultant_active",
-      lifecycle_stage: "consultant_active",
-      ...updateMeta(user),
-    }, { merge: true });
-    transaction.set(candidateRef, {
-      uid,
-      email,
-      name,
-      workflowStage: "converted_to_consultant",
-      interviewStatus: "converted",
-      candidateApprovalStatus: "approved",
-      convertedToConsultantId: uid,
-      convertedAt: serverTimestamp(),
-      convertedByEmployeeId: user.uid,
-      ...updateMeta(user),
-    }, { merge: true });
-    transaction.set(activityRef, {
-      actorUid: user.uid,
-      actorEmail: user.email || "",
-      action: "candidate_converted_to_consultant",
-      outcome: "success",
-      targetCollection: COLLECTIONS.CONSULTANTS,
-      targetId: uid,
-      before: { applicationId: application.id, workflowStage: appData.workflowStage || appData.status },
-      after: { workflowStage: "converted_to_consultant", consultantType: profile.consultantType },
-      reason: context.overrideReason || "",
-      createdAt: serverTimestamp(),
-    });
-    return consultantDoc;
+    },
+    overrideApproved: Boolean(context.overrideApproved),
+    overrideReason: context.overrideReason || "",
   });
+  const consultant = response.data?.consultant || {
+    uid: response.data?.uid || uid,
+    email: response.data?.email || email,
+    name: response.data?.name || profile.name || application.full_name || application.candidate_name || "Consultant",
+  };
   let emailSent = false;
   try {
     await sendConsultantPasswordInvite(consultant.email);
@@ -1516,17 +1407,6 @@ function validateConsultantProfileInput(payload = {}) {
   if (!isValidEmail(payload.email)) throw new Error("Enter a valid consultant email.");
 }
 
-async function findUserByEmail(email) {
-  const exact = await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", email), limit(1)));
-  if (!exact.empty) return exact.docs[0];
-  const lower = normalizeEmail(email);
-  if (lower !== email) {
-    const lowerSnap = await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", lower), limit(1)));
-    if (!lowerSnap.empty) return lowerSnap.docs[0];
-  }
-  return null;
-}
-
 function callableInviteUnavailable(error) {
   const code = String(error?.code || "");
   return [
@@ -1543,15 +1423,16 @@ function callableAdminUnavailable(error) {
 }
 
 async function createManualConsultantWithFunction(payload) {
-  if (!functions || payload.useCloudFunction === false) return null;
+  if (!functions || payload.useCloudFunction === false) {
+    throw new Error("Consultant invitations require Firebase Cloud Functions. Deploy createManualConsultantInvite first.");
+  }
   const callable = httpsCallable(functions, "createManualConsultantInvite");
   try {
     const response = await callable(payload);
     return response.data || null;
   } catch (err) {
     if (callableInviteUnavailable(err)) {
-      console.warn("Consultant invite function unavailable; falling back to Firestore-only create.", err);
-      return null;
+      throw new Error("Consultant invite function is not available yet. Deploy createManualConsultantInvite and try again.");
     }
     throw err;
   }
@@ -1599,134 +1480,38 @@ export async function markConsultantInvitationSent(uid, email) {
 
 export async function manuallyAddConsultant(payload = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   validateConsultantProfileInput(payload);
   const email = normalizeEmail(payload.email);
 
-  if (payload.sendInvitationEmail) {
-    const functionResult = await createManualConsultantWithFunction(payload);
-    if (functionResult?.uid && functionResult?.email) {
+  const functionResult = await createManualConsultantWithFunction({ ...payload, email });
+  if (functionResult?.uid && functionResult?.email) {
+    let emailSent = false;
+    if (payload.sendInvitationEmail) {
       await sendConsultantPasswordInvite(functionResult.email);
       await markConsultantInvitationSent(functionResult.uid, functionResult.email);
-      return {
-        consultant: {
-          uid: functionResult.uid,
-          email: functionResult.email,
-          name: functionResult.name,
-          loginEnabled: true,
-          credentialsStatus: "sent",
-        },
-        loginSetupRequired: false,
-        emailSent: true,
-        authUserCreated: Boolean(functionResult.authUserCreated),
-        invite: buildConsultantInviteMessage({
-          name: functionResult.name,
-          email: functionResult.email,
-          consultantLoginUrl: "https://saturnmax.com/consultant-login",
-        }),
-      };
+      emailSent = true;
     }
-  }
-
-  const matchedUser = await findUserByEmail(payload.email);
-  const uid = matchedUser?.id || doc(collection(db, COLLECTIONS.CONSULTANTS)).id;
-  const consultantRef = doc(db, COLLECTIONS.CONSULTANTS, uid);
-  const emailIndexRef = doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email);
-  const activityRef = doc(collection(db, COLLECTIONS.ACTIVITY_LOGS));
-  const userRef = matchedUser ? doc(db, COLLECTIONS.USERS, matchedUser.id) : null;
-
-  const consultant = await runTransaction(db, async (transaction) => {
-    const [consultantSnap, emailIndexSnap] = await Promise.all([
-      transaction.get(consultantRef),
-      transaction.get(emailIndexRef),
-    ]);
-    if (consultantSnap.exists()) throw new Error("A consultant record already exists for this account.");
-    if (emailIndexSnap.exists()) throw new Error("A consultant with this email already exists.");
-
-    const loginEnabled = Boolean((payload.loginEnabled || payload.sendInvitationEmail) && matchedUser);
-    const consultantDoc = {
-      uid,
-      authUid: matchedUser?.id || "",
-      email,
-      name: payload.fullName.trim(),
-      phone: payload.phone.trim(),
-      consultantId: payload.consultantId || generatedConsultantId(uid),
-      consultantType: payload.consultantType,
-      sourceCandidateId: "",
-      sourceApplicationId: "",
-      roleTitle: payload.roleTitle.trim(),
-      role: payload.roleTitle.trim(),
-      clientName: payload.clientName || "",
-      client: payload.clientName || "",
-      project: payload.clientName || "",
-      startDate: payload.startDate,
-      workLocation: payload.workLocation,
-      rate: payload.rate || "",
-      monthlyPay: payload.rate || "",
-      skills: profileSkills(payload.skills),
-      notes: payload.notes || "",
-      loginEnabled,
-      loginSetupRequired: !matchedUser,
-      credentialsStatus: payload.sendInvitationEmail && matchedUser ? "invite_pending_send" : payload.prepareEmail ? "prepared" : "not_prepared",
-      credentialsPreparedAt: payload.prepareEmail || payload.sendInvitationEmail ? serverTimestamp() : null,
-      credentialsPreparedByEmployeeId: payload.prepareEmail || payload.sendInvitationEmail ? user.uid : "",
-      status: loginEnabled ? "Active consultant" : "Profile created",
-      bankStatus: "pending_review",
-      panStatus: "pending_review",
-      uanStatus: "pending_review",
-      gstStatus: "not_required",
-      createdByEmployeeId: user.uid,
-      ...createMeta(user),
+    return {
+      consultant: {
+        uid: functionResult.uid,
+        email: functionResult.email,
+        name: functionResult.name,
+        loginEnabled: true,
+        credentialsStatus: emailSent ? "sent" : "invite_pending_send",
+      },
+      loginSetupRequired: false,
+      emailSent,
+      authUserCreated: Boolean(functionResult.authUserCreated),
+      invite: buildConsultantInviteMessage({
+        name: functionResult.name,
+        email: functionResult.email,
+        consultantLoginUrl: "https://saturnmax.com/consultant-login",
+      }),
     };
-
-    transaction.set(consultantRef, consultantDoc);
-    transaction.set(emailIndexRef, {
-      email,
-      uid,
-      consultantId: uid,
-      source: "manual_consultant",
-      ...createMeta(user),
-    });
-    if (userRef && payload.loginEnabled) {
-      transaction.set(userRef, {
-        role: "consultant",
-        email,
-        name: payload.fullName.trim(),
-        status: "active",
-        ...updateMeta(user),
-      }, { merge: true });
-    }
-    transaction.set(activityRef, {
-      actorUid: user.uid,
-      actorEmail: user.email || "",
-      action: "manual_consultant_created",
-      outcome: "success",
-      targetCollection: COLLECTIONS.CONSULTANTS,
-      targetId: uid,
-      after: { loginEnabled, email },
-      createdAt: serverTimestamp(),
-    });
-    return consultantDoc;
-  });
-
-  let emailSent = false;
-  if (payload.sendInvitationEmail && matchedUser) {
-    await sendConsultantPasswordInvite(email);
-    await markConsultantInvitationSent(uid, email);
-    emailSent = true;
   }
 
-  return {
-    consultant,
-    loginSetupRequired: !matchedUser,
-    functionFallback: Boolean(payload.sendInvitationEmail && !matchedUser),
-    emailSent,
-    invite: buildConsultantInviteMessage({
-      name: consultant.name,
-      email: consultant.email,
-      consultantLoginUrl: "https://saturnmax.com/consultant-login",
-    }),
-  };
+  throw new Error("Consultant invite function did not return a consultant record.");
 }
 
 export async function adminSendPasswordReset(email, url = "https://saturnmax.com/login") {
@@ -1740,15 +1525,16 @@ export async function adminSendPasswordReset(email, url = "https://saturnmax.com
 }
 
 async function adminUpsertPortalUserWithFunction(payload) {
-  if (!functions || payload.useCloudFunction === false) return null;
+  if (!functions || payload.useCloudFunction === false) {
+    throw new Error("Admin account management requires Firebase Cloud Functions. Deploy adminUpsertPortalUser first.");
+  }
   const callable = httpsCallable(functions, "adminUpsertPortalUser");
   try {
     const response = await callable(payload);
     return response.data || null;
   } catch (err) {
     if (callableAdminUnavailable(err)) {
-      console.warn("Admin user function unavailable; falling back to Firestore-only account record.", err);
-      return null;
+      throw new Error("Admin account function is not available yet. Deploy adminUpsertPortalUser and try again.");
     }
     throw err;
   }
@@ -1756,7 +1542,7 @@ async function adminUpsertPortalUserWithFunction(payload) {
 
 export async function adminUpsertPortalUser(payload = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   const email = normalizeEmail(payload.email);
   const role = payload.role || ROLES.CANDIDATE;
   if (!isValidEmail(email)) throw new Error("Enter a valid email.");
@@ -1770,74 +1556,7 @@ export async function adminUpsertPortalUser(payload = {}) {
     }
     return { ...functionResult, functionBacked: true };
   }
-
-  const matchedUser = await findUserByEmail(email);
-  const uid = payload.uid || matchedUser?.id || doc(collection(db, COLLECTIONS.USERS)).id;
-  const batch = writeBatch(db);
-  const baseUser = {
-    uid,
-    email,
-    name: payload.name.trim(),
-    phone: payload.phone || "",
-    title: payload.title || "",
-    department: payload.department || "",
-    location: payload.location || "",
-    role,
-    status: payload.status || "active",
-    ...updateMeta(user),
-  };
-  batch.set(doc(db, COLLECTIONS.USERS, uid), baseUser, { merge: true });
-  if (role === ROLES.CANDIDATE) {
-    batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), {
-      uid,
-      email,
-      name: payload.name.trim(),
-      phone: payload.phone || "",
-      role_label: "Job Candidate",
-      ...updateMeta(user),
-    }, { merge: true });
-  }
-  if (role === ROLES.CONSULTANT) {
-    batch.set(doc(db, COLLECTIONS.CONSULTANTS, uid), {
-      uid,
-      email,
-      name: payload.name.trim(),
-      phone: payload.phone || "",
-      roleTitle: payload.title || "Consultant",
-      role: payload.title || "Consultant",
-      loginEnabled: Boolean(matchedUser),
-      loginSetupRequired: !matchedUser,
-      status: "Profile created",
-      consultantId: payload.consultantId || generatedConsultantId(uid),
-      bankStatus: "pending_review",
-      panStatus: "pending_review",
-      uanStatus: "pending_review",
-      createdByEmployeeId: user.uid,
-      ...updateMeta(user),
-    }, { merge: true });
-    batch.set(doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email), {
-      email,
-      uid,
-      consultantId: uid,
-      source: "admin_user_manager",
-      ...createMeta(user),
-    }, { merge: true });
-  }
-  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
-    actorUid: user.uid,
-    actorEmail: user.email || "",
-    action: payload.uid ? "admin_user_updated" : "admin_user_created",
-    outcome: "success",
-    targetCollection: COLLECTIONS.USERS,
-    targetId: uid,
-    after: { email, role },
-    createdAt: serverTimestamp(),
-  });
-  await batch.commit();
-  if (payload.sendReset && matchedUser) {
-    await adminSendPasswordReset(email, portalResetUrl(role));
-  }
-  return { uid, email, role, loginSetupRequired: !matchedUser, functionBacked: false };
+  throw new Error("Admin account function did not return a user record.");
 }
 
 function portalResetUrl(role) {
@@ -1848,41 +1567,20 @@ function portalResetUrl(role) {
 
 export async function adminDeactivatePortalUser(target = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   if (!target.uid) throw new Error("Choose a user first.");
-  if (functions) {
-    try {
-      const callable = httpsCallable(functions, "adminDeactivatePortalUser");
-      await callable({ uid: target.uid, disabled: true });
-      return;
-    } catch (err) {
-      if (!callableAdminUnavailable(err)) throw err;
+  if (!functions) {
+    throw new Error("Account deactivation requires Firebase Cloud Functions. Deploy adminDeactivatePortalUser first.");
+  }
+  const callable = httpsCallable(functions, "adminDeactivatePortalUser");
+  try {
+    await callable({ uid: target.uid, disabled: true });
+  } catch (err) {
+    if (callableAdminUnavailable(err)) {
+      throw new Error("Admin deactivate function is not available yet. Deploy adminDeactivatePortalUser and try again.");
     }
+    throw err;
   }
-  const batch = writeBatch(db);
-  batch.set(doc(db, COLLECTIONS.USERS, target.uid), {
-    status: "inactive",
-    disabled: true,
-    ...updateMeta(user),
-  }, { merge: true });
-  if (target.role === ROLES.CONSULTANT) {
-    batch.set(doc(db, COLLECTIONS.CONSULTANTS, target.uid), {
-      status: "Inactive",
-      loginEnabled: false,
-      ...updateMeta(user),
-    }, { merge: true });
-  }
-  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
-    actorUid: user.uid,
-    actorEmail: user.email || "",
-    action: "admin_user_deactivated",
-    outcome: "success",
-    targetCollection: COLLECTIONS.USERS,
-    targetId: target.uid,
-    after: { status: "inactive" },
-    createdAt: serverTimestamp(),
-  });
-  await batch.commit();
 }
 
 export async function fetchConsultantDashboard(uid) {

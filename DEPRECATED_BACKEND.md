@@ -9,3 +9,9 @@ Active production architecture:
 - Firestore and Storage Security Rules for authorization
 
 Do not add new product features to `backend/`. Keep it only as historical reference until the Phase 4 cleanup removes the directory. Future privileged server work should use Firebase Cloud Functions or another Firebase-native trusted execution path.
+
+Current privileged paths live in `functions/`:
+- `convertCandidateToConsultant`
+- `createManualConsultantInvite`
+- `adminUpsertPortalUser`
+- `adminDeactivatePortalUser`

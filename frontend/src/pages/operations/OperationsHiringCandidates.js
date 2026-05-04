@@ -120,7 +120,8 @@ export function buildHiringRows(data) {
 
 export default function OperationsHiringCandidates() {
   const { applicationId } = useParams();
-  const { data, busy, setBusy, load, showMutationError } = useOperations();
+  const { data, busy, setBusy, load, showMutationError, user } = useOperations();
+  const canEditSensitive = user?.role === "admin";
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState("all");
   const [approval, setApproval] = useState("all");
@@ -342,6 +343,7 @@ export default function OperationsHiringCandidates() {
           preparedInvite={preparedInvite}
           copyInvite={copyInvite}
           busy={busy}
+          canEditSensitive={canEditSensitive}
           clearModals={clearModals}
         />
       </CandidateDetail>
@@ -432,6 +434,7 @@ export default function OperationsHiringCandidates() {
         preparedInvite={preparedInvite}
         copyInvite={copyInvite}
         busy={busy}
+        canEditSensitive={canEditSensitive}
         clearModals={clearModals}
       />
     </div>
@@ -621,6 +624,7 @@ function WorkflowModals(props) {
     preparedInvite,
     copyInvite,
     busy,
+    canEditSensitive = false,
     clearModals,
   } = props;
   return (
@@ -689,9 +693,15 @@ function WorkflowModals(props) {
               <Field label="Work location">
                 <input className={inputClass} value={convertForm.workLocation} onChange={(event) => setConvertForm((form) => ({ ...form, workLocation: event.target.value }))} />
               </Field>
-              <Field label="Rate / salary">
-                <input className={inputClass} value={convertForm.rate} onChange={(event) => setConvertForm((form) => ({ ...form, rate: event.target.value }))} placeholder="INR 1,80,000" />
-              </Field>
+              {canEditSensitive ? (
+                <Field label="Rate / salary">
+                  <input className={inputClass} value={convertForm.rate} onChange={(event) => setConvertForm((form) => ({ ...form, rate: event.target.value }))} placeholder="INR 1,80,000" />
+                </Field>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Rate and salary fields are admin-only. Conversion will continue without pay data.
+                </div>
+              )}
               <Field label="Skills confirmation" className="md:col-span-2">
                 <input className={inputClass} value={convertForm.skills} onChange={(event) => setConvertForm((form) => ({ ...form, skills: event.target.value }))} />
               </Field>

@@ -1,88 +1,74 @@
-# SaturnMax Technologies Pvt Ltd
+# SaturnMax
 
-Production-focused web platform for:
+Firebase-first web platform for:
 - candidate hiring
-- consultant operations
+- consultant onboarding
 - employee operations
+- admin account management
 - client lead intake
 
 ## Stack
+
 - Frontend: React + CRACO + Tailwind
-- Backend: FastAPI + MongoDB
-- Auth/Storage: Firebase (recommended for production identity and file storage)
-- Deploy: GitHub Pages (frontend) + separate backend host
+- Backend services: Firebase Auth, Firestore, Storage, and Cloud Functions
+- Hosting: GitHub Pages for the React app
+- Production domain: `saturnmax.com`
+
+The older `backend/` FastAPI/Mongo service is deprecated and kept only as historical reference. New product work should use Firebase or Cloud Functions.
 
 ## Local Run
-1. Frontend
+
 ```bash
 cd frontend
 yarn install
 yarn start
 ```
 
-2. Backend
+## Firebase Deploy
+
+After changing rules or callable functions:
+
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn server:app --reload --port 8000
+cd functions
+npm install
+cd ..
+firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage:rules
 ```
-
-## Production Environment
-
-Use:
-- [frontend/.env.example](/Users/sampath1/Documents/Github/SaturnMax/frontend/.env.example)
-- [backend/.env.example](/Users/sampath1/Documents/Github/SaturnMax/backend/.env.example)
-
-Critical backend values:
-- `CORS_ORIGINS`
-- `ALLOWED_HOSTS`
-- `ADMIN_API_KEY`
-- `MONGO_URL`
-- `DB_NAME`
-
-## Security Baseline Included
-- Trusted host enforcement (`ALLOWED_HOSTS`)
-- CORS allowlist
-- security response headers
-- request id header + request logging
-- in-memory rate limiting for contact/application submissions
-- admin-key protected list endpoints:
-  - `GET /api/contact`
-  - `GET /api/applications` (without `email` filter)
-- server-side validation for:
-  - Indian phone format
-  - CTC LPA numeric format
-  - resume/portfolio URL protocol
 
 ## Role Model
 
-Firestore user role is expected at:
-- `users/{uid}.role` with one of:
-  - `candidate`
-  - `consultant`
-  - `employee`
-  - `admin`
+Firestore user role is expected at `users/{uid}.role`:
+- `candidate`
+- `consultant`
+- `employee`
+- `admin`
 
-Frontend route access is role-protected:
+Route access:
 - Candidate portal: `/dashboard`
 - Consultant portal: `/consultant-dashboard`
-- Employee/admin portal: `/employee-dashboard`
+- Employee operations portal: `/employee-dashboard`
+- Admin portal: `/admin-dashboard`
+
+## Safety Baseline
+
+- Firestore rules enforce role and ownership checks.
+- Storage rules enforce owner/employee access plus file type and size limits.
+- Candidate applications require verified Firebase email.
+- Account creation, deactivation, and candidate-to-consultant conversion use Cloud Functions.
+- Important records are archived or deactivated instead of hard deleted.
 
 ## CI
 
-GitHub Actions CI runs on push/PR:
-- frontend install + build
-- backend dependency install + syntax check
+GitHub Actions runs:
+- frontend unit tests
+- frontend build
+- Firestore rules emulator tests
 
-See:
-- [.github/workflows/ci.yml](/Users/sampath1/Documents/Github/SaturnMax/.github/workflows/ci.yml)
+See [.github/workflows/ci.yml](/Users/sampath1/Documents/Github/SaturnMax/.github/workflows/ci.yml).
 
-## Production Next Steps (Recommended)
-1. Verify Firebase role assignment automation (Cloud Functions or admin tool).
-2. Add backend auth verification for Firebase ID tokens (API-level authorization).
-3. Add managed file scanning for uploaded resumes/documents.
-4. Move rate limiting from memory to Redis or API gateway policy.
-5. Add end-to-end tests for role access and application lifecycle.
+## Production Next Steps
+
+1. Deploy the latest functions and Firestore/Storage rules after each security change.
+2. Configure Firebase Authentication email templates with neutral set/reset password wording.
+3. Add email provider Cloud Functions later for application confirmations and status notifications.
+4. Add malware scanning or manual review policy for uploaded resumes/documents before broad production use.

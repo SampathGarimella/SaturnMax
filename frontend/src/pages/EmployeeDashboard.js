@@ -16,6 +16,7 @@ import {
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import DashboardThemeToggle from "../components/DashboardThemeToggle";
+import { useAuth } from "../context/AuthContext";
 import { InlineError, LoadingState } from "../components/ui";
 import { fetchOperationsData } from "../lib/api";
 import { isWorkflowTransitionError } from "../lib/workflow";
@@ -58,6 +59,7 @@ const EMPLOYEE_NAV_GROUPS = [
 ];
 
 export default function EmployeeDashboard() {
+  const { user } = useAuth();
   const [data, setData] = useState(EMPTY_OPERATIONS_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -118,13 +120,14 @@ export default function EmployeeDashboard() {
       data,
       loading,
       error,
+      user,
       busy,
       setBusy,
       load,
       workflowContextFor,
       showMutationError,
     }),
-    [busy, data, error, load, loading, showMutationError, workflowContextFor]
+    [busy, data, error, load, loading, showMutationError, user, workflowContextFor]
   );
 
   return (

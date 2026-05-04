@@ -19,34 +19,46 @@ service firebase.storage {
       return role() == "employee" || role() == "admin";
     }
 
+    function validUpload() {
+      return request.resource != null
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType in [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "image/png",
+          "image/jpeg"
+        ];
+    }
+
     match /resumes/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid && validUpload();
     }
 
     match /offer-letters/{uid}/{applicationId}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
+      allow write: if isEmployee() && validUpload();
     }
 
     match /signed-offers/{uid}/{applicationId}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid && validUpload();
     }
 
     match /onboarding-documents/{uid}/{applicationId}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if signedIn() && (request.auth.uid == uid || isEmployee());
+      allow write: if signedIn() && (request.auth.uid == uid || isEmployee()) && validUpload();
     }
 
     match /consultant-documents/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
+      allow write: if isEmployee() && validUpload();
     }
 
     match /payroll-documents/{uid}/{yearMonth}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isEmployee());
-      allow write: if isEmployee();
+      allow write: if isEmployee() && validUpload();
     }
 
     match /{allPaths=**} {

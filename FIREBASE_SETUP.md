@@ -128,7 +128,7 @@ deploy the callable functions:
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules
+firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage:rules
 ```
 
 After that deployment, checking **Send invitation email to create password and
@@ -190,8 +190,8 @@ A backend is still recommended for trusted operations:
 - Scheduled reminders, audit logs, or signed document generation
 
 The historical `backend/` service is deprecated and is not part of the active
-production architecture. Use Firebase Security Rules now and Firebase Cloud
-Functions later for privileged server-side work.
+production architecture. Use Firebase Security Rules for direct client access
+and Firebase Cloud Functions for privileged server-side work.
 
 ## 9. Sending yourself a test message (real-time)
 

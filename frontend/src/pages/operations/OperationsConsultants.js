@@ -9,7 +9,6 @@ import {
   StatusBadge,
 } from "../../components/ui";
 import { updateConsultantProfile } from "../../lib/api";
-import { useAuth } from "../../context/AuthContext";
 import { useOperations } from "./OperationsContext";
 import { compactName, sortRecent } from "./operationsUtils";
 
@@ -22,8 +21,7 @@ const EMPTY_CONSULTANT = {
 };
 
 export default function OperationsConsultants() {
-  const { data, busy, setBusy, load, showMutationError } = useOperations();
-  const { user } = useAuth();
+  const { data, busy, setBusy, load, showMutationError, user } = useOperations();
   const canEditSensitive = user?.role === "admin";
   const [consultantForm, setConsultantForm] = useState(EMPTY_CONSULTANT);
   const [query, setQuery] = useState("");

@@ -26,8 +26,8 @@ const rulesPath = path.resolve(__dirname, "../../../../firestore.rules");
 
 jest.setTimeout(30000);
 
-function authedDb(uid) {
-  return testEnv.authenticatedContext(uid).firestore();
+function authedDb(uid, tokenOptions = {}) {
+  return testEnv.authenticatedContext(uid, tokenOptions).firestore();
 }
 
 function anonDb() {
@@ -84,6 +84,13 @@ beforeEach(async () => {
         email: "consultant@saturnmax.com",
         name: "Consultant",
         status: "active",
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "consultants", "consultant-1"), {
+        uid: "consultant-1",
+        email: "consultant@saturnmax.com",
+        name: "Consultant",
+        bankStatus: "pending_review",
         createdAt: 1,
       }),
       setDoc(doc(db, "jobs", "published-job"), {
@@ -155,7 +162,7 @@ describe("Firestore security rules", () => {
     await assertFails(updateDoc(doc(db, "applications", "app-2"), { status: "offer_signed" }));
   });
 
-  test("employee can manage jobs, applications, and reviews", async () => {
+  test("employee can manage jobs, applications, and reviews without hard deleting jobs", async () => {
     const db = authedDb("employee-1");
     await assertSucceeds(
       setDoc(doc(db, "jobs", "employee-job"), {
@@ -166,10 +173,11 @@ describe("Firestore security rules", () => {
     );
     await assertSucceeds(updateDoc(doc(db, "applications", "app-1"), { status: "screening" }));
     await assertSucceeds(updateDoc(doc(db, "reviews", "review-1"), { status: "approved" }));
-    await assertSucceeds(deleteDoc(doc(db, "jobs", "draft-job")));
+    await assertSucceeds(updateDoc(doc(db, "jobs", "draft-job"), { status: "archived" }));
+    await assertFails(deleteDoc(doc(db, "jobs", "draft-job")));
   });
 
-  test("admin rules allow account setup while employees can convert candidates", async () => {
+  test("admin rules allow account setup while direct employee role changes are blocked", async () => {
     const employee = authedDb("employee-1");
     const admin = authedDb("admin-1");
     const candidate = authedDb("candidate-1");
@@ -215,7 +223,7 @@ describe("Firestore security rules", () => {
         updatedBy: "candidate-1",
       })
     );
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(employee, "users", "candidate-1"), {
         role: "consultant",
         status: "active",
@@ -231,10 +239,11 @@ describe("Firestore security rules", () => {
     );
   });
 
-  test("employee can create consultant records and email index, candidates cannot", async () => {
+  test("admin can create consultant records and email index while employees and candidates cannot", async () => {
     const employee = authedDb("employee-1");
+    const admin = authedDb("admin-1");
     const candidate = authedDb("candidate-1");
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(employee, "consultants", "candidate-1"), {
         uid: "candidate-1",
         email: "candidate@saturnmax.com",
@@ -244,9 +253,39 @@ describe("Firestore security rules", () => {
       })
     );
     await assertSucceeds(
+      setDoc(doc(admin, "consultants", "candidate-1"), {
+        uid: "candidate-1",
+        email: "candidate@saturnmax.com",
+        name: "Candidate",
+        sourceCandidateId: "candidate-1",
+        consultantType: "Contract",
+      })
+    );
+    await assertFails(
       setDoc(doc(employee, "consultantEmailIndex", "candidate@saturnmax.com"), {
         email: "candidate@saturnmax.com",
         uid: "candidate-1",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(admin, "consultantEmailIndex", "candidate@saturnmax.com"), {
+        email: "candidate@saturnmax.com",
+        uid: "candidate-1",
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(employee, "consultants", "candidate-1"), {
+        project: "Client onboarding",
+        startDate: "2026-06-01",
+        updatedAt: 2,
+        updatedBy: "employee-1",
+      })
+    );
+    await assertFails(
+      updateDoc(doc(employee, "consultants", "candidate-1"), {
+        monthlyPay: "180000",
+        updatedAt: 2,
+        updatedBy: "employee-1",
       })
     );
     await assertFails(
@@ -259,6 +298,30 @@ describe("Firestore security rules", () => {
       setDoc(doc(candidate, "consultantEmailIndex", "other@saturnmax.com"), {
         email: "other@saturnmax.com",
         uid: "candidate-2",
+      })
+    );
+  });
+
+  test("consultants can submit bank details but cannot approve their own compliance", async () => {
+    const consultant = authedDb("consultant-1");
+    await assertSucceeds(
+      updateDoc(doc(consultant, "consultants", "consultant-1"), {
+        bankDetails: {
+          account_holder: "Consultant",
+          bank_name: "HDFC",
+          account_number: "1234567890",
+          ifsc: "HDFC0001234",
+        },
+        bankStatus: "pending_review",
+        updatedAt: 2,
+        updatedBy: "consultant-1",
+      })
+    );
+    await assertFails(
+      updateDoc(doc(consultant, "consultants", "consultant-1"), {
+        bankStatus: "approved",
+        updatedAt: 3,
+        updatedBy: "consultant-1",
       })
     );
   });
@@ -279,11 +342,11 @@ describe("Firestore security rules", () => {
     );
   });
 
-  test("activity logs are writable by signed-in users and readable by employees", async () => {
+  test("activity logs are writable only by employees for their own actor id", async () => {
     const candidate = authedDb("candidate-1");
     const employee = authedDb("employee-1");
     const anon = anonDb();
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(candidate, "activityLogs", "activity-1"), {
         action: "application_status_transition",
         outcome: "blocked",
@@ -291,8 +354,115 @@ describe("Firestore security rules", () => {
         createdAt: 2,
       })
     );
+    await assertFails(
+      setDoc(doc(employee, "activityLogs", "activity-2"), {
+        action: "bad_actor",
+        outcome: "blocked",
+        actorUid: "candidate-1",
+        createdAt: 2,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(employee, "activityLogs", "activity-1"), {
+        action: "job_archived",
+        outcome: "success",
+        actorUid: "employee-1",
+        targetCollection: "jobs",
+        targetId: "draft-job",
+        createdAt: 2,
+      })
+    );
     await assertSucceeds(getDoc(doc(employee, "activityLogs", "activity-1")));
     await assertFails(getDoc(doc(anon, "activityLogs", "activity-1")));
+  });
+
+  test("candidate application create requires verified email", async () => {
+    const unverified = authedDb("candidate-1", { email_verified: false });
+    const verified = authedDb("candidate-1", { email_verified: true });
+    const payload = {
+      id: "candidate-app-create",
+      candidate_uid: "candidate-1",
+      candidate_name: "Candidate",
+      email: "candidate@saturnmax.com",
+      full_name: "Candidate",
+      phone: "9876543210",
+      position_title: "React Engineer",
+      status: "applied",
+      lifecycle_stage: "applied",
+      createdAt: 2,
+      createdBy: "candidate-1",
+      updatedAt: 2,
+      updatedBy: "candidate-1",
+    };
+    await assertFails(setDoc(doc(unverified, "applications", "candidate-app-create"), payload));
+    await assertSucceeds(setDoc(doc(verified, "applications", "candidate-app-create"), payload));
+  });
+
+  test("public lead creation is constrained to safe website fields", async () => {
+    const db = anonDb();
+    await assertSucceeds(
+      setDoc(doc(db, "leads", "lead-1"), {
+        id: "lead-1",
+        name: "Client",
+        email: "client@example.com",
+        company: "Client Co",
+        subject: "I want to hire a dev team",
+        budget_range: "10k-25k",
+        timeline: "This month",
+        message: "Please contact me.",
+        status: "new",
+        leadStatus: "new",
+        source: "website",
+        consent: true,
+        createdAt: 2,
+        updatedAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(db, "leads", "lead-2"), {
+        name: "Bad Lead",
+        email: "bad@example.com",
+        message: "x",
+        role: "admin",
+        status: "converted",
+      })
+    );
+  });
+
+  test("candidate document and review creates cannot self-approve", async () => {
+    const candidate = authedDb("candidate-1");
+    await assertSucceeds(
+      setDoc(doc(candidate, "documents", "doc-1"), {
+        owner_uid: "candidate-1",
+        type: "signed_offer",
+        status: "pending_review",
+        createdAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(candidate, "documents", "doc-2"), {
+        owner_uid: "candidate-1",
+        type: "signed_offer",
+        status: "approved",
+        createdAt: 2,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(candidate, "reviews", "review-safe"), {
+        owner_uid: "candidate-1",
+        type: "signed_offer",
+        status: "pending_review",
+        createdAt: 2,
+      })
+    );
+    await assertFails(
+      setDoc(doc(candidate, "reviews", "review-approved"), {
+        owner_uid: "candidate-1",
+        type: "signed_offer",
+        status: "approved",
+        createdAt: 2,
+      })
+    );
   });
 
   test("messages are restricted to candidate owner or employee", async () => {

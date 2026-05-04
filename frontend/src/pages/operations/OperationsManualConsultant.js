@@ -25,7 +25,8 @@ const EMPTY_FORM = {
 const CONSULTANT_TYPES = ["Contract", "Full-time", "Bench", "Client-assigned"];
 
 export default function OperationsManualConsultant() {
-  const { busy, setBusy, load, showMutationError } = useOperations();
+  const { busy, setBusy, load, showMutationError, user } = useOperations();
+  const canEditSensitive = user?.role === "admin";
   const [form, setForm] = useState(EMPTY_FORM);
   const [inlineError, setInlineError] = useState(null);
   const [result, setResult] = useState(null);
@@ -89,7 +90,13 @@ export default function OperationsManualConsultant() {
             <Field label="Client name"><input className={inputClass} value={form.clientName} onChange={(event) => update("clientName", event.target.value)} /></Field>
             <Field label="Start date"><input type="date" className={inputClass} value={form.startDate} onChange={(event) => update("startDate", event.target.value)} /></Field>
             <Field label="Work location"><input className={inputClass} value={form.workLocation} onChange={(event) => update("workLocation", event.target.value)} /></Field>
-            <Field label="Rate / salary"><input className={inputClass} value={form.rate} onChange={(event) => update("rate", event.target.value)} placeholder="INR 1,80,000" /></Field>
+            {canEditSensitive ? (
+              <Field label="Rate / salary"><input className={inputClass} value={form.rate} onChange={(event) => update("rate", event.target.value)} placeholder="INR 1,80,000" /></Field>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Rate and salary fields are admin-only. The consultant profile will be created without pay data.
+              </div>
+            )}
             <Field label="Skills" className="md:col-span-2"><input className={inputClass} value={form.skills} onChange={(event) => update("skills", event.target.value)} placeholder="React, Python, AWS" /></Field>
             <Field label="Notes" className="md:col-span-2"><textarea className={`${inputClass} h-24 py-3`} value={form.notes} onChange={(event) => update("notes", event.target.value)} /></Field>
           </div>
@@ -124,7 +131,7 @@ export default function OperationsManualConsultant() {
               <h2 className="font-heading text-lg font-semibold text-slate-900">Login setup behavior</h2>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-slate-600">
-              When Firebase Functions are deployed, the app securely creates or links the Firebase Auth user, assigns consultant role, and sends a Firebase password setup email. If Functions are not deployed, the app falls back to Firestore-only profile creation and shows setup guidance.
+              The app securely creates or links the Firebase Auth user through Cloud Functions, assigns the consultant role, and sends a Firebase password setup email. If Functions are not deployed, consultant invitation creation is blocked so nobody appears invited without real access.
             </p>
           </div>
           {result && (
