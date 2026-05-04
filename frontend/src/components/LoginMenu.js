@@ -82,15 +82,46 @@ export default function LoginMenu() {
             <div className="text-xs uppercase tracking-[0.18em] font-bold text-[#2563EB]">
               {user ? "Logged in" : "Choose portal"}
             </div>
-            {!user && (
-              <div className="mt-1 text-sm font-semibold text-slate-900">
-                SaturnMax Technologies Pvt Ltd
-              </div>
-            )}
             {user?.email && <div className="mt-1 truncate text-xs text-slate-500">{user.email}</div>}
           </div>
           {user && (
             <div className="border-b border-slate-100 p-2">
+              {["employee", "admin"].includes(user.role) && (
+                <Link
+                  to={user.role === "admin" ? "/admin-dashboard" : "/employee-dashboard/profile"}
+                  className="flex items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
+                    <UserCog className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">Profile</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                      Update work account details
+                    </span>
+                  </span>
+                </Link>
+              )}
+              {user.role === "consultant" && (
+                <Link
+                  to="/consultant-dashboard/profile"
+                  className="flex items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
+                    <UserRound className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">Profile</span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                      Update consultant details
+                    </span>
+                  </span>
+                </Link>
+              )}
               {showHomeLink && (
                 <Link
                   to="/"

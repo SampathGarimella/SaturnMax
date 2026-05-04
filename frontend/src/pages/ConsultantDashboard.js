@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
+import DashboardThemeToggle from "../components/DashboardThemeToggle";
 import { useAuth } from "../context/AuthContext";
-import { fetchConsultantDashboard, submitBankReview } from "../lib/api";
+import { fetchConsultantDashboard, submitBankReview, updateOwnUserProfile } from "../lib/api";
 import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
 
 const EMPTY_BANK = {
@@ -26,7 +27,7 @@ const EMPTY_BANK = {
   ifsc: "",
 };
 
-export default function ConsultantDashboard() {
+export default function ConsultantDashboard({ profileOnly = false }) {
   const { user } = useAuth();
   const [data, setData] = useState({ consultant: null, documents: [], reviews: [] });
   const [bank, setBank] = useState(EMPTY_BANK);
@@ -41,7 +42,7 @@ export default function ConsultantDashboard() {
       setData(next);
       setBank((current) => ({
         ...current,
-        account_holder: next.consultant?.name || "",
+        account_holder: cleanDisplayName(next.consultant?.name, next.consultant?.email) || "",
         bank_name: next.consultant?.bankDetails?.bank_name || "",
         ifsc: next.consultant?.bankDetails?.ifsc || "",
       }));
@@ -116,11 +117,13 @@ export default function ConsultantDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="dashboard-surface min-h-screen bg-[#F8FAFC] text-slate-900">
       <PortalHeader onRefresh={load} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 py-6 md:py-10 space-y-6">
         {loading ? (
           <div className="text-sm text-slate-500">Loading consultant workspace...</div>
+        ) : profileOnly ? (
+          <ConsultantProfileEditor consultant={consultant} user={user} reload={load} />
         ) : (
           <>
             <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-7">
@@ -166,10 +169,10 @@ export default function ConsultantDashboard() {
                     {consultant.consultantId || "Consultant profile"}
                   </div>
                   <h1 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-white">
-                    {consultant.name || user?.name || "Consultant"}
+                    {cleanDisplayName(consultant.name, consultant.email) || user?.name || "Consultant"}
                   </h1>
                   <p className="mt-3 text-white/70">
-                    {consultant.role || "Consultant"} based in India
+                    {consultant.role || "Consultant"}
                   </p>
                   <div className="mt-6 flex flex-wrap gap-2">
                     <Badge>{consultant.status || "Profile setup"}</Badge>
@@ -187,7 +190,7 @@ export default function ConsultantDashboard() {
             </section>
 
             <section className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-5">
-              <Panel title="Onboarding and India compliance" subtitle="Offer, tax, bank, UAN, and project readiness">
+              <Panel title="Onboarding and compliance" subtitle="Offer, tax, bank, UAN, and project readiness">
                 <div className="space-y-3">
                   {onboarding.map((item) => (
                     <div key={item.label} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
@@ -287,9 +290,69 @@ function PortalHeader({ onRefresh }) {
             Refresh
           </button>
           <LoginMenu />
+          <DashboardThemeToggle />
         </div>
       </div>
     </header>
+  );
+}
+
+function cleanDisplayName(name, email) {
+  const value = String(name || "").trim();
+  const local = String(email || "").split("@")[0].trim();
+  if (!value) return "";
+  if (value.toLowerCase() === local.toLowerCase()) return "";
+  if (value.toLowerCase().includes("consultant.test")) return "";
+  return value;
+}
+
+function ConsultantProfileEditor({ consultant, user, reload }) {
+  const [form, setForm] = useState({
+    name: cleanDisplayName(consultant.name, consultant.email) || user?.name || "",
+    email: consultant.email || user?.email || "",
+    phone: consultant.phone || "",
+    title: consultant.roleTitle || consultant.role || "",
+    location: consultant.workLocation || consultant.location || "",
+    bio: consultant.bio || consultant.notes || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await updateOwnUserProfile({ ...form, role: "consultant" });
+      toast.success("Consultant profile updated.");
+      reload?.();
+    } catch (err) {
+      toast.error(err?.message || "Could not save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-7">
+      <SectionHeader
+        eyebrow="Consultant profile"
+        title="Edit consultant profile"
+        description="Keep your contact and work details current for employee/admin review."
+      />
+      <form onSubmit={save} className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Full name"><input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} /></Field>
+        <Field label="Email"><input className={inputClass} value={form.email} onChange={(e) => update("email", e.target.value)} /></Field>
+        <Field label="Phone"><input className={inputClass} value={form.phone} onChange={(e) => update("phone", e.target.value)} /></Field>
+        <Field label="Role title"><input className={inputClass} value={form.title} onChange={(e) => update("title", e.target.value)} /></Field>
+        <Field label="Location"><input className={inputClass} value={form.location} onChange={(e) => update("location", e.target.value)} /></Field>
+        <Field label="Notes" className="md:col-span-2"><textarea className={`${inputClass} h-28 resize-none py-3`} value={form.bio} onChange={(e) => update("bio", e.target.value)} /></Field>
+        <div className="flex justify-end md:col-span-2">
+          <button disabled={saving} className="inline-flex h-11 items-center justify-center rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
+            {saving ? "Saving..." : "Save profile"}
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 

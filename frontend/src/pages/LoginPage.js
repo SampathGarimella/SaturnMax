@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, BriefcaseBusiness, Eye, EyeOff, UserCog } from "lucide-react";
 import Logo from "../components/Logo";
@@ -27,6 +27,9 @@ export default function LoginPage() {
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const applyJob = searchParams.get("applyJob") || "";
+  const candidateTarget = applyJob ? `/dashboard/jobs?applyJob=${encodeURIComponent(applyJob)}` : "/dashboard";
   const {
     signIn,
     signUp,
@@ -52,7 +55,7 @@ export default function LoginPage() {
     }
 
     redirectNoticeShown.current = true;
-    const target = ROLE_HOME[user.role] || "/";
+    const target = user.role === ROLES.CANDIDATE ? candidateTarget : ROLE_HOME[user.role] || "/";
 
     if (user.role !== ROLES.CANDIDATE) {
       const activePortal = ROLE_PORTAL_NAME[user.role] || "your portal";
@@ -62,7 +65,7 @@ export default function LoginPage() {
     }
 
     navigate(target, { replace: true });
-  }, [loading, navigate, user?.role, user?.roleStatus, user?.uid]);
+  }, [candidateTarget, loading, navigate, user?.role, user?.roleStatus, user?.uid]);
 
   const handleError = (err) => {
     const code = err?.code || "";
@@ -73,7 +76,7 @@ export default function LoginPage() {
       "auth/wrong-password": "Wrong email or password.",
       "auth/email-already-in-use": "An account with that email already exists.",
       "auth/weak-password": "Password must be at least 6 characters.",
-      "auth/popup-blocked": "Browser blocked the sign-in popup — please allow popups.",
+      "auth/popup-blocked": "Browser blocked the sign-in popup. Please allow popups.",
       "auth/popup-closed-by-user": "Sign-in popup closed before completing.",
       "auth/unauthorized-domain": "This sign-in domain is not authorized.",
     };
@@ -117,7 +120,7 @@ export default function LoginPage() {
           description: "Opening Candidate Portal.",
         });
       }
-      navigate("/dashboard");
+      navigate(candidateTarget);
     } catch (err) {
       handleError(err);
     } finally {
@@ -153,7 +156,7 @@ export default function LoginPage() {
       toast.success(`Signed in with ${provider}.`, {
         description: "Opening Candidate Portal.",
       });
-      navigate("/dashboard");
+      navigate(candidateTarget);
     } catch (err) {
       if (err?.code === "auth/operation-not-allowed" && provider === "LinkedIn") {
         toast.error("LinkedIn sign-in is not enabled for this account.");
@@ -228,7 +231,7 @@ export default function LoginPage() {
                   Welcome back
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Sign in to your SaturnMax Technologies Pvt Ltd account to manage jobs, projects, and more.
+                  Sign in to your SaturnMax Technologies account to manage applications and messages.
                 </p>
               </>
             ) : (
@@ -237,7 +240,7 @@ export default function LoginPage() {
                   Create your account
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Join SaturnMax Technologies Pvt Ltd as a candidate. Track applications, interviews, and messages in one place.
+                  Join SaturnMax Technologies as a candidate. Track applications, interviews, and messages in one place.
                 </p>
               </>
             )}
@@ -358,8 +361,8 @@ export default function LoginPage() {
               >
                 {busy
                   ? tab === "signin"
-                    ? "Signing in…"
-                    : "Creating account…"
+                    ? "Signing in..."
+                    : "Creating account..."
                   : tab === "signin"
                   ? "Sign in to SaturnMax"
                   : "Create account"}

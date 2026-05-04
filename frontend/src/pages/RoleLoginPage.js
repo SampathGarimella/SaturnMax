@@ -17,8 +17,6 @@ const CONFIG = {
   consultant: {
     title: "Consultant login",
     eyebrow: "Consultant portal",
-    description:
-      "View project, client, payout, onboarding, tax, and document details assigned by the employee team.",
     destination: "/consultant-dashboard",
     allowedRoles: ["consultant"],
     Icon: BriefcaseBusiness,
@@ -26,8 +24,6 @@ const CONFIG = {
   employee: {
     title: "Employee login",
     eyebrow: "Employee portal",
-    description:
-      "Manage candidates, consultants, projects, documents, and recent login activity for the team.",
     destination: "/employee-dashboard/hiring/candidates",
     allowedRoles: ["employee", "admin"],
     Icon: UserCog,
@@ -107,9 +103,9 @@ export default function RoleLoginPage({ role = "consultant" }) {
         mode: "firebase",
       }).catch(() => {});
       toast.success("Welcome back.", {
-        description: `Opening ${config.eyebrow}.`,
+        description: `Opening ${ROLE_PORTAL_NAME[signedUser.role] || config.eyebrow}.`,
       });
-      navigate(config.destination);
+      navigate(ROLE_HOME[signedUser.role] || config.destination);
     } catch (err) {
       toast.error(err?.message || "Sign-in failed. Please verify your credentials.");
     } finally {
@@ -147,14 +143,8 @@ export default function RoleLoginPage({ role = "consultant" }) {
               {config.title}
             </h1>
             <p className="mt-4 text-sm md:text-base text-white/70 leading-relaxed">
-              {config.description}
+              Sign in with your assigned SaturnMax work account.
             </p>
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <PortalPoint label="Secure access" value="Protected work accounts" />
-              <PortalPoint label="Role workspace" value="Personalized portal" />
-              <PortalPoint label="Employee visibility" value="Live work tracking" />
-              <PortalPoint label="Compliance" value="India-ready workflow" />
-            </div>
           </div>
         </section>
 
@@ -238,14 +228,3 @@ export default function RoleLoginPage({ role = "consultant" }) {
 
 const inputClass =
   "w-full h-11 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent";
-
-function PortalPoint({ label, value }) {
-  return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-      <div className="text-xs uppercase tracking-[0.16em] text-white/45 font-semibold">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-semibold text-white">{value}</div>
-    </div>
-  );
-}

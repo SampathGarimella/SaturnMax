@@ -47,8 +47,8 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if ownsOwner(uid) || isEmployee();
-      allow create: if ownsOwner(uid)
-        && request.resource.data.role == "candidate";
+      allow create: if isEmployee()
+        || (ownsOwner(uid) && request.resource.data.role == "candidate");
       allow update: if isEmployee()
         || (ownsOwner(uid)
           && request.resource.data.role == resource.data.role
@@ -58,6 +58,10 @@ service cloud.firestore {
             "name",
             "phone",
             "photoURL",
+            "title",
+            "department",
+            "location",
+            "bio",
             "status",
             "notificationPreferences",
             "uiPreferences",
@@ -74,7 +78,7 @@ service cloud.firestore {
 
     match /candidates/{uid} {
       allow read: if ownsOwner(uid) || isEmployee();
-      allow create: if ownsOwner(uid) && isCandidate();
+      allow create: if isEmployee() || (ownsOwner(uid) && isCandidate());
       allow update: if isEmployee()
         || (ownsOwner(uid)
           && isCandidate()
@@ -90,6 +94,11 @@ service cloud.firestore {
             "resume_url",
             "primary_skills",
             "preferred_work_mode",
+            "years_experience",
+            "notice_period",
+            "current_ctc_lpa",
+            "expected_ctc_lpa",
+            "introduction",
             "role_label",
             "updatedAt",
             "updatedBy"
@@ -111,6 +120,12 @@ service cloud.firestore {
             "panStatus",
             "uanDetails",
             "uanStatus",
+            "name",
+            "email",
+            "phone",
+            "title",
+            "location",
+            "bio",
             "updatedAt",
             "updatedBy"
           ]));

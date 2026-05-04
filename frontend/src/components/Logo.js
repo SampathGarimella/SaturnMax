@@ -10,16 +10,13 @@ export default function Logo({ compact = false, to = "/", className = "" }) {
     >
       <img
         src="/logo.png"
-        alt="SaturnMax Technologies Pvt Ltd"
+        alt="SaturnMax Technologies"
         className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-lg object-cover shadow-sm transition-transform group-hover:-rotate-3"
       />
       {!compact && (
         <div className="hidden sm:block min-w-0 leading-tight">
           <div className="font-heading font-semibold text-[14px] md:text-[15px] text-slate-900 truncate">
-            SaturnMax Technologies Pvt Ltd
-          </div>
-          <div className="hidden md:block text-[11px] text-slate-500 tracking-wide">
-            India
+            SaturnMax Technologies
           </div>
         </div>
       )}

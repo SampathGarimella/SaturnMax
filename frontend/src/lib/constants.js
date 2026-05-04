@@ -19,25 +19,25 @@ export const ROLE_HOME = Object.freeze({
   [ROLES.CANDIDATE]: "/dashboard",
   [ROLES.CONSULTANT]: "/consultant-dashboard",
   [ROLES.EMPLOYEE]: "/employee-dashboard/hiring/candidates",
-  [ROLES.ADMIN]: "/employee-dashboard/hiring/candidates",
+  [ROLES.ADMIN]: "/admin-dashboard",
 });
 
 export const ROLE_PORTAL_ROOT = Object.freeze({
   [ROLES.CANDIDATE]: "/dashboard",
   [ROLES.CONSULTANT]: "/consultant-dashboard",
   [ROLES.EMPLOYEE]: "/employee-dashboard",
-  [ROLES.ADMIN]: "/employee-dashboard",
+  [ROLES.ADMIN]: "/admin-dashboard",
 });
 
 export const ROLE_PORTAL_NAME = Object.freeze({
-  [ROLES.ADMIN]: "Employee Portal",
+  [ROLES.ADMIN]: "Admin Portal",
   [ROLES.EMPLOYEE]: "Employee Portal",
   [ROLES.CONSULTANT]: "Consultant Portal",
   [ROLES.CANDIDATE]: "Candidate Portal",
 });
 
 export const ROLE_PORTAL_LABEL = Object.freeze({
-  [ROLES.ADMIN]: "Employee login",
+  [ROLES.ADMIN]: "Admin login",
   [ROLES.EMPLOYEE]: "Employee login",
   [ROLES.CONSULTANT]: "Consultant login",
   [ROLES.CANDIDATE]: "Candidate login",

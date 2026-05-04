@@ -39,7 +39,7 @@ export const APPLICATION_STATUS_META = Object.freeze({
     label: APPLICATION_LABELS.applied,
     className: "bg-slate-100 text-slate-700",
     tone: "slate",
-    nextAction: "SaturnMax Technologies Pvt Ltd will screen your profile.",
+    nextAction: "SaturnMax Technologies will screen your profile.",
   },
   screening: {
     label: APPLICATION_LABELS.screening,
@@ -384,7 +384,7 @@ export function buildConsultantInviteMessage({
     subject: "Welcome to SaturnMax Consultant Portal",
     body: `Hi ${name || "Consultant"},
 
-Your consultant profile has been created with SaturnMax Technologies Pvt Ltd.
+Your consultant profile has been created with SaturnMax Technologies.
 
 Consultant Portal:
 ${consultantLoginUrl}
@@ -395,7 +395,7 @@ ${email}
 Please log in and complete or verify your profile.
 
 Regards,
-SaturnMax Technologies Pvt Ltd`,
+SaturnMax Technologies`,
   };
 }
 

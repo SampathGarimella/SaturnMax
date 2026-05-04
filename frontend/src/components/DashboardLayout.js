@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Logo from "./Logo";
 import LoginMenu from "./LoginMenu";
+import DashboardThemeToggle from "./DashboardThemeToggle";
 import { fetchDashboard } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -53,7 +54,7 @@ export default function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+    <div className="dashboard-surface min-h-screen bg-[#F8FAFC] text-slate-900">
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] min-h-screen">
         <aside
           className="hidden lg:flex flex-col bg-white border-r border-slate-200"
@@ -109,7 +110,7 @@ export default function DashboardLayout() {
             <div className="min-w-0">
               <h1 className="font-heading text-xl md:text-2xl font-semibold tracking-tight text-slate-900 truncate">
                 {loading || authLoading
-                  ? "Loading your dashboard…"
+                  ? "Loading your dashboard..."
                   : `${greeting()}, ${firstName(user?.name || "there")}`}
               </h1>
               <p className="text-xs md:text-sm text-slate-500">
@@ -134,6 +135,7 @@ export default function DashboardLayout() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <LoginMenu />
+              <DashboardThemeToggle />
             </div>
           </header>
 

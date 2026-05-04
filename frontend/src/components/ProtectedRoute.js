@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return (
       <AccessState
         title="Account role needs setup"
-        body={roleError || "Your account exists, but a SaturnMax Technologies Pvt Ltd role has not been assigned yet."}
+        body={roleError || "Your account exists, but a SaturnMax Technologies role has not been assigned yet."}
       />
     );
   }

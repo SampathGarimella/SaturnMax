@@ -25,6 +25,7 @@ import {
   COLLECTIONS,
   JOB_STATUSES,
   ROLES,
+  ROLE_VALUES,
 } from "./constants";
 import { buildSafeCandidateUserData, buildUserPreferencesUpdate, normalizeUserPreferences } from "./validators";
 import {
@@ -203,7 +204,7 @@ function buildMessageThreads(messageDocs, candidateByUid = {}) {
         "Candidate",
       candidateEmail: candidate.email || data.candidate_email || "",
       latestText: data.text || "",
-      latestAuthor: data.authorName || "SaturnMax Technologies Pvt Ltd",
+      latestAuthor: data.authorName || "SaturnMax Technologies",
       latestAt: data.createdAt || data.created_at,
       latestAtLabel: formatMessageTime(data.createdAt || data.created_at),
       unreadCount: data.unreadForEmployee ? 1 : 0,
@@ -559,6 +560,92 @@ export async function markResumeUploaded({ file, candidateUid }) {
     { merge: true }
   );
   return uploaded;
+}
+
+export async function updateCandidateProfile(profile = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const uid = user.uid;
+  const safeProfile = {
+    uid,
+    email: profile.email || user.email || "",
+    name: profile.name || user.displayName || user.email?.split("@")[0] || "Candidate",
+    phone: profile.phone || "",
+    current_location: profile.current_location || "",
+    current_company: profile.current_company || "",
+    portfolio_url: profile.portfolio_url || "",
+    primary_skills: profile.primary_skills || "",
+    preferred_work_mode: profile.preferred_work_mode || "",
+    years_experience: profile.years_experience || "",
+    notice_period: profile.notice_period || "",
+    current_ctc_lpa: profile.current_ctc_lpa || "",
+    expected_ctc_lpa: profile.expected_ctc_lpa || "",
+    introduction: profile.introduction || "",
+    role_label: "Job Candidate",
+    ...updateMeta(user),
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), safeProfile, { merge: true });
+  batch.set(
+    doc(db, COLLECTIONS.USERS, uid),
+    {
+      email: safeProfile.email,
+      name: safeProfile.name,
+      phone: safeProfile.phone,
+      ...updateMeta(user),
+    },
+    { merge: true }
+  );
+  await batch.commit();
+  return safeProfile;
+}
+
+export async function updateOwnUserProfile(profile = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const role = profile.role || user.role || "";
+  const base = {
+    email: profile.email || user.email || "",
+    name: profile.name || user.displayName || user.email?.split("@")[0] || "",
+    phone: profile.phone || "",
+    title: profile.title || "",
+    department: profile.department || "",
+    location: profile.location || "",
+    bio: profile.bio || "",
+    ...updateMeta(user),
+  };
+  await setDoc(doc(db, COLLECTIONS.USERS, user.uid), base, { merge: true });
+  if (role === ROLES.CONSULTANT) {
+    await setDoc(
+      doc(db, COLLECTIONS.CONSULTANTS, user.uid),
+      {
+        uid: user.uid,
+        name: base.name,
+        email: base.email,
+        phone: base.phone,
+        title: base.title,
+        location: base.location,
+        bio: base.bio,
+        ...updateMeta(user),
+      },
+      { merge: true }
+    );
+  }
+  return base;
+}
+
+export async function fetchOwnUserProfile(uid = auth?.currentUser?.uid) {
+  requireFirestore();
+  if (!uid) throw new Error("Please sign in to load profile.");
+  const [userSnap, consultantSnap] = await Promise.all([
+    getDoc(doc(db, COLLECTIONS.USERS, uid)),
+    getDoc(doc(db, COLLECTIONS.CONSULTANTS, uid)).catch(() => null),
+  ]);
+  return {
+    id: uid,
+    ...(userSnap?.exists() ? userSnap.data() : {}),
+    ...(consultantSnap?.exists?.() ? consultantSnap.data() : {}),
+  };
 }
 
 export async function fetchOperationsData() {
@@ -1276,6 +1363,10 @@ function callableInviteUnavailable(error) {
   ].includes(code);
 }
 
+function callableAdminUnavailable(error) {
+  return callableInviteUnavailable(error);
+}
+
 async function createManualConsultantWithFunction(payload) {
   if (!functions || payload.useCloudFunction === false) return null;
   const callable = httpsCallable(functions, "createManualConsultantInvite");
@@ -1463,6 +1554,156 @@ export async function manuallyAddConsultant(payload = {}) {
   };
 }
 
+export async function adminSendPasswordReset(email, url = "https://saturnmax.com/login") {
+  if (!auth) throw new Error("Firebase Auth is not configured.");
+  const address = normalizeEmail(email);
+  if (!isValidEmail(address)) throw new Error("Enter a valid email.");
+  await sendPasswordResetEmail(auth, address, {
+    url,
+    handleCodeInApp: false,
+  });
+}
+
+async function adminUpsertPortalUserWithFunction(payload) {
+  if (!functions || payload.useCloudFunction === false) return null;
+  const callable = httpsCallable(functions, "adminUpsertPortalUser");
+  try {
+    const response = await callable(payload);
+    return response.data || null;
+  } catch (err) {
+    if (callableAdminUnavailable(err)) {
+      console.warn("Admin user function unavailable; falling back to Firestore-only account record.", err);
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function adminUpsertPortalUser(payload = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  const email = normalizeEmail(payload.email);
+  const role = payload.role || ROLES.CANDIDATE;
+  if (!isValidEmail(email)) throw new Error("Enter a valid email.");
+  if (!ROLE_VALUES.includes(role)) throw new Error("Choose a valid role.");
+  if (!payload.name?.trim()) throw new Error("Full name is required.");
+
+  const functionResult = await adminUpsertPortalUserWithFunction({ ...payload, email, role });
+  if (functionResult?.uid) {
+    if (payload.sendReset) {
+      await adminSendPasswordReset(email, role === ROLES.CONSULTANT ? "https://saturnmax.com/consultant-login" : "https://saturnmax.com/login");
+    }
+    return { ...functionResult, functionBacked: true };
+  }
+
+  const matchedUser = await findUserByEmail(email);
+  const uid = payload.uid || matchedUser?.id || doc(collection(db, COLLECTIONS.USERS)).id;
+  const batch = writeBatch(db);
+  const baseUser = {
+    uid,
+    email,
+    name: payload.name.trim(),
+    phone: payload.phone || "",
+    title: payload.title || "",
+    department: payload.department || "",
+    location: payload.location || "",
+    role,
+    status: payload.status || "active",
+    ...updateMeta(user),
+  };
+  batch.set(doc(db, COLLECTIONS.USERS, uid), baseUser, { merge: true });
+  if (role === ROLES.CANDIDATE) {
+    batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), {
+      uid,
+      email,
+      name: payload.name.trim(),
+      phone: payload.phone || "",
+      role_label: "Job Candidate",
+      ...updateMeta(user),
+    }, { merge: true });
+  }
+  if (role === ROLES.CONSULTANT) {
+    batch.set(doc(db, COLLECTIONS.CONSULTANTS, uid), {
+      uid,
+      email,
+      name: payload.name.trim(),
+      phone: payload.phone || "",
+      roleTitle: payload.title || "Consultant",
+      role: payload.title || "Consultant",
+      loginEnabled: Boolean(matchedUser),
+      loginSetupRequired: !matchedUser,
+      status: "Profile created",
+      consultantId: payload.consultantId || generatedConsultantId(uid),
+      bankStatus: "pending_review",
+      panStatus: "pending_review",
+      uanStatus: "pending_review",
+      createdByEmployeeId: user.uid,
+      ...updateMeta(user),
+    }, { merge: true });
+    batch.set(doc(db, COLLECTIONS.CONSULTANT_EMAIL_INDEX, email), {
+      email,
+      uid,
+      consultantId: uid,
+      source: "admin_user_manager",
+      ...createMeta(user),
+    }, { merge: true });
+  }
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: payload.uid ? "admin_user_updated" : "admin_user_created",
+    outcome: "success",
+    targetCollection: COLLECTIONS.USERS,
+    targetId: uid,
+    after: { email, role },
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+  if (payload.sendReset && matchedUser) {
+    await adminSendPasswordReset(email, role === ROLES.CONSULTANT ? "https://saturnmax.com/consultant-login" : "https://saturnmax.com/login");
+  }
+  return { uid, email, role, loginSetupRequired: !matchedUser, functionBacked: false };
+}
+
+export async function adminDeactivatePortalUser(target = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  if (!target.uid) throw new Error("Choose a user first.");
+  if (functions) {
+    try {
+      const callable = httpsCallable(functions, "adminDeactivatePortalUser");
+      await callable({ uid: target.uid, disabled: true });
+      return;
+    } catch (err) {
+      if (!callableAdminUnavailable(err)) throw err;
+    }
+  }
+  const batch = writeBatch(db);
+  batch.set(doc(db, COLLECTIONS.USERS, target.uid), {
+    status: "inactive",
+    disabled: true,
+    ...updateMeta(user),
+  }, { merge: true });
+  if (target.role === ROLES.CONSULTANT) {
+    batch.set(doc(db, COLLECTIONS.CONSULTANTS, target.uid), {
+      status: "Inactive",
+      loginEnabled: false,
+      ...updateMeta(user),
+    }, { merge: true });
+  }
+  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
+    actorUid: user.uid,
+    actorEmail: user.email || "",
+    action: "admin_user_deactivated",
+    outcome: "success",
+    targetCollection: COLLECTIONS.USERS,
+    targetId: target.uid,
+    after: { status: "inactive" },
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
 export async function fetchConsultantDashboard(uid) {
   requireFirestore();
   const [consultantSnap, documents, reviewsSnap] = await Promise.all([
@@ -1605,7 +1846,7 @@ export async function sendHiringMessage({ candidateUid, text, employee }) {
       employee?.name ||
       current.displayName ||
       current.email?.split("@")[0] ||
-      "SaturnMax Technologies Pvt Ltd hiring team",
+      "SaturnMax Technologies hiring team",
     candidate_uid: candidateUid,
     text: body,
     unreadForEmployee: false,

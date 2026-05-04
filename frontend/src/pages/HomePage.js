@@ -19,14 +19,12 @@ import {
   Building2,
   ClipboardCheck,
   FileText,
-  IndianRupee,
   ShieldCheck,
   Target,
-  UploadCloud,
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
-import { fetchJobs, markResumeUploaded, submitApplication, submitContact } from "../lib/api";
+import { fetchJobs, submitContact } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
 const SERVICE_ICONS = {
@@ -42,13 +40,13 @@ const SERVICES = [
   {
     title: "Consultants on contract",
     blurb:
-      "Place vetted senior engineers on your team on 3–12 month contracts. Scale up or down on demand.",
+      "Place vetted senior engineers on your team on 3-12 month contracts. Scale up or down on demand.",
     tag: { label: "Flagship offer", color: "bg-blue-50 text-blue-700" },
   },
   {
     title: "Dedicated dev squads",
     blurb:
-      "2–5 person teams embedded in your product org on long-term contracts.",
+      "2-5 person teams embedded in your product org on long-term contracts.",
     tag: { label: "Steady demand", color: "bg-emerald-50 text-emerald-700" },
   },
   {
@@ -65,12 +63,12 @@ const SERVICES = [
   {
     title: "Cloud cost optimization",
     blurb:
-      "AWS/GCP/Azure FinOps audits. Cut your cloud bill by 30–50%.",
+      "AWS/GCP/Azure FinOps audits. Cut your cloud bill by 30-50%.",
     tag: { label: "Quick ROI", color: "bg-sky-50 text-sky-700" },
   },
   {
     title: "Data engineering",
-    blurb: "Modern data stack — dbt, Snowflake, Databricks pipelines.",
+    blurb: "Modern data stack - dbt, Snowflake, Databricks pipelines.",
     tag: { label: "Emerging", color: "bg-rose-50 text-rose-700" },
   },
 ];
@@ -85,7 +83,7 @@ const STEPS = [
   {
     n: "02",
     title: "Paid pilot",
-    blurb: "$3–5k scoped 2-week engagement.",
+    blurb: "$3-5k scoped 2-week engagement.",
     Icon: Rocket,
   },
   {
@@ -107,7 +105,7 @@ const CASE_STUDIES = [
     client: "US SaaS platform",
     result: "Launched an AI support workflow in 21 days",
     detail:
-      "A two-person SaturnMax Technologies Pvt Ltd squad connected product docs, CRM data, and ticket history into a RAG assistant for customer workflows.",
+      "A two-person SaturnMax Technologies squad connected product docs, CRM data, and ticket history into a RAG assistant for customer workflows.",
   },
   {
     client: "Fintech data team",
@@ -124,7 +122,7 @@ const CASE_STUDIES = [
 ];
 
 const DELIVERY_PROMISES = [
-  "US morning overlap with India evening delivery",
+  "US morning overlap with offshore delivery",
   "Senior technical screening before every placement",
   "Weekly demos, written status updates, and clear ownership",
   "Start with a scoped pilot before committing to a team",
@@ -138,18 +136,6 @@ const APPLICATION_STEPS = [
   "Client discussion",
   "Offer and onboarding",
 ];
-
-const NOTICE_PERIODS = [
-  "Immediate",
-  "15 days",
-  "30 days",
-  "45 days",
-  "60 days",
-  "90 days",
-  "Serving notice",
-];
-
-const WORK_MODES = ["Remote", "Hybrid", "On-site", "Flexible"];
 
 const TAG_STYLES = {
   "Full-time": "bg-slate-100 text-slate-700",
@@ -177,26 +163,6 @@ export default function HomePage() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
-  const [selectedJob, setSelectedJob] = useState("");
-  const [applicationForm, setApplicationForm] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    years_experience: "0–1",
-    position_title: "",
-    portfolio_url: "",
-    resume_url: "",
-    current_location: "",
-    current_company: "",
-    notice_period: "30 days",
-    current_ctc_lpa: "",
-    expected_ctc_lpa: "",
-    preferred_work_mode: "Remote",
-    primary_skills: "",
-    introduction: "",
-  });
-  const [resumeFile, setResumeFile] = useState(null);
-  const [applicationLoading, setApplicationLoading] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -212,13 +178,6 @@ export default function HomePage() {
     fetchJobs()
       .then((data) => {
         setJobs(data);
-        if (data.length) {
-          setSelectedJob(data[0].id);
-          setApplicationForm((f) => ({
-            ...f,
-            position_title: data[0].title,
-          }));
-        }
       })
       .catch((err) => {
         console.error(err);
@@ -228,78 +187,16 @@ export default function HomePage() {
   }, []);
 
   const handleApplyToJob = (job) => {
-    setSelectedJob(job.id);
-    setApplicationForm((f) => ({ ...f, position_title: job.title }));
-    document
-      .getElementById("apply-section")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const handleSelectPosition = (e) => {
-    const id = e.target.value;
-    setSelectedJob(id);
-    const job = jobs.find((j) => j.id === id);
-    if (job) {
-      setApplicationForm((f) => ({ ...f, position_title: job.title }));
-    }
-  };
-
-  const handleApplicationSubmit = async (e) => {
-    e.preventDefault();
-    if (!user?.email) {
-      toast.error("Please login as a candidate before applying.");
-      navigate("/login");
+    const target = `/dashboard/jobs?applyJob=${encodeURIComponent(job.id)}`;
+    if (!user?.uid) {
+      navigate(`/login?applyJob=${encodeURIComponent(job.id)}`);
       return;
     }
     if (user.role && user.role !== "candidate") {
       toast.error("Please use a candidate account to apply for jobs.");
       return;
     }
-    if (!applicationForm.full_name || !applicationForm.email || !applicationForm.phone) {
-      toast.error("Please fill in name, email, and phone.");
-      return;
-    }
-    if (!selectedJob || !applicationForm.position_title) {
-      toast.error("Please choose an open position.");
-      return;
-    }
-    if (!resumeFile) {
-      toast.error("Please upload your resume before applying.");
-      return;
-    }
-    setApplicationLoading(true);
-    try {
-      const resume = await markResumeUploaded({ file: resumeFile, candidateUid: user.uid });
-      await submitApplication({
-        ...applicationForm,
-        resume_url: resume.file_url,
-        position_id: selectedJob || null,
-      });
-      toast.success(
-        "Application submitted! We'll reach out at " + applicationForm.email
-      );
-      setApplicationForm((f) => ({
-        ...f,
-        full_name: "",
-        phone: "",
-        portfolio_url: "",
-        resume_url: "",
-        current_location: "",
-        current_company: "",
-        notice_period: "30 days",
-        current_ctc_lpa: "",
-        expected_ctc_lpa: "",
-        preferred_work_mode: "Remote",
-        primary_skills: "",
-        introduction: "",
-      }));
-      setResumeFile(null);
-    } catch (err) {
-      console.error(err);
-      toast.error(err?.response?.data?.detail || err?.message || "Submission failed. Try again.");
-    } finally {
-      setApplicationLoading(false);
-    }
+    navigate(target);
   };
 
   const handleContactSubmit = async (e) => {
@@ -370,7 +267,7 @@ export default function HomePage() {
           <div className="stagger text-center max-w-4xl mx-auto">
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
               <Sparkles className="h-3.5 w-3.5" />
-              US–India IT consulting & contract staffing
+              IT consulting and contract staffing
             </span>
             <h1 className="mt-6 font-heading text-5xl md:text-7xl font-bold tracking-tighter leading-[1.02] text-slate-900">
               World-class tech teams for{" "}
@@ -378,7 +275,7 @@ export default function HomePage() {
             </h1>
             <p className="mt-6 text-lg md:text-xl text-slate-600 leading-relaxed">
               Dedicated dev squads, AI automation, and vetted consultants on
-              contract — delivered from India at a fraction of the cost.
+              contract, delivered with a cost-efficient global operating model.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <a
@@ -478,10 +375,10 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-14 items-start">
             <div>
               <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
-                Why SaturnMax Technologies Pvt Ltd
+                Why SaturnMax Technologies
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-                India-based engineering with US-ready operating rhythm
+                Global engineering with US-ready operating rhythm
               </h2>
               <p className="mt-5 text-base text-slate-600 leading-relaxed">
                 We combine vetted senior talent, practical delivery governance,
@@ -532,14 +429,14 @@ export default function HomePage() {
               Careers
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Open positions at SaturnMax Technologies Pvt Ltd
+              Open positions at SaturnMax Technologies
             </h2>
           </div>
 
           <div className="rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-200 bg-white">
             {jobsLoading && (
               <div className="p-8 text-center text-slate-500 text-sm">
-                Loading roles…
+                Loading roles...
               </div>
             )}
             {!jobsLoading && jobs.length === 0 && (
@@ -584,7 +481,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ---- Application form ---------------------------------------- */}
+      {/* ---- Application process ------------------------------------- */}
       <section id="apply-section" className="py-20 md:py-28 bg-slate-50/50 border-y border-slate-200">
         <div className="max-w-6xl mx-auto px-6 md:px-10">
           <div className="mb-10 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-8 items-end">
@@ -593,17 +490,17 @@ export default function HomePage() {
                 Application process
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-                Apply with a complete India tech profile
+                Create your tech profile for recruiter reach
               </h2>
               <p className="mt-4 text-sm md:text-base text-slate-600 leading-relaxed">
-                Login before applying to track status, interviews, documents, and offer updates.
-                The form captures the details Indian tech recruiters usually need for screening.
+                Create a candidate profile once, keep your resume and skills current, then apply to any open job from the Candidate Portal.
+                Recruiters can review your profile, application history, messages, and interview status in one workflow.
               </p>
               <Link
                 to="/login"
                 className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#0A192F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#0e2445]"
               >
-                Login to track applications
+                Create tech profile
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -628,246 +525,46 @@ export default function HomePage() {
             </div>
           </div>
 
-          <form
-            onSubmit={handleApplicationSubmit}
-            className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 md:p-10 shadow-sm"
-            data-testid="application-form"
-          >
-            <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-950">
-              <div className="font-semibold">Candidate profile</div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {[
+              {
+                title: "Create tech profile",
+                body: "Save your contact details, resume, experience, skills, CTC, notice period, and preferred work mode.",
+              },
+              {
+                title: "Apply from Candidate Portal",
+                body: "Select a published job and submit an authenticated application that appears in the employee hiring queue.",
+              },
+              {
+                title: "Track and respond",
+                body: "Follow stage updates, messages, document requests, offer steps, and onboarding from your dashboard.",
+              },
+            ].map((item) => (
+              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB]">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 font-heading text-lg font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.body}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-blue-950">Ready to apply?</div>
               <p className="mt-1 text-xs leading-relaxed text-blue-900/80">
-                Share your latest resume and profile links so the hiring team can
-                review your profile quickly.
+                Open a role above or create your profile first. The full application form is inside the Candidate Portal.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Full name">
-                <input
-                  required
-                  value={applicationForm.full_name}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, full_name: e.target.value }))
-                  }
-                  placeholder="Rahul Sharma"
-                  className={inputClass}
-                  data-testid="application-full-name"
-                />
-              </Field>
-              <Field label="Email address">
-                <input
-                  type="email"
-                  required
-                  value={applicationForm.email}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, email: e.target.value }))
-                  }
-                  placeholder="rahul@email.com"
-                  className={inputClass}
-                  data-testid="application-email"
-                />
-              </Field>
-              <Field label="Phone number">
-                <input
-                  required
-                  value={applicationForm.phone}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, phone: e.target.value }))
-                  }
-                  placeholder="Mobile number"
-                  className={inputClass}
-                  data-testid="application-phone"
-                />
-              </Field>
-              <Field label="Current location">
-                <input
-                  value={applicationForm.current_location}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, current_location: e.target.value }))
-                  }
-                  placeholder="India"
-                  className={inputClass}
-                  data-testid="application-current-location"
-                />
-              </Field>
-              <Field label="Current company">
-                <input
-                  value={applicationForm.current_company}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, current_company: e.target.value }))
-                  }
-                  placeholder="Company name or Fresher"
-                  className={inputClass}
-                  data-testid="application-current-company"
-                />
-              </Field>
-              <Field label="Years of experience">
-                <select
-                  value={applicationForm.years_experience}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({
-                      ...f,
-                      years_experience: e.target.value,
-                    }))
-                  }
-                  className={inputClass}
-                  data-testid="application-experience"
-                >
-                  {["0-1", "1-3", "3-5", "5-8", "8+"].map((y) => (
-                    <option key={y} value={y}>
-                      {y} years
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Position applying for">
-                <select
-                  value={selectedJob}
-                  onChange={handleSelectPosition}
-                  className={inputClass}
-                  data-testid="application-position"
-                  disabled={jobs.length === 0}
-                >
-                  {jobs.length === 0 && <option>No published roles available</option>}
-                  {jobs.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.title}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Notice period">
-                <select
-                  value={applicationForm.notice_period}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, notice_period: e.target.value }))
-                  }
-                  className={inputClass}
-                  data-testid="application-notice-period"
-                >
-                  {NOTICE_PERIODS.map((period) => (
-                    <option key={period}>{period}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Preferred work mode">
-                <select
-                  value={applicationForm.preferred_work_mode}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({ ...f, preferred_work_mode: e.target.value }))
-                  }
-                  className={inputClass}
-                  data-testid="application-work-mode"
-                >
-                  {WORK_MODES.map((mode) => (
-                    <option key={mode}>{mode}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Current CTC (LPA)">
-                <div className="relative">
-                  <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={applicationForm.current_ctc_lpa}
-                    onChange={(e) =>
-                      setApplicationForm((f) => ({ ...f, current_ctc_lpa: e.target.value }))
-                    }
-                    placeholder="8.5"
-                    className={`${inputClass} pl-9`}
-                    data-testid="application-current-ctc"
-                  />
-                </div>
-              </Field>
-              <Field label="Expected CTC (LPA)">
-                <div className="relative">
-                  <IndianRupee className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={applicationForm.expected_ctc_lpa}
-                    onChange={(e) =>
-                      setApplicationForm((f) => ({ ...f, expected_ctc_lpa: e.target.value }))
-                    }
-                    placeholder="12"
-                    className={`${inputClass} pl-9`}
-                    data-testid="application-expected-ctc"
-                  />
-                </div>
-              </Field>
-              <Field label="LinkedIn / Portfolio URL">
-                <input
-                  value={applicationForm.portfolio_url}
-                  onChange={(e) =>
-                    setApplicationForm((f) => ({
-                      ...f,
-                      portfolio_url: e.target.value,
-                    }))
-                  }
-                  placeholder="linkedin.com/in/yourname"
-                  className={inputClass}
-                  data-testid="application-portfolio"
-                />
-              </Field>
-              <Field label="Resume">
-                <label className="flex h-11 cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-700 transition-colors hover:bg-slate-50">
-                  <UploadCloud className="h-4 w-4 shrink-0 text-slate-400" />
-                  <span className="truncate">
-                    {resumeFile ? resumeFile.name : "Upload PDF, DOC, or DOCX"}
-                  </span>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                    data-testid="application-resume-file"
-                  />
-                </label>
-              </Field>
-            </div>
-            <Field label="Primary skills" className="mt-5">
-              <input
-                value={applicationForm.primary_skills}
-                onChange={(e) =>
-                  setApplicationForm((f) => ({ ...f, primary_skills: e.target.value }))
-                }
-                placeholder="React, Node.js, AWS, Python, LLMs"
-                className={inputClass}
-                data-testid="application-primary-skills"
-              />
-            </Field>
-            <Field label="Brief introduction" className="mt-5">
-              <textarea
-                rows={5}
-                value={applicationForm.introduction}
-                onChange={(e) =>
-                  setApplicationForm((f) => ({
-                    ...f,
-                    introduction: e.target.value,
-                  }))
-                }
-                placeholder="Tell us about your skills and why you want to join SaturnMax Technologies Pvt Ltd..."
-                className={`${inputClass} resize-none`}
-                data-testid="application-introduction"
-              />
-            </Field>
-            <div className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <p className="max-w-2xl text-xs leading-relaxed text-slate-500">
-                By applying you agree to our careers privacy policy. We'll email{" "}
-                <span className="font-semibold text-slate-700">{applicationForm.email || "you"}</span>{" "}
-                with next steps and show status in the candidate dashboard after login.
-              </p>
-              <button
-                type="submit"
-                disabled={applicationLoading || !user?.email}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
-                data-testid="application-submit"
-              >
-                {applicationLoading
-                  ? "Submitting..."
-                  : user?.email
-                  ? "Submit application"
-                  : "Login to apply"}
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </form>
+            <Link
+              to="/login"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#2563EB] px-5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+            >
+              Create tech profile
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -917,7 +614,7 @@ export default function HomePage() {
               Get in touch
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Contact SaturnMax Technologies Pvt Ltd
+              Contact SaturnMax Technologies
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -925,13 +622,13 @@ export default function HomePage() {
             <div className="space-y-5">
               <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-7">
                 <div className="text-sm font-semibold text-slate-900">
-                  India headquarters
+                  Headquarters
                 </div>
                 <div className="mt-4 space-y-4">
                   <InfoRow
                     Icon={MapPin}
                     label="Address"
-                    value="SaturnMax Technologies Pvt Ltd, India"
+                    value="SaturnMax Technologies"
                   />
                   <InfoRow
                     Icon={Mail}
@@ -1051,7 +748,7 @@ export default function HomePage() {
                   onChange={(e) =>
                     setContactForm((f) => ({ ...f, message: e.target.value }))
                   }
-                  placeholder="Tell us what you're looking for…"
+                  placeholder="Tell us what you're looking for..."
                   className={`${inputClass} resize-none`}
                   data-testid="contact-message"
                 />
@@ -1062,7 +759,7 @@ export default function HomePage() {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0A192F] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0e2445] transition-colors disabled:opacity-60"
                 data-testid="contact-submit"
               >
-                {contactLoading ? "Sending…" : "Send message"}
+                {contactLoading ? "Sending..." : "Send message"}
               </button>
             </form>
           </div>
@@ -1117,7 +814,7 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} SaturnMax Technologies Pvt Ltd · India
+            © {new Date().getFullYear()} SaturnMax Technologies
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>

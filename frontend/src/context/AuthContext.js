@@ -32,7 +32,7 @@ function mapFirebaseUser(fbUser, role) {
 }
 
 const AUTH_UNAVAILABLE =
-  "Sign in is temporarily unavailable. Please contact SaturnMax Technologies Pvt Ltd support.";
+  "Sign in is temporarily unavailable. Please contact SaturnMax Technologies support.";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}

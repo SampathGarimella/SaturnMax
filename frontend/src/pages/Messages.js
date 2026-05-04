@@ -90,7 +90,7 @@ export default function Messages() {
           Messages
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Conversations with the SaturnMax Technologies Pvt Ltd hiring team.{" "}
+          Conversations with the SaturnMax Technologies hiring team.{" "}
           {live ? (
             <span className="text-emerald-600 font-medium">Live</span>
           ) : (
@@ -107,7 +107,7 @@ export default function Messages() {
         >
           {liveLoading && (
             <div className="flex items-center justify-center py-10 text-sm text-slate-500 gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
             </div>
           )}
           {!liveLoading && messages.length === 0 && (
@@ -142,7 +142,7 @@ export default function Messages() {
                       <span className="h-2 w-2 rounded-full bg-[#2563EB] shrink-0" />
                     )}
                     <div className="font-semibold text-sm text-slate-900 truncate">
-                      {mine ? "You" : m.authorName || "SaturnMax Technologies Pvt Ltd"}
+                      {mine ? "You" : m.authorName || "SaturnMax Technologies"}
                     </div>
                     <span className="ml-auto text-xs text-slate-400 shrink-0">
                       {m.time}
@@ -165,7 +165,7 @@ export default function Messages() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={live ? "Type a message…" : "Messaging becomes available after activation"}
+            placeholder={live ? "Type a message..." : "Messaging becomes available after activation"}
             className="flex-1 h-11 rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent"
             data-testid="message-input"
           />

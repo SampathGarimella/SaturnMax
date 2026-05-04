@@ -10,7 +10,7 @@ export default function MyApplications() {
   const { data, loading, reload } = useOutletContext();
   const [uploadingFor, setUploadingFor] = useState("");
 
-  if (loading || !data) return <div className="text-sm text-slate-500">Loading…</div>;
+  if (loading || !data) return <div className="text-sm text-slate-500">Loading...</div>;
 
   const documentsByApplication = (data.documents || []).reduce((acc, doc) => {
     if (!doc.application_id) return acc;

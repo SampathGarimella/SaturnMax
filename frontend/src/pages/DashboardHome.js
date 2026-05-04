@@ -55,7 +55,7 @@ export default function DashboardHome() {
   const { data, loading } = useOutletContext();
 
   if (loading || !data) {
-    return <div className="text-sm text-slate-500">Loading dashboard…</div>;
+    return <div className="text-sm text-slate-500">Loading dashboard...</div>;
   }
 
   const { candidate, stats, applications, activity } = data;

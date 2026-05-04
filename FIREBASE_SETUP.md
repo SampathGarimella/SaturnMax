@@ -1,6 +1,6 @@
-# Firebase setup - SaturnMax Technologies Pvt Ltd
+# Firebase setup - SaturnMax Technologies
 
-This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code is already wired — you just need to provide config and enable the services in the Firebase Console.
+This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code is already wired - you just need to provide config and enable the services in the Firebase Console.
 
 ---
 
@@ -24,7 +24,7 @@ REACT_APP_FIREBASE_APP_ID=1:1234567890:web:abcdef
 REACT_APP_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
-> These web app keys are **safe to expose** in the built bundle — Firebase enforces security via rules, not secrecy.
+> These web app keys are **safe to expose** in the built bundle - Firebase enforces security via rules, not secrecy.
 
 Restart the frontend after pasting:
 ```bash
@@ -38,7 +38,7 @@ Firebase Console → **Build → Authentication → Sign-in method**:
 
 - **Email/Password** → toggle **Enable** → Save.
 - **Google** → toggle **Enable** → pick a project-level support email → Save.
-- **LinkedIn (optional)** — Firebase no longer has a native LinkedIn provider. If you need it, register a LinkedIn Developer app, then add it here as an **OpenID Connect** provider with provider id `oidc.linkedin`. (The code already calls `new OAuthProvider("oidc.linkedin")`.)
+- **LinkedIn (optional)** - Firebase no longer has a native LinkedIn provider. If you need it, register a LinkedIn Developer app, then add it here as an **OpenID Connect** provider with provider id `oidc.linkedin`. (The code already calls `new OAuthProvider("oidc.linkedin")`.)
 
 **Authorized domains** → add your production domain and `localhost`:
 - `localhost`
@@ -114,27 +114,31 @@ Once Firebase is configured:
 - ✅ Employees can send offer letters and onboarding documents
 - ✅ Candidates can upload signed offer/onboarding documents
 - ✅ Employees can convert approved candidates into consultants
-- ✅ Manual consultant invite emails work after deploying Firebase Functions
+- ✅ Manual consultant/admin invite emails work after deploying Firebase Functions
 - ✅ `/consultant-login` and `/employee-login` can use Firebase Auth accounts
 - ✅ Consultants can view project/pay/documents and submit bank details for review
 
-### Manual consultant invitation emails
+### Consultant and admin-managed invitation emails
 
 The Employee Portal can create a consultant profile from **Manual Add Consultant**.
 To also create/link the Firebase Auth user and send the password setup email,
-deploy the callable function:
+deploy the callable functions:
 
 ```bash
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:createManualConsultantInvite,firestore:rules
+firebase deploy --only functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules
 ```
 
 After that deployment, checking **Send invitation email to create password and
 sign in** will create/link the Auth user, set `users/{uid}.role = consultant`,
 create `consultants/{uid}`, and send the Firebase password setup email. Customize
 the email template in Firebase Console → Authentication → Templates.
+
+The Admin Portal uses `adminUpsertPortalUser` to create/link candidate,
+consultant, employee, or admin Auth users, assign the Firestore role, and then
+send a password setup/reset email when the reset checkbox is selected.
 
 Important: Firebase's built-in **Password reset** template is shared by:
 - Candidate **Forgot password?** on `/login`
@@ -144,11 +148,11 @@ Do not make that template consultant-only unless you move consultant invitations
 to a custom email provider later. Use neutral wording such as:
 
 ```txt
-Subject: Set or reset your SaturnMax account password
+Subject: Set or reset your %APP_NAME% account password
 
 Hi,
 
-Use the link below to set or reset your SaturnMax account password.
+Use the link below to set or reset the password for %EMAIL%.
 
 %LINK%
 
@@ -161,7 +165,7 @@ https://saturnmax.com/consultant-login
 If you did not request this email, contact hr@saturnmax.com.
 
 Regards,
-SaturnMax Technologies Pvt Ltd
+%APP_NAME%
 ```
 
 Consultant and employee login pages do not expose website password reset links;
@@ -178,7 +182,7 @@ Firebase can store the normal app data:
 
 A backend is still recommended for trusted operations:
 
-- Creating employee/admin accounts from inside the app
+- Creating employee/admin Auth accounts is now handled by Firebase Cloud Functions
 - Sending branded/custom emails from a protected sender
 - Resume parsing, virus scanning, and document verification
 - Payroll, payouts, invoices, or tax forms
@@ -193,7 +197,7 @@ Functions later for privileged server-side work.
 
 1. Sign in as your test user.
 2. Open `/dashboard/messages` → type in the composer → send.
-3. Open the page in another tab — the new message appears live via Firestore `onSnapshot`.
+3. Open the page in another tab - the new message appears live via Firestore `onSnapshot`.
 
 ---
 

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
+import DashboardThemeToggle from "../components/DashboardThemeToggle";
 import { InlineError, LoadingState } from "../components/ui";
 import { fetchOperationsData } from "../lib/api";
 import { isWorkflowTransitionError } from "../lib/workflow";
@@ -49,6 +50,7 @@ const EMPLOYEE_NAV_GROUPS = [
       { to: "/employee-dashboard/jobs", label: "Jobs", Icon: BriefcaseBusiness },
       { to: "/employee-dashboard/messages", label: "Messages", Icon: MessageSquare },
       { to: "/employee-dashboard/reviews", label: "Reviews", Icon: FileText },
+      { to: "/employee-dashboard/profile", label: "Profile", Icon: UserCog },
     ],
   },
 ];
@@ -125,7 +127,7 @@ export default function EmployeeDashboard() {
 
   return (
     <OperationsContext.Provider value={contextValue}>
-      <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+      <div className="dashboard-surface min-h-screen bg-[#F8FAFC] text-slate-900">
         <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 md:px-10">
             <Logo to="/employee-dashboard/hiring/candidates" />
@@ -137,6 +139,7 @@ export default function EmployeeDashboard() {
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 Refresh
               </button>
+              <DashboardThemeToggle />
               <LoginMenu />
             </div>
           </div>

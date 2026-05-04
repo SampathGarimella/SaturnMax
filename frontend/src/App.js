@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import RoleLoginPage from "./pages/RoleLoginPage";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import OperationsConsultants from "./pages/operations/OperationsConsultants";
 import OperationsConvert from "./pages/operations/OperationsConvert";
 import OperationsHiringCandidates from "./pages/operations/OperationsHiringCandidates";
@@ -23,6 +24,7 @@ import MyApplications from "./pages/MyApplications";
 import Messages from "./pages/Messages";
 import MyProfile from "./pages/MyProfile";
 import Settings from "./pages/Settings";
+import WorkProfile from "./pages/WorkProfile";
 import "./App.css";
 
 function App() {
@@ -62,6 +64,22 @@ function App() {
             }
           />
           <Route
+            path="/consultant-dashboard/profile"
+            element={
+              <ProtectedRoute allowedRoles={["consultant"]}>
+                <ConsultantDashboard profileOnly />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/employee-dashboard"
             element={
               <ProtectedRoute allowedRoles={["employee", "admin"]}>
@@ -81,6 +99,7 @@ function App() {
             <Route path="hiring/convert" element={<OperationsConvert />} />
             <Route path="hiring/consultants" element={<OperationsConsultants />} />
             <Route path="hiring/manual-consultant" element={<OperationsManualConsultant />} />
+            <Route path="profile" element={<WorkProfile portal="employee" />} />
           </Route>
           <Route
             path="/dashboard"

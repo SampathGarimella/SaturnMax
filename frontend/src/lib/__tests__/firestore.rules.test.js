@@ -162,6 +162,51 @@ describe("Firestore security rules", () => {
     await assertSucceeds(deleteDoc(doc(db, "jobs", "draft-job")));
   });
 
+  test("employee/admin rules allow account setup records and candidate profile fields", async () => {
+    const employee = authedDb("employee-1");
+    const candidate = authedDb("candidate-1");
+    const otherCandidate = authedDb("candidate-2");
+    await assertSucceeds(
+      setDoc(doc(employee, "users", "new-consultant"), {
+        role: "consultant",
+        email: "new.consultant@saturnmax.com",
+        name: "New Consultant",
+        status: "active",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(employee, "candidates", "new-candidate"), {
+        uid: "new-candidate",
+        email: "new.candidate@saturnmax.com",
+        name: "New Candidate",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(candidate, "candidates", "candidate-1"), {
+        uid: "candidate-1",
+        email: "candidate@saturnmax.com",
+        name: "Candidate",
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(candidate, "candidates", "candidate-1"), {
+        phone: "9876543210",
+        primary_skills: "React, Firebase",
+        years_experience: "3-5",
+        current_ctc_lpa: "12",
+        expected_ctc_lpa: "18",
+        updatedAt: 2,
+        updatedBy: "candidate-1",
+      })
+    );
+    await assertFails(
+      setDoc(doc(otherCandidate, "users", "fake-admin"), {
+        role: "admin",
+        email: "fake@saturnmax.com",
+      })
+    );
+  });
+
   test("employee can create consultant records and email index, candidates cannot", async () => {
     const employee = authedDb("employee-1");
     const candidate = authedDb("candidate-1");
