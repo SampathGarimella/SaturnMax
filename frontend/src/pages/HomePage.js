@@ -819,7 +819,7 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} SaturnMax Technologies Private Limited
+            © {new Date().getFullYear()} SaturnMax Technologies Private Limited, India
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>
