@@ -128,7 +128,7 @@ deploy the callable functions:
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage:rules
+firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage
 ```
 
 After that deployment, checking **Send invitation email to create password and

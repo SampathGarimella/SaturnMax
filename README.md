@@ -32,7 +32,7 @@ After changing rules or callable functions:
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage:rules
+firebase deploy --only functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,storage
 ```
 
 ## Role Model
