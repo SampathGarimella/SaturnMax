@@ -34,7 +34,6 @@ import {
   buildConsultantInviteMessage,
   REVIEW_STATUSES,
   assertApplicationTransition,
-  getHiringApplicationStatus,
   getHiringStageMeta,
   getApplicationStatusMeta,
   getMessageReadPatch,
@@ -335,6 +334,7 @@ export async function saveJob(payload) {
   const user = requireAuthUser();
   const tags = splitTags(payload.tags);
   const body = {
+    id: payload.id || "",
     title: payload.title?.trim(),
     department: payload.department?.trim() || "Engineering",
     employment_type: payload.employment_type || "Full-time",
@@ -353,64 +353,20 @@ export async function saveJob(payload) {
   if (!body.title || !body.description) {
     throw new Error("Add a job title and description.");
   }
-  if (payload.id) {
-    await updateDoc(doc(db, COLLECTIONS.JOBS, payload.id), body);
-    return { id: payload.id, ...body };
-  }
-  const refDoc = await addDoc(collection(db, COLLECTIONS.JOBS), {
-    ...body,
-    ...createMeta(user),
-  });
-  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
-  return { id: refDoc.id, ...body };
+  return callRequiredFunction("manageJob", { action: "upsert", job: body });
 }
 
 export async function updateJobStatus(jobId, status) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   if (!JOB_STATUSES.includes(status)) throw new Error("Invalid job status.");
-  await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
-    status,
-    ...updateMeta(user),
-  });
+  return callRequiredFunction("manageJob", { action: "status", jobId, status });
 }
 
 export async function deleteJob(jobId) {
   requireFirestore();
-  const user = requireAuthUser();
-  const apps = await getDocs(
-    query(collection(db, COLLECTIONS.APPLICATIONS), where("position_id", "==", jobId), limit(1))
-  );
-  if (!apps.empty) {
-    await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
-      status: "archived",
-      archivedAt: serverTimestamp(),
-      archivedBy: user.uid,
-      ...updateMeta(user),
-    });
-    await safeRecordActivityLog({
-      action: "job_archived_with_applications",
-      outcome: "success",
-      targetCollection: COLLECTIONS.JOBS,
-      targetId: jobId,
-      after: { status: "archived" },
-    });
-    return { archived: true };
-  }
-  await updateDoc(doc(db, COLLECTIONS.JOBS, jobId), {
-    status: "archived",
-    archivedAt: serverTimestamp(),
-    archivedBy: user.uid,
-    ...updateMeta(user),
-  });
-  await safeRecordActivityLog({
-    action: "job_archived",
-    outcome: "success",
-    targetCollection: COLLECTIONS.JOBS,
-    targetId: jobId,
-    after: { status: "archived" },
-  });
-  return { archived: true };
+  requireAuthUser();
+  return callRequiredFunction("manageJob", { action: "archive", jobId });
 }
 
 export async function submitApplication(payload) {
@@ -422,6 +378,10 @@ export async function submitApplication(payload) {
   if (!payload.full_name || !payload.email || !payload.phone || !payload.position_title) {
     throw new Error("Please complete name, email, phone, and position.");
   }
+  const applicationPayload = {
+    ...payload,
+    email: user.email || payload.email,
+  };
 
   const userRef = doc(db, COLLECTIONS.USERS, user.uid);
   const userSnap = await getDoc(userRef);
@@ -446,54 +406,57 @@ export async function submitApplication(payload) {
 
   const candidateProfile = {
     uid: user.uid,
-    email: payload.email,
-    name: payload.full_name,
-    phone: payload.phone,
-    current_location: payload.current_location || "",
-    current_company: payload.current_company || "",
-    portfolio_url: payload.portfolio_url || "",
-    resume_url: payload.resume_url || "",
-    primary_skills: payload.primary_skills || "",
+    email: applicationPayload.email,
+    name: applicationPayload.full_name,
+    phone: applicationPayload.phone,
+    current_location: applicationPayload.current_location || "",
+    current_company: applicationPayload.current_company || "",
+    portfolio_url: applicationPayload.portfolio_url || "",
+    resume_url: applicationPayload.resume_url || "",
+    primary_skills: applicationPayload.primary_skills || "",
     role_label: "Job Candidate",
     ...updateMeta(user),
   };
 
   await setDoc(
-    doc(db, COLLECTIONS.CANDIDATES, user.uid),
-    { ...candidateProfile, ...createMeta(user) },
-    { merge: true }
-  );
-  await setDoc(
     userRef,
     {
       ...buildSafeCandidateUserData(existingUser, {
-        email: payload.email,
-        name: payload.full_name,
+        email: applicationPayload.email,
+        name: applicationPayload.full_name,
       }),
       ...(userSnap.exists() ? {} : createMeta(user)),
       ...updateMeta(user),
     },
     { merge: true }
   );
+  await setDoc(
+    doc(db, COLLECTIONS.CANDIDATES, user.uid),
+    { ...candidateProfile, ...createMeta(user) },
+    { merge: true }
+  );
 
   const appRef = doc(collection(db, COLLECTIONS.APPLICATIONS));
   await setDoc(appRef, {
     id: appRef.id,
-    ...payload,
+    ...applicationPayload,
     candidate_uid: user.uid,
-    candidate_name: payload.full_name,
+    candidate_name: applicationPayload.full_name,
     status: "applied",
     lifecycle_stage: "applied",
     public_status: "submitted",
     ...createMeta(user),
   });
-  return { id: appRef.id, ...payload, status: "applied" };
+  return { id: appRef.id, ...applicationPayload, status: "applied" };
 }
 
 export async function submitContact(payload) {
   requireFirestore();
   if (!payload.name || !payload.email || !payload.message) {
     throw new Error("Please complete name, email, and message.");
+  }
+  if (functions) {
+    return callRequiredFunction("submitLead", payload);
   }
   const refDoc = doc(collection(db, COLLECTIONS.LEADS));
   await setDoc(refDoc, {
@@ -511,24 +474,10 @@ export async function submitContact(payload) {
 
 export async function updateLeadStatus(leadId, patch = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   const nextStatus = patch.status || patch.leadStatus || "new";
   if (!LEAD_STATUSES.includes(nextStatus)) throw new Error("Choose a valid lead status.");
-  await updateDoc(doc(db, COLLECTIONS.LEADS, leadId), {
-    status: nextStatus,
-    leadStatus: nextStatus,
-    assignedEmployeeId: patch.assignedEmployeeId || "",
-    notes: patch.notes || "",
-    lastContactedAt: patch.lastContactedAt || null,
-    ...updateMeta(user),
-  });
-  await safeRecordActivityLog({
-    action: "lead_status_updated",
-    outcome: "success",
-    targetCollection: COLLECTIONS.LEADS,
-    targetId: leadId,
-    after: { status: nextStatus, assignedEmployeeId: patch.assignedEmployeeId || "" },
-  });
+  return callRequiredFunction("manageLead", { leadId, ...patch, status: nextStatus });
 }
 
 export async function requestCandidateAccountClosure(message = "") {
@@ -632,7 +581,9 @@ export async function uploadTrackedFile({ file, path, ownerUid, applicationId, t
     task.on("state_changed", undefined, reject, resolve);
   });
   const url = await getDownloadURL(task.snapshot.ref);
-  const refDoc = await addDoc(collection(db, COLLECTIONS.DOCUMENTS), {
+  const refDoc = doc(collection(db, COLLECTIONS.DOCUMENTS));
+  await setDoc(refDoc, {
+    id: refDoc.id,
     owner_uid: ownerUid,
     application_id: applicationId || null,
     type,
@@ -643,7 +594,6 @@ export async function uploadTrackedFile({ file, path, ownerUid, applicationId, t
     status,
     ...createMeta(user),
   });
-  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id, file_url: url, title: title || file.name, type };
 }
 
@@ -849,7 +799,7 @@ export async function fetchOperationsPage({ collectionName, pageSize = 25, curso
 
 export async function updateApplicationStatus(application, status, context = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   if (!APPLICATION_STATUS_VALUES.includes(normalizeApplicationStatus(status))) {
     throw new Error("Invalid application status.");
   }
@@ -871,63 +821,16 @@ export async function updateApplicationStatus(application, status, context = {})
     });
     throw err;
   }
-  const nextStatus = transition.to;
-  await updateDoc(doc(db, COLLECTIONS.APPLICATIONS, application.id), {
-    status: nextStatus,
-    lifecycle_stage: nextStatus,
-    ...updateMeta(user),
+  return callRequiredFunction("updateHiringWorkflow", {
+    action: "application_status",
+    applicationId: application.id,
+    status: transition.to,
   });
-  await safeRecordActivityLog({
-    action: "application_status_transition",
-    outcome: "success",
-    targetCollection: COLLECTIONS.APPLICATIONS,
-    targetId: application.id,
-    before: { status: transition.from },
-    after: { status: nextStatus },
-  });
-  if (nextStatus === "onboarding") {
-    const onboardingRef = doc(db, COLLECTIONS.ONBOARDING, application.id);
-    const onboardingSnap = await getDoc(onboardingRef);
-    await setDoc(
-      onboardingRef,
-      {
-        id: application.id,
-        application_id: application.id,
-        candidate_uid: application.candidate_uid,
-        candidate_name: application.full_name || application.candidate_name,
-        status: "in_progress",
-        tasks: {
-          offer_letter: "pending",
-          signed_offer: "pending",
-          pan: "pending",
-          bank: "pending",
-          uan: "pending",
-          form12bb: "pending",
-        },
-        ...(onboardingSnap.exists() ? {} : createMeta(user)),
-        ...updateMeta(user),
-      },
-      { merge: true }
-    );
-  }
-}
-
-function hiringPatchForStage(stage, actor, extra = {}) {
-  const workflowStage = normalizeHiringStage(stage);
-  const status = getHiringApplicationStatus(workflowStage);
-  return {
-    workflowStage,
-    status,
-    lifecycle_stage: status,
-    interviewStatus: extra.interviewStatus || workflowStage,
-    ...extra,
-    ...updateMeta(actor),
-  };
 }
 
 export async function moveHiringStage(application, nextStage, options = {}) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   const currentStage = normalizeHiringStage(
     application.workflowStage,
     application.status || application.lifecycle_stage
@@ -945,108 +848,45 @@ export async function moveHiringStage(application, nextStage, options = {}) {
     });
     throw new Error(`${validation.reason} ${validation.nextAction}`.trim());
   }
-  const workflowStage = validation.to;
-  const uid = candidateUidFrom(application);
-  const patch = hiringPatchForStage(workflowStage, user);
-  const batch = writeBatch(db);
-  batch.update(doc(db, COLLECTIONS.APPLICATIONS, application.id), patch);
-  if (uid) {
-    batch.set(
-      doc(db, COLLECTIONS.CANDIDATES, uid),
-      {
-        uid,
-        workflowStage,
-        interviewStatus: workflowStage,
-        ...updateMeta(user),
-      },
-      { merge: true }
-    );
-  }
-  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
-    actorUid: user.uid,
-    actorEmail: user.email || "",
-    action: "hiring_stage_transition",
-    outcome: "success",
-    targetCollection: COLLECTIONS.APPLICATIONS,
-    targetId: application.id,
-    before: { workflowStage: validation.from },
-    after: { workflowStage },
-    createdAt: serverTimestamp(),
+  return callRequiredFunction("updateHiringWorkflow", {
+    action: "move_stage",
+    applicationId: application.id,
+    nextStage: validation.to,
+    allowJump: Boolean(options.allowJump),
   });
-  await batch.commit();
 }
 
 export async function addInterviewReview({ application, stage, rating, recommendation, notes }) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   const uid = candidateUidFrom(application);
   if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
   if (!notes?.trim()) throw new Error("Add interview review notes.");
   if (!rating) throw new Error("Choose a review rating.");
-  const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
-    type: "interview_review",
-    candidate_uid: uid,
-    application_id: application.id,
+  return callRequiredFunction("updateHiringWorkflow", {
+    action: "interview_review",
+    applicationId: application.id,
+    candidateUid: uid,
     stage: normalizeHiringStage(stage || application.workflowStage, application.status),
     rating,
     recommendation: recommendation || "continue",
     notes: notes.trim(),
-    status: "completed",
-    ...createMeta(user),
   });
-  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
-  await safeRecordActivityLog({
-    action: "interview_review_added",
-    outcome: "success",
-    targetCollection: COLLECTIONS.REVIEWS,
-    targetId: refDoc.id,
-    after: { applicationId: application.id, candidateUid: uid },
-  });
-  return { id: refDoc.id };
 }
 
 export async function decideCandidate(application, decision, reason = "") {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   const uid = candidateUidFrom(application);
   if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
   if (!["approved", "rejected"].includes(decision)) throw new Error("Choose approve or reject.");
   if (decision === "rejected" && !reason.trim()) throw new Error("Add a rejection reason.");
-
-  const workflowStage = decision === "approved" ? "approved" : normalizeHiringStage(application.workflowStage, application.status);
-  const appPatch =
-    decision === "approved"
-      ? hiringPatchForStage("approved", user, { candidateApprovalStatus: "approved", rejectionReason: "" })
-      : {
-          candidateApprovalStatus: "rejected",
-          rejectionReason: reason.trim(),
-          status: "not_shortlisted",
-          lifecycle_stage: "not_shortlisted",
-          ...updateMeta(user),
-        };
-  const candidatePatch = {
-    uid,
-    workflowStage,
-    candidateApprovalStatus: decision,
-    interviewStatus: decision,
-    rejectionReason: decision === "rejected" ? reason.trim() : "",
-    ...updateMeta(user),
-  };
-  const batch = writeBatch(db);
-  batch.update(doc(db, COLLECTIONS.APPLICATIONS, application.id), appPatch);
-  batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), candidatePatch, { merge: true });
-  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
-    actorUid: user.uid,
-    actorEmail: user.email || "",
-    action: decision === "approved" ? "candidate_approved" : "candidate_rejected",
-    outcome: "success",
-    targetCollection: COLLECTIONS.APPLICATIONS,
-    targetId: application.id,
-    after: { candidateApprovalStatus: decision, workflowStage },
+  return callRequiredFunction("updateHiringWorkflow", {
+    action: decision === "approved" ? "approve" : "reject",
+    applicationId: application.id,
+    candidateUid: uid,
     reason: reason.trim(),
-    createdAt: serverTimestamp(),
   });
-  await batch.commit();
 }
 
 export async function assignCandidate(application, assignedEmployeeId = "") {
@@ -1054,28 +894,12 @@ export async function assignCandidate(application, assignedEmployeeId = "") {
   const user = requireAuthUser();
   const uid = candidateUidFrom(application);
   if (!application?.id && !uid) throw new Error("Choose a candidate first.");
-  const patch = {
+  return callRequiredFunction("updateHiringWorkflow", {
+    action: "assign",
+    applicationId: application.id,
+    candidateUid: uid,
     assignedEmployeeId: assignedEmployeeId || user.uid,
-    ...updateMeta(user),
-  };
-  const batch = writeBatch(db);
-  if (application?.id) {
-    batch.set(doc(db, COLLECTIONS.APPLICATIONS, application.id), patch, { merge: true });
-  }
-  if (uid) {
-    batch.set(doc(db, COLLECTIONS.CANDIDATES, uid), { uid, ...patch }, { merge: true });
-  }
-  batch.set(doc(collection(db, COLLECTIONS.ACTIVITY_LOGS)), {
-    actorUid: user.uid,
-    actorEmail: user.email || "",
-    action: "candidate_assigned",
-    outcome: "success",
-    targetCollection: application?.id ? COLLECTIONS.APPLICATIONS : COLLECTIONS.CANDIDATES,
-    targetId: application?.id || uid,
-    after: { assignedEmployeeId: patch.assignedEmployeeId },
-    createdAt: serverTimestamp(),
   });
-  await batch.commit();
 }
 
 export async function sendOfferLetter(application, file) {
@@ -1132,28 +956,6 @@ export async function uploadSignedCandidateDocument(application, file, type = "s
   return uploaded;
 }
 
-const REVIEW_DOCUMENT_TYPES = {
-  signed_offer: ["signed_offer"],
-  signed_onboarding: ["signed_onboarding", "signed_onboarding_document"],
-  onboarding_pack: ["signed_onboarding", "signed_onboarding_document", "onboarding_pack", "onboarding"],
-  onboarding: ["signed_onboarding", "signed_onboarding_document", "onboarding_pack", "onboarding"],
-  form12bb: ["form12bb", "form_12bb"],
-  pan: ["pan", "pan_details", "pan_card"],
-  uan: ["uan", "uan_details", "epf", "epfo"],
-  bank_details: [],
-};
-
-const REVIEW_TASK_BY_TYPE = {
-  signed_offer: "signed_offer",
-  signed_onboarding: "onboarding",
-  onboarding_pack: "onboarding",
-  onboarding: "onboarding",
-  form12bb: "form12bb",
-  pan: "pan",
-  uan: "uan",
-  bank_details: "bank",
-};
-
 async function safeRecordActivityLog(payload) {
   if (!isFirebaseConfigured || !db || !auth?.currentUser?.uid) return;
   const actor = auth.currentUser;
@@ -1170,137 +972,31 @@ async function safeRecordActivityLog(payload) {
   }
 }
 
-function reviewDocumentStatus(status) {
-  if (status === "approved") return "approved";
-  if (status === "rejected") return "rejected";
-  if (status === "needs_changes") return "needs_changes";
-  return "pending_review";
-}
-
-function reviewTaskStatus(status) {
-  if (status === "approved") return "approved";
-  if (status === "rejected" || status === "needs_changes") return "needs_changes";
-  return "pending";
-}
-
-function reviewDocumentTypes(review) {
-  return REVIEW_DOCUMENT_TYPES[review?.type] || [review?.type].filter(Boolean);
-}
-
-async function updateDocumentsForReview(review, status, actor) {
-  const types = reviewDocumentTypes(review);
-  if (!review?.owner_uid || types.length === 0) return;
-  const snap = await getDocs(
-    query(collection(db, COLLECTIONS.DOCUMENTS), where("owner_uid", "==", review.owner_uid))
-  );
-  const batch = writeBatch(db);
-  let changed = 0;
-  snap.docs.forEach((item) => {
-    const data = item.data() || {};
-    if (review.application_id && data.application_id && data.application_id !== review.application_id) {
-      return;
-    }
-    if (!types.includes(data.type)) return;
-    batch.update(item.ref, {
-      status: reviewDocumentStatus(status),
-      reviewedAt: serverTimestamp(),
-      reviewedBy: actor.uid,
-      ...updateMeta(actor),
-    });
-    changed += 1;
-  });
-  if (changed > 0) await batch.commit();
-}
-
-async function updateOnboardingForReview(review, status, actor) {
-  if (!review?.application_id) return;
-  const task = REVIEW_TASK_BY_TYPE[review.type];
-  if (!task) return;
-  const onboardingRef = doc(db, COLLECTIONS.ONBOARDING, review.application_id);
-  await setDoc(
-    onboardingRef,
-    {
-      id: review.application_id,
-      application_id: review.application_id,
-      candidate_uid: review.owner_uid || review.candidate_uid || "",
-      status: status === "approved" ? "under_review" : "in_progress",
-      tasks: {
-        [task]: reviewTaskStatus(status),
-      },
-      ...updateMeta(actor),
-    },
-    { merge: true }
-  );
-}
-
-async function updateApplicationForReview(review, status) {
-  if (status !== "approved" || !review?.application_id) return;
-  const applicationSnap = await getDoc(doc(db, COLLECTIONS.APPLICATIONS, review.application_id));
-  if (!applicationSnap.exists()) return;
-  const application = normalizeApplication(mapDoc(applicationSnap));
-  if (review.type === "signed_offer" && application.status === "offer_sent") {
-    await updateApplicationStatus(application, "offer_signed", { documents: [], reviews: [] });
-  }
-  if (
-    ["signed_onboarding", "onboarding_pack", "onboarding", "form12bb"].includes(review.type) &&
-    application.status === "offer_signed"
-  ) {
-    await updateApplicationStatus(application, "onboarding", { documents: [], reviews: [] });
-  }
-}
-
 export async function createReview(payload) {
   requireFirestore();
   const user = auth?.currentUser;
-  const refDoc = await addDoc(collection(db, COLLECTIONS.REVIEWS), {
+  const refDoc = doc(collection(db, COLLECTIONS.REVIEWS));
+  await setDoc(refDoc, {
+    id: refDoc.id,
     ...payload,
     status: payload.status || "pending_review",
     ...createMeta(user),
   });
-  await setDoc(refDoc, { id: refDoc.id }, { merge: true });
   return { id: refDoc.id };
 }
 
 export async function updateReviewStatus(reviewId, status) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   if (!REVIEW_STATUSES.includes(status)) throw new Error("Invalid review status.");
-  await updateDoc(doc(db, COLLECTIONS.REVIEWS, reviewId), {
-    status,
-    resolvedAt: status === "pending_review" ? null : serverTimestamp(),
-    resolvedBy: status === "pending_review" ? null : user.uid,
-    ...updateMeta(user),
-  });
+  return callRequiredFunction("resolveReviewDecision", { reviewId, status });
 }
 
 export async function resolveReview(review, status) {
   requireFirestore();
-  const user = requireAuthUser();
+  requireAuthUser();
   if (!REVIEW_STATUSES.includes(status)) throw new Error("Invalid review status.");
-  await updateReviewStatus(review.id, status);
-  await updateDocumentsForReview(review, status, user);
-  await updateOnboardingForReview(review, status, user);
-  if (review.type === "bank_details" && review.owner_uid) {
-    await setDoc(
-      doc(db, COLLECTIONS.CONSULTANTS, review.owner_uid),
-      {
-        bankStatus: status === "approved" ? "approved" : reviewDocumentStatus(status),
-        bankReviewedAt: serverTimestamp(),
-        bankReviewedBy: user.uid,
-        ...updateMeta(user),
-      },
-      { merge: true }
-    );
-  }
-  await updateApplicationForReview(review, status);
-  await safeRecordActivityLog({
-    action: "review_resolution",
-    outcome: "success",
-    targetCollection: COLLECTIONS.REVIEWS,
-    targetId: review.id,
-    before: { status: review.status || "pending_review", type: review.type },
-    after: { status },
-  });
+  return callRequiredFunction("resolveReviewDecision", { reviewId: review.id, status });
 }
 
 export async function updateConsultantProfile(uid, profile) {
@@ -1422,6 +1118,22 @@ function callableAdminUnavailable(error) {
   return callableInviteUnavailable(error);
 }
 
+async function callRequiredFunction(name, payload = {}) {
+  if (!functions) {
+    throw new Error(`Firebase Cloud Function ${name} is required for this action. Deploy functions and try again.`);
+  }
+  const callable = httpsCallable(functions, name);
+  try {
+    const response = await callable(payload);
+    return response.data || {};
+  } catch (err) {
+    if (callableInviteUnavailable(err)) {
+      throw new Error(`Firebase Cloud Function ${name} is not available yet. Deploy functions and try again.`);
+    }
+    throw err;
+  }
+}
+
 async function createManualConsultantWithFunction(payload) {
   if (!functions || payload.useCloudFunction === false) {
     throw new Error("Consultant invitations require Firebase Cloud Functions. Deploy createManualConsultantInvite first.");
@@ -1442,6 +1154,11 @@ export async function sendConsultantPasswordInvite(email) {
   if (!auth) throw new Error("Firebase Auth is not configured.");
   const address = normalizeEmail(email);
   if (!isValidEmail(address)) throw new Error("Enter a valid consultant email.");
+  await callRequiredFunction("sendPortalPasswordSetup", {
+    email: address,
+    role: ROLES.CONSULTANT,
+    url: "https://saturnmax.com/consultant-login",
+  });
   await sendPasswordResetEmail(auth, address, {
     url: "https://saturnmax.com/consultant-login",
     handleCodeInApp: false,
@@ -1514,10 +1231,13 @@ export async function manuallyAddConsultant(payload = {}) {
   throw new Error("Consultant invite function did not return a consultant record.");
 }
 
-export async function adminSendPasswordReset(email, url = "https://saturnmax.com/login") {
+export async function adminSendPasswordReset(email, url = "https://saturnmax.com/login", role = ROLES.CANDIDATE) {
   if (!auth) throw new Error("Firebase Auth is not configured.");
   const address = normalizeEmail(email);
   if (!isValidEmail(address)) throw new Error("Enter a valid email.");
+  if (role !== ROLES.CANDIDATE) {
+    await callRequiredFunction("sendPortalPasswordSetup", { email: address, role, url });
+  }
   await sendPasswordResetEmail(auth, address, {
     url,
     handleCodeInApp: false,
@@ -1552,7 +1272,7 @@ export async function adminUpsertPortalUser(payload = {}) {
   const functionResult = await adminUpsertPortalUserWithFunction({ ...payload, email, role });
   if (functionResult?.uid) {
     if (payload.sendReset) {
-      await adminSendPasswordReset(email, portalResetUrl(role));
+      await adminSendPasswordReset(email, portalResetUrl(role), role);
     }
     return { ...functionResult, functionBacked: true };
   }

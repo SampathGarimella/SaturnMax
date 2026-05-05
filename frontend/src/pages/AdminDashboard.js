@@ -177,7 +177,7 @@ export default function AdminDashboard() {
     try {
       const role = item.role || "";
       const url = role === "consultant" ? "https://saturnmax.com/consultant-login" : role === "employee" || role === "admin" ? "https://saturnmax.com/employee-login" : "https://saturnmax.com/login";
-      await adminSendPasswordReset(item.email, url);
+      await adminSendPasswordReset(item.email, url, role || "candidate");
       toast.success(`Password setup/reset email sent to ${item.email}.`);
     } catch (err) {
       toast.error(err?.message || "Could not send reset email.");

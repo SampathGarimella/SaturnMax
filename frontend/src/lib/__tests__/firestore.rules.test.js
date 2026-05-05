@@ -162,25 +162,25 @@ describe("Firestore security rules", () => {
     await assertFails(updateDoc(doc(db, "applications", "app-2"), { status: "offer_signed" }));
   });
 
-  test("employee can manage jobs, applications, and reviews without hard deleting jobs", async () => {
+  test("privileged workflow writes are blocked from direct client writes", async () => {
     const db = authedDb("employee-1");
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(db, "jobs", "employee-job"), {
         title: "Cloud Engineer",
         description: "AWS delivery",
         status: "published",
       })
     );
-    await assertSucceeds(updateDoc(doc(db, "applications", "app-1"), { status: "screening" }));
-    await assertSucceeds(updateDoc(doc(db, "reviews", "review-1"), { status: "approved" }));
-    await assertSucceeds(updateDoc(doc(db, "jobs", "draft-job"), { status: "archived" }));
+    await assertFails(updateDoc(doc(db, "applications", "app-1"), { status: "screening" }));
+    await assertFails(updateDoc(doc(db, "reviews", "review-1"), { status: "approved" }));
+    await assertFails(updateDoc(doc(db, "jobs", "draft-job"), { status: "archived" }));
     await assertFails(deleteDoc(doc(db, "jobs", "draft-job")));
   });
 
   test("admin rules allow account setup while direct employee role changes are blocked", async () => {
     const employee = authedDb("employee-1");
     const admin = authedDb("admin-1");
-    const candidate = authedDb("candidate-1");
+    const candidate = authedDb("candidate-1", { email: "candidate@saturnmax.com" });
     const otherCandidate = authedDb("candidate-2");
     await assertFails(
       setDoc(doc(employee, "users", "new-consultant"), {
@@ -198,7 +198,7 @@ describe("Firestore security rules", () => {
         status: "active",
       })
     );
-    await assertSucceeds(
+    await assertFails(
       setDoc(doc(employee, "candidates", "new-candidate"), {
         uid: "new-candidate",
         email: "new.candidate@saturnmax.com",
@@ -377,8 +377,14 @@ describe("Firestore security rules", () => {
   });
 
   test("candidate application create requires verified email", async () => {
-    const unverified = authedDb("candidate-1", { email_verified: false });
-    const verified = authedDb("candidate-1", { email_verified: true });
+    const unverified = authedDb("candidate-1", {
+      email: "candidate@saturnmax.com",
+      email_verified: false,
+    });
+    const verified = authedDb("candidate-1", {
+      email: "candidate@saturnmax.com",
+      email_verified: true,
+    });
     const payload = {
       id: "candidate-app-create",
       candidate_uid: "candidate-1",
@@ -395,6 +401,13 @@ describe("Firestore security rules", () => {
       updatedBy: "candidate-1",
     };
     await assertFails(setDoc(doc(unverified, "applications", "candidate-app-create"), payload));
+    await assertFails(
+      setDoc(doc(verified, "applications", "candidate-app-wrong-email"), {
+        ...payload,
+        id: "candidate-app-wrong-email",
+        email: "someone.else@example.com",
+      })
+    );
     await assertSucceeds(setDoc(doc(verified, "applications", "candidate-app-create"), payload));
   });
 
