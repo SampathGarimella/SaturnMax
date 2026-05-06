@@ -13,6 +13,7 @@ import {
   Users,
   Building2,
   Bell,
+  MailCheck,
 } from "lucide-react";
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
@@ -57,6 +58,7 @@ const EMPLOYEE_NAV_GROUPS = [
     items: [
       { to: "/employee-dashboard/jobs", label: "Jobs", Icon: BriefcaseBusiness },
       { to: "/employee-dashboard/messages", label: "Messages", Icon: MessageSquare },
+      { to: "/employee-dashboard/email", label: "Email", Icon: MailCheck },
       { to: "/employee-dashboard/notifications", label: "Notifications", Icon: Bell },
       { to: "/employee-dashboard/reviews", label: "Reviews", Icon: FileText },
       { to: "/employee-dashboard/leads", label: "Leads", Icon: Building2 },

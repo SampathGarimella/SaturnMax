@@ -44,7 +44,9 @@ export default function OperationsManualConsultant() {
       toast.success(
         created.emailSent
           ? "Consultant created and invitation email sent."
-          : "Consultant profile created."
+          : created.inviteError
+            ? "Consultant created, but invitation email needs attention."
+            : "Consultant profile created."
       );
       setForm(EMPTY_FORM);
       await load();
@@ -137,11 +139,21 @@ export default function OperationsManualConsultant() {
           {result && (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
               <h2 className="font-heading text-lg font-semibold text-emerald-950">
-                {result.emailSent ? "Invitation email sent" : "Consultant created"}
+                {result.emailSent ? "Invitation email sent" : result.inviteError ? "Consultant linked, invite failed" : "Consultant created"}
               </h2>
+              {result.alreadyExists && (
+                <p className="mt-2 text-sm leading-relaxed text-emerald-900">
+                  A consultant profile already existed for this email, so the app linked the existing Firebase account and updated the profile safely.
+                </p>
+              )}
               {result.emailSent && (
                 <p className="mt-2 text-sm leading-relaxed text-emerald-900">
                   The consultant can open the email, create a password, and sign in at the Consultant Portal.
+                </p>
+              )}
+              {result.inviteError && (
+                <p className="mt-2 rounded-lg border border-amber-200 bg-white p-3 text-sm leading-relaxed text-amber-900">
+                  The consultant profile was saved, but the password setup email failed: {result.inviteError}
                 </p>
               )}
               {result.functionFallback && (

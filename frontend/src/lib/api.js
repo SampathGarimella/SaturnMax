@@ -804,6 +804,7 @@ export async function updateApplicationStatus(application, status, context = {})
 export async function moveHiringStage(application, nextStage, options = {}) {
   requireFirestore();
   requireAuthUser();
+  const uid = candidateUidFrom(application);
   const currentStage = normalizeHiringStage(
     application.workflowStage,
     application.status || application.lifecycle_stage
@@ -813,17 +814,19 @@ export async function moveHiringStage(application, nextStage, options = {}) {
     await safeRecordActivityLog({
       action: "hiring_stage_transition",
       outcome: "blocked",
-      targetCollection: COLLECTIONS.APPLICATIONS,
-      targetId: application.id,
+      targetCollection: application.id ? COLLECTIONS.APPLICATIONS : COLLECTIONS.CANDIDATES,
+      targetId: application.id || uid,
       before: { workflowStage: validation.from },
       after: { workflowStage: validation.to },
       reason: validation.reason,
     });
     throw new Error(`${validation.reason} ${validation.nextAction}`.trim());
   }
+  if (!application?.id && !uid) throw new Error("Choose a candidate first.");
   return callRequiredFunction("updateHiringWorkflow", {
     action: "move_stage",
-    applicationId: application.id,
+    applicationId: application.id || "",
+    candidateUid: uid,
     nextStage: validation.to,
     allowJump: Boolean(options.allowJump),
   });
@@ -833,12 +836,12 @@ export async function addInterviewReview({ application, stage, rating, recommend
   requireFirestore();
   requireAuthUser();
   const uid = candidateUidFrom(application);
-  if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
+  if (!uid) throw new Error("Choose a candidate first.");
   if (!notes?.trim()) throw new Error("Add interview review notes.");
   if (!rating) throw new Error("Choose a review rating.");
   return callRequiredFunction("updateHiringWorkflow", {
     action: "interview_review",
-    applicationId: application.id,
+    applicationId: application.id || "",
     candidateUid: uid,
     stage: normalizeHiringStage(stage || application.workflowStage, application.status),
     rating,
@@ -851,12 +854,12 @@ export async function decideCandidate(application, decision, reason = "") {
   requireFirestore();
   requireAuthUser();
   const uid = candidateUidFrom(application);
-  if (!uid || !application?.id) throw new Error("Choose a candidate application first.");
+  if (!uid) throw new Error("Choose a candidate first.");
   if (!["approved", "rejected"].includes(decision)) throw new Error("Choose approve or reject.");
   if (decision === "rejected" && !reason.trim()) throw new Error("Add a rejection reason.");
   return callRequiredFunction("updateHiringWorkflow", {
     action: decision === "approved" ? "approve" : "reject",
-    applicationId: application.id,
+    applicationId: application.id || "",
     candidateUid: uid,
     reason: reason.trim(),
   });
@@ -912,10 +915,15 @@ export async function generateOfferLetter(application, offer = {}) {
 export async function scheduleInterview(application, interview = {}) {
   requireFirestore();
   requireAuthUser();
-  if (!application?.id) throw new Error("Choose a candidate application first.");
+  const uid = candidateUidFrom(application);
+  if (!application?.id && !uid) throw new Error("Choose a candidate first.");
   if (!interview.startsAt) throw new Error("Add interview date and time.");
   return callRequiredFunction("scheduleInterview", {
-    applicationId: application.id,
+    applicationId: application.id || "",
+    candidateUid: uid,
+    candidateName: application.full_name || application.candidate_name || application.name || "Candidate",
+    candidateEmail: application.email || "",
+    positionTitle: application.position_title || "Tech profile",
     startsAt: interview.startsAt,
     interviewType: interview.interviewType || "Technical interview",
     interviewerName: interview.interviewerName || "SaturnMax hiring team",
@@ -1124,7 +1132,6 @@ function callableInviteUnavailable(error) {
   return [
     "functions/not-found",
     "functions/unavailable",
-    "functions/internal",
     "unavailable",
     "not-found",
   ].includes(code);
@@ -1146,6 +1153,9 @@ async function callRequiredFunction(name, payload = {}) {
     if (callableInviteUnavailable(err)) {
       throw new Error(`Firebase Cloud Function ${name} is not available yet. Deploy functions and try again.`);
     }
+    if (err?.message) {
+      throw new Error(err.message);
+    }
     throw err;
   }
 }
@@ -1161,6 +1171,9 @@ async function createManualConsultantWithFunction(payload) {
   } catch (err) {
     if (callableInviteUnavailable(err)) {
       throw new Error("Consultant invite function is not available yet. Deploy createManualConsultantInvite and try again.");
+    }
+    if (err?.message) {
+      throw new Error(err.message);
     }
     throw err;
   }
@@ -1215,10 +1228,32 @@ export async function manuallyAddConsultant(payload = {}) {
   const functionResult = await createManualConsultantWithFunction({ ...payload, email });
   if (functionResult?.uid && functionResult?.email) {
     let emailSent = false;
+    let inviteError = "";
     if (payload.sendInvitationEmail) {
-      await sendConsultantPasswordInvite(functionResult.email);
-      await markConsultantInvitationSent(functionResult.uid, functionResult.email);
-      emailSent = true;
+      try {
+        await sendConsultantPasswordInvite(functionResult.email);
+        await markConsultantInvitationSent(functionResult.uid, functionResult.email);
+        emailSent = true;
+      } catch (err) {
+        inviteError = err?.message || "Password setup email could not be sent.";
+        await setDoc(
+          doc(db, COLLECTIONS.CONSULTANTS, functionResult.uid),
+          {
+            credentialsStatus: "invite_failed",
+            credentialsPreparedAt: serverTimestamp(),
+            credentialsPreparedByEmployeeId: auth.currentUser.uid,
+            ...updateMeta(auth.currentUser),
+          },
+          { merge: true }
+        );
+        await safeRecordActivityLog({
+          action: "consultant_invitation_email_failed",
+          outcome: "blocked",
+          targetCollection: COLLECTIONS.CONSULTANTS,
+          targetId: functionResult.uid,
+          reason: inviteError,
+        });
+      }
     }
     return {
       consultant: {
@@ -1226,11 +1261,13 @@ export async function manuallyAddConsultant(payload = {}) {
         email: functionResult.email,
         name: functionResult.name,
         loginEnabled: true,
-        credentialsStatus: emailSent ? "sent" : "invite_pending_send",
+        credentialsStatus: emailSent ? "sent" : inviteError ? "invite_failed" : "invite_pending_send",
       },
       loginSetupRequired: false,
       emailSent,
+      inviteError,
       authUserCreated: Boolean(functionResult.authUserCreated),
+      alreadyExists: Boolean(functionResult.alreadyExists),
       invite: buildConsultantInviteMessage({
         name: functionResult.name,
         email: functionResult.email,

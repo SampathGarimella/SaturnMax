@@ -10,6 +10,7 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import OperationsConsultants from "./pages/operations/OperationsConsultants";
 import OperationsConvert from "./pages/operations/OperationsConvert";
+import OperationsEmail from "./pages/operations/OperationsEmail";
 import OperationsHiringCandidates from "./pages/operations/OperationsHiringCandidates";
 import OperationsInterviewReviews from "./pages/operations/OperationsInterviewReviews";
 import OperationsJobs from "./pages/operations/OperationsJobs";
@@ -95,6 +96,7 @@ function App() {
             <Route path="leads" element={<OperationsLeads />} />
             <Route path="applications" element={<Navigate to="/employee-dashboard/hiring/candidates" replace />} />
             <Route path="messages" element={<OperationsMessages />} />
+            <Route path="email" element={<OperationsEmail />} />
             <Route path="notifications" element={<OperationsNotifications />} />
             <Route path="consultants" element={<Navigate to="/employee-dashboard/hiring/consultants" replace />} />
             <Route path="reviews" element={<OperationsReviews />} />

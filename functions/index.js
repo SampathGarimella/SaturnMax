@@ -687,11 +687,6 @@ exports.createManualConsultantInvite = onCall({ region: "us-central1" }, async (
     throw new HttpsError("invalid-argument", "Choose a supported consultant type.");
   }
 
-  const existingIndex = await db.collection("consultantEmailIndex").doc(email).get();
-  if (existingIndex.exists) {
-    throw new HttpsError("already-exists", "A consultant with this email already exists.");
-  }
-
   const { user, created } = await getOrCreateAuthUser({ email, name });
   const uid = user.uid;
   const now = admin.firestore.FieldValue.serverTimestamp();
@@ -699,19 +694,19 @@ exports.createManualConsultantInvite = onCall({ region: "us-central1" }, async (
   const emailIndexRef = db.collection("consultantEmailIndex").doc(email);
   const userRef = db.collection("users").doc(uid);
   const activityRef = db.collection("activityLogs").doc();
+  let alreadyExists = false;
 
   await db.runTransaction(async (transaction) => {
-    const [consultantSnap, emailIndexSnap] = await Promise.all([
+    const [consultantSnap, emailIndexSnap, userSnap] = await Promise.all([
       transaction.get(consultantRef),
       transaction.get(emailIndexRef),
+      transaction.get(userRef),
     ]);
 
-    if (consultantSnap.exists) {
-      throw new HttpsError("already-exists", "A consultant record already exists for this account.");
-    }
     if (emailIndexSnap.exists && emailIndexSnap.data()?.uid !== uid) {
       throw new HttpsError("already-exists", "A consultant with this email already exists.");
     }
+    alreadyExists = consultantSnap.exists;
 
     const consultant = {
       uid,
@@ -744,19 +739,21 @@ exports.createManualConsultantInvite = onCall({ region: "us-central1" }, async (
       uanStatus: "pending_review",
       gstStatus: "not_required",
       createdByEmployeeId: request.auth.uid,
-      createdAt: now,
-      createdBy: request.auth.uid,
       updatedAt: now,
       updatedBy: request.auth.uid,
     };
+    if (!consultantSnap.exists) {
+      consultant.createdAt = now;
+      consultant.createdBy = request.auth.uid;
+    }
 
-    transaction.set(consultantRef, consultant);
+    transaction.set(consultantRef, consultant, { merge: true });
     transaction.set(userRef, {
       role: "consultant",
       email,
       name,
       status: "active",
-      createdAt: now,
+      ...(userSnap.exists ? {} : { createdAt: now, createdBy: request.auth.uid }),
       updatedAt: now,
       updatedBy: request.auth.uid,
     }, { merge: true });
@@ -773,7 +770,7 @@ exports.createManualConsultantInvite = onCall({ region: "us-central1" }, async (
     transaction.set(activityRef, {
       actorUid: request.auth.uid,
       actorEmail: actor.email || request.auth.token.email || "",
-      action: "manual_consultant_invited",
+      action: alreadyExists ? "manual_consultant_linked" : "manual_consultant_invited",
       outcome: "success",
       targetCollection: "consultants",
       targetId: uid,
@@ -782,20 +779,12 @@ exports.createManualConsultantInvite = onCall({ region: "us-central1" }, async (
     });
   });
 
-  await queueEmail("consultant_converted", result.email, {
-    name: result.name,
-    consultantPortalUrl: consultantPortalUrl(),
-  }, {
-    type: "consultant_converted",
-    entityType: "consultants",
-    entityId: result.uid,
-  });
-
   return {
     uid,
     email,
     name,
     authUserCreated: created,
+    alreadyExists,
     passwordEmailRequired: true,
   };
 });
@@ -1102,7 +1091,7 @@ exports.updateHiringWorkflow = onCall({ region: "us-central1" }, async (request)
   const now = admin.firestore.FieldValue.serverTimestamp();
 
   if (action === "interview_review") {
-    const applicationId = requireString(data, "applicationId", "Application ID");
+    const applicationId = cleanString(data.applicationId, 200);
     const candidateUid = requireString(data, "candidateUid", "Candidate UID");
     const notes = requireString(data, "notes", "Review notes");
     const reviewRef = db.collection("reviews").doc();
@@ -1136,7 +1125,73 @@ exports.updateHiringWorkflow = onCall({ region: "us-central1" }, async (request)
     return { id: reviewRef.id };
   }
 
-  const applicationId = requireString(data, "applicationId", "Application ID");
+  const applicationId = cleanString(data.applicationId, 200);
+  const requestedCandidateUid = cleanString(data.candidateUid, 200);
+  if (!applicationId && requestedCandidateUid) {
+    const candidateRef = db.collection("candidates").doc(requestedCandidateUid);
+    const candidateSnap = await candidateRef.get();
+    if (!candidateSnap.exists) throw new HttpsError("not-found", "Candidate profile was not found.");
+    const candidateData = candidateSnap.data() || {};
+    const currentStage = normalizeHiringStage(candidateData.workflowStage, candidateData.status || candidateData.lifecycle_stage);
+    let candidatePatch = { uid: requestedCandidateUid, updatedAt: now, updatedBy: request.auth.uid };
+    let activityAction = action;
+    let before = {};
+    let after = {};
+
+    if (action === "move_stage") {
+      const transition = validateHiringTransition(currentStage, data.nextStage, data.allowJump && actor.role === "admin");
+      candidatePatch = {
+        ...candidatePatch,
+        workflowStage: transition.to,
+        interviewStatus: transition.to,
+      };
+      before = { workflowStage: transition.from };
+      after = { workflowStage: transition.to };
+      activityAction = "candidate_profile_stage_transition";
+    } else if (action === "approve" || action === "reject") {
+      const rejected = action === "reject";
+      const reason = cleanString(data.reason, 1000);
+      if (rejected && !reason) throw new HttpsError("invalid-argument", "Add a rejection reason.");
+      const workflowStage = rejected ? currentStage : "approved";
+      candidatePatch = {
+        ...candidatePatch,
+        workflowStage,
+        candidateApprovalStatus: rejected ? "rejected" : "approved",
+        interviewStatus: rejected ? "rejected" : "approved",
+        rejectionReason: rejected ? reason : "",
+      };
+      after = { candidateApprovalStatus: rejected ? "rejected" : "approved", workflowStage };
+      activityAction = rejected ? "candidate_profile_rejected" : "candidate_profile_approved";
+    } else if (action === "assign") {
+      const assignedEmployeeId = cleanString(data.assignedEmployeeId || request.auth.uid, 160);
+      candidatePatch = { ...candidatePatch, assignedEmployeeId };
+      after = { assignedEmployeeId };
+      activityAction = "candidate_profile_assigned";
+    } else {
+      throw new HttpsError("failed-precondition", "Choose a candidate application before using this workflow action.");
+    }
+
+    await db.runTransaction(async (transaction) => {
+      transaction.set(candidateRef, candidatePatch, { merge: true });
+      transaction.set(db.collection("activityLogs").doc(), {
+        actorUid: request.auth.uid,
+        actorEmail: actor.email || request.auth.token.email || "",
+        action: activityAction,
+        outcome: "success",
+        targetCollection: "candidates",
+        targetId: requestedCandidateUid,
+        before,
+        after,
+        reason: cleanString(data.reason, 1000),
+        createdAt: now,
+      });
+    });
+    return { id: requestedCandidateUid, action, profileOnly: true };
+  }
+
+  if (!applicationId) {
+    throw new HttpsError("invalid-argument", "Application ID is required.");
+  }
   const appRef = db.collection("applications").doc(applicationId);
   const appSnap = await appRef.get();
   if (!appSnap.exists) throw new HttpsError("not-found", "Application was not found.");
@@ -1285,29 +1340,32 @@ exports.scheduleInterview = onCall({ region: "us-central1" }, async (request) =>
   }
   const actor = await assertEmployee(request.auth.uid);
   const data = request.data || {};
-  const applicationId = requireString(data, "applicationId", "Application ID");
+  const applicationId = cleanString(data.applicationId, 200);
+  const requestedCandidateUid = cleanString(data.candidateUid, 200);
   const startsAt = requireString(data, "startsAt", "Interview date/time");
   const interviewType = cleanString(data.interviewType || "Technical interview", 120);
   const interviewerName = cleanString(data.interviewerName || "SaturnMax hiring team", 160);
   const meetingLink = cleanString(data.meetingLink, 600);
   const notes = cleanString(data.notes, 2000);
   const now = admin.firestore.FieldValue.serverTimestamp();
-  const appRef = db.collection("applications").doc(applicationId);
-  const appSnap = await appRef.get();
-  if (!appSnap.exists) throw new HttpsError("not-found", "Application was not found.");
-  const app = appSnap.data() || {};
-  const candidateUid = app.candidate_uid || app.candidateId || app.uid || app.owner_uid;
+  const appRef = applicationId ? db.collection("applications").doc(applicationId) : null;
+  const appSnap = appRef ? await appRef.get() : null;
+  if (appRef && !appSnap.exists) throw new HttpsError("not-found", "Application was not found.");
+  const app = appSnap?.exists ? appSnap.data() || {} : {};
+  const candidateUid = app.candidate_uid || app.candidateId || app.uid || app.owner_uid || requestedCandidateUid;
   if (!candidateUid) throw new HttpsError("failed-precondition", "Application is missing candidate ownership.");
+  const candidateSnap = appRef ? null : await db.collection("candidates").doc(candidateUid).get();
+  const candidate = candidateSnap?.exists ? candidateSnap.data() || {} : {};
   const interviewRef = data.id
     ? db.collection(INTERVIEWS_COLLECTION).doc(data.id)
     : db.collection(INTERVIEWS_COLLECTION).doc();
   const interview = {
     id: interviewRef.id,
-    application_id: applicationId,
+    application_id: applicationId || "",
     candidate_uid: candidateUid,
-    candidate_name: app.full_name || app.candidate_name || "",
-    candidate_email: normalizeEmail(app.email || ""),
-    position_title: app.position_title || "",
+    candidate_name: app.full_name || app.candidate_name || candidate.name || data.candidateName || "",
+    candidate_email: normalizeEmail(app.email || candidate.email || data.candidateEmail || ""),
+    position_title: app.position_title || data.positionTitle || "Tech profile",
     interviewType,
     startsAt,
     meetingLink,
@@ -1323,9 +1381,7 @@ exports.scheduleInterview = onCall({ region: "us-central1" }, async (request) =>
       ...interview,
       ...(snap.exists ? {} : { createdAt: now, createdBy: request.auth.uid }),
     }, { merge: true });
-    transaction.set(appRef, {
-      status: "interview",
-      lifecycle_stage: "interview",
+    const interviewPatch = {
       workflowStage: "technical_interview",
       interviewStatus: "scheduled",
       interview_date: startsAt,
@@ -1334,7 +1390,16 @@ exports.scheduleInterview = onCall({ region: "us-central1" }, async (request) =>
       interviewer: interviewerName,
       updatedAt: now,
       updatedBy: request.auth.uid,
-    }, { merge: true });
+    };
+    if (appRef) {
+      transaction.set(appRef, {
+        ...interviewPatch,
+        status: "interview",
+        lifecycle_stage: "interview",
+      }, { merge: true });
+    } else {
+      transaction.set(db.collection("candidates").doc(candidateUid), interviewPatch, { merge: true });
+    }
     transaction.set(db.collection("activityLogs").doc(), {
       actorUid: request.auth.uid,
       actorEmail: actor.email || request.auth.token.email || "",
@@ -1342,7 +1407,7 @@ exports.scheduleInterview = onCall({ region: "us-central1" }, async (request) =>
       outcome: "success",
       targetCollection: INTERVIEWS_COLLECTION,
       targetId: interviewRef.id,
-      after: { applicationId, startsAt, interviewType },
+      after: { applicationId: applicationId || "", candidateUid, startsAt, interviewType },
       createdAt: now,
     });
   });

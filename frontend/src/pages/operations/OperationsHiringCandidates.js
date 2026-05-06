@@ -217,10 +217,6 @@ export default function OperationsHiringCandidates() {
   const handleNextStage = async (row) => {
     const next = getNextHiringStage(row.workflowStage);
     if (!next) return;
-    if (row.isProfileOnly) {
-      toast.error("Create or select an application before moving a profile-only candidate.");
-      return;
-    }
     setBusy(`${row.key}-next`);
     setInlineError(null);
     try {
@@ -235,10 +231,6 @@ export default function OperationsHiringCandidates() {
   };
 
   const handleApprove = async (row) => {
-    if (row.isProfileOnly) {
-      toast.error("Choose an application before approving a candidate.");
-      return;
-    }
     setBusy(`${row.key}-approve`);
     setInlineError(null);
     try {
@@ -306,10 +298,6 @@ export default function OperationsHiringCandidates() {
   };
 
   const openInterview = (row) => {
-    if (row.isProfileOnly) {
-      toast.error("Choose an application before scheduling an interview.");
-      return;
-    }
     setInterviewTarget(row);
     setInterviewForm(EMPTY_INTERVIEW);
   };
@@ -633,18 +621,18 @@ function CandidateRow({ row, busy, onReview, onInterview, onOffer, onDocumentReq
         <button onClick={onAssign} className={smallButtonClass} disabled={busy === `${row.key}-assign`}>
           {busy === `${row.key}-assign` ? "Assigning..." : row.assignedEmployeeId ? "Reassign to me" : "Assign to me"}
         </button>
-        <button onClick={onReview} disabled={row.isProfileOnly} className={smallButtonClass}>Add Review</button>
-        <button onClick={onInterview} disabled={row.isProfileOnly} className={smallButtonClass}>Schedule</button>
-        <button onClick={onOffer} disabled={row.isProfileOnly} className={smallButtonClass}>Offer</button>
-        <button onClick={onDocumentRequest} disabled={row.isProfileOnly} className={smallButtonClass}>Request Doc</button>
-        <button onClick={onNext} disabled={!next || row.isProfileOnly || busy === `${row.key}-next`} className={smallButtonClass}>
+        <button onClick={onReview} className={smallButtonClass}>Add Review</button>
+        <button onClick={onInterview} className={smallButtonClass}>Schedule</button>
+        <button onClick={onOffer} disabled={row.isProfileOnly} title={row.isProfileOnly ? "An application is required before generating an offer." : ""} className={smallButtonClass}>Offer</button>
+        <button onClick={onDocumentRequest} disabled={row.isProfileOnly} title={row.isProfileOnly ? "An application is required before requesting onboarding documents." : ""} className={smallButtonClass}>Request Doc</button>
+        <button onClick={onNext} disabled={!next || busy === `${row.key}-next`} className={smallButtonClass}>
           {busy === `${row.key}-next` ? "Moving..." : "Next Stage"}
         </button>
         {canApprove && (
-          <button onClick={onApprove} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60">Approve</button>
+          <button onClick={onApprove} disabled={row.candidateApprovalStatus === "approved"} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60">Approve</button>
         )}
-        <button onClick={onReject} disabled={row.isProfileOnly} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60">Reject</button>
-        <button onClick={onConvert} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} className="rounded-md bg-[#0A192F] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60">Convert</button>
+        <button onClick={onReject} className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60">Reject</button>
+        <button onClick={onConvert} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} title={row.isProfileOnly ? "An application is required before conversion. Use Manual Add for direct consultant creation." : ""} className="rounded-md bg-[#0A192F] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60">Convert</button>
       </div>
     </article>
   );
@@ -679,16 +667,16 @@ function CandidateDetail({ row, data, busy, inlineError, onReview, onInterview, 
         actions={
           <>
             <button onClick={() => onAssign(row)} className={smallButtonClass}>Assign to me</button>
-            <button onClick={() => onReview(row)} disabled={row.isProfileOnly} className={smallButtonClass}><Plus className="h-3.5 w-3.5" /> Add Review</button>
-            <button onClick={() => onInterview(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Schedule Interview</button>
-            <button onClick={() => onOffer(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Generate Offer</button>
-            <button onClick={() => onDocumentRequest(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Request Document</button>
-            <button onClick={() => onNext(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "rejected" || busy === `${row.key}-next`} className={smallButtonClass}>Move to Next Stage</button>
+            <button onClick={() => onReview(row)} className={smallButtonClass}><Plus className="h-3.5 w-3.5" /> Add Review</button>
+            <button onClick={() => onInterview(row)} className={smallButtonClass}>Schedule Interview</button>
+            <button onClick={() => onOffer(row)} disabled={row.isProfileOnly} title={row.isProfileOnly ? "An application is required before generating an offer." : ""} className={smallButtonClass}>Generate Offer</button>
+            <button onClick={() => onDocumentRequest(row)} disabled={row.isProfileOnly} title={row.isProfileOnly ? "An application is required before requesting onboarding documents." : ""} className={smallButtonClass}>Request Document</button>
+            <button onClick={() => onNext(row)} disabled={row.candidateApprovalStatus === "rejected" || busy === `${row.key}-next`} className={smallButtonClass}>Move to Next Stage</button>
             {(row.workflowStage === "hr_contract_review" || row.workflowStage === "approved") && (
-              <button onClick={() => onApprove(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
+              <button onClick={() => onApprove(row)} disabled={row.candidateApprovalStatus === "approved"} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
             )}
-            <button onClick={() => onReject(row)} disabled={row.isProfileOnly} className="inline-flex h-10 items-center gap-2 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"><XCircle className="h-3.5 w-3.5" /> Reject</button>
-            <button onClick={() => onConvert(row)} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-3 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60"><BriefcaseBusiness className="h-3.5 w-3.5" /> Convert</button>
+            <button onClick={() => onReject(row)} className="inline-flex h-10 items-center gap-2 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"><XCircle className="h-3.5 w-3.5" /> Reject</button>
+            <button onClick={() => onConvert(row)} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} title={row.isProfileOnly ? "An application is required before conversion. Use Manual Add for direct consultant creation." : ""} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#0A192F] px-3 text-xs font-semibold text-white hover:bg-[#0e2445] disabled:opacity-60"><BriefcaseBusiness className="h-3.5 w-3.5" /> Convert</button>
           </>
         }
       />
@@ -761,9 +749,15 @@ function CandidateDetail({ row, data, busy, inlineError, onReview, onInterview, 
             <div className="space-y-3 text-sm text-slate-600">
               <div>Current status: <span className="font-semibold text-slate-900">{row.convertedToConsultantId ? "Converted" : "Not converted"}</span></div>
               <div>Consultant ID: <span className="font-semibold text-slate-900">{row.convertedToConsultantId || "Pending"}</span></div>
-              <button onClick={() => onConvert(row)} disabled={row.isProfileOnly || Boolean(row.convertedToConsultantId)} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
-                Convert to Consultant
-              </button>
+              {row.isProfileOnly ? (
+                <Link to="/employee-dashboard/hiring/manual-consultant" className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8]">
+                  Manual add consultant
+                </Link>
+              ) : (
+                <button onClick={() => onConvert(row)} disabled={Boolean(row.convertedToConsultantId)} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
+                  Convert to Consultant
+                </button>
+              )}
             </div>
           </Card>
         </div>
