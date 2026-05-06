@@ -24,7 +24,10 @@ import {
   assignCandidate,
   convertToConsultant,
   decideCandidate,
+  generateOfferLetter,
   moveHiringStage,
+  requestOnboardingDocument,
+  scheduleInterview,
 } from "../../lib/api";
 import {
   HIRING_WORKFLOW_STAGES,
@@ -45,7 +48,39 @@ const EMPTY_REJECT = {
   reason: "",
 };
 
+const EMPTY_INTERVIEW = {
+  startsAt: "",
+  interviewType: "Technical interview",
+  interviewerName: "SaturnMax hiring team",
+  meetingLink: "",
+  notes: "",
+};
+
+const EMPTY_OFFER = {
+  roleTitle: "",
+  consultantType: "Contract",
+  clientName: "",
+  startDate: "",
+  workLocation: "India",
+  compensation: "",
+  notes: "",
+};
+
+const EMPTY_DOCUMENT_REQUEST = {
+  type: "signed_onboarding",
+  title: "Signed onboarding document",
+  details: "",
+};
+
 const CONSULTANT_TYPES = ["Contract", "Full-time", "Bench", "Client-assigned"];
+const DOCUMENT_REQUEST_TYPES = [
+  ["signed_onboarding", "Signed onboarding document"],
+  ["form12bb", "Form 12BB"],
+  ["pan", "PAN/tax details"],
+  ["uan", "UAN/EPF details"],
+  ["bank_details", "Bank details"],
+  ["compliance", "Compliance document"],
+];
 
 export function buildHiringRows(data) {
   const candidateByUid = [...data.users, ...data.candidates].reduce((acc, item) => {
@@ -136,6 +171,12 @@ export default function OperationsHiringCandidates() {
   const [rejectForm, setRejectForm] = useState(EMPTY_REJECT);
   const [convertTarget, setConvertTarget] = useState(null);
   const [convertForm, setConvertForm] = useState(null);
+  const [interviewTarget, setInterviewTarget] = useState(null);
+  const [interviewForm, setInterviewForm] = useState(EMPTY_INTERVIEW);
+  const [offerTarget, setOfferTarget] = useState(null);
+  const [offerForm, setOfferForm] = useState(EMPTY_OFFER);
+  const [documentTarget, setDocumentTarget] = useState(null);
+  const [documentForm, setDocumentForm] = useState(EMPTY_DOCUMENT_REQUEST);
   const [preparedInvite, setPreparedInvite] = useState(null);
 
   const rows = useMemo(() => buildHiringRows(data), [data]);
@@ -167,6 +208,9 @@ export default function OperationsHiringCandidates() {
     setReviewTarget(null);
     setRejectTarget(null);
     setConvertTarget(null);
+    setInterviewTarget(null);
+    setOfferTarget(null);
+    setDocumentTarget(null);
     setPreparedInvite(null);
   };
 
@@ -261,6 +305,92 @@ export default function OperationsHiringCandidates() {
     }
   };
 
+  const openInterview = (row) => {
+    if (row.isProfileOnly) {
+      toast.error("Choose an application before scheduling an interview.");
+      return;
+    }
+    setInterviewTarget(row);
+    setInterviewForm(EMPTY_INTERVIEW);
+  };
+
+  const handleInterview = async (event) => {
+    event.preventDefault();
+    if (!interviewTarget) return;
+    setBusy(`${interviewTarget.key}-interview`);
+    setInlineError(null);
+    try {
+      await scheduleInterview(interviewTarget.application, interviewForm);
+      toast.success("Interview scheduled and email queued.");
+      setInterviewTarget(null);
+      setInterviewForm(EMPTY_INTERVIEW);
+      await load();
+    } catch (err) {
+      setInlineError(showMutationError(err, "Could not schedule interview."));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const openOffer = (row) => {
+    if (row.isProfileOnly) {
+      toast.error("Choose an application before generating an offer.");
+      return;
+    }
+    setOfferTarget(row);
+    setOfferForm({
+      ...EMPTY_OFFER,
+      roleTitle: row.application.position_title || "Consultant",
+      clientName: row.application.clientName || "",
+      compensation: "",
+    });
+  };
+
+  const handleOffer = async (event) => {
+    event.preventDefault();
+    if (!offerTarget) return;
+    setBusy(`${offerTarget.key}-offer`);
+    setInlineError(null);
+    try {
+      await generateOfferLetter(offerTarget.application, offerForm);
+      toast.success("Offer letter generated and candidate email queued.");
+      setOfferTarget(null);
+      setOfferForm(EMPTY_OFFER);
+      await load();
+    } catch (err) {
+      setInlineError(showMutationError(err, "Could not generate offer letter."));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const openDocumentRequest = (row) => {
+    if (row.isProfileOnly) {
+      toast.error("Choose an application before requesting documents.");
+      return;
+    }
+    setDocumentTarget(row);
+    setDocumentForm(EMPTY_DOCUMENT_REQUEST);
+  };
+
+  const handleDocumentRequest = async (event) => {
+    event.preventDefault();
+    if (!documentTarget) return;
+    setBusy(`${documentTarget.key}-document-request`);
+    setInlineError(null);
+    try {
+      await requestOnboardingDocument(documentTarget.application, documentForm);
+      toast.success("Document request created and email queued.");
+      setDocumentTarget(null);
+      setDocumentForm(EMPTY_DOCUMENT_REQUEST);
+      await load();
+    } catch (err) {
+      setInlineError(showMutationError(err, "Could not request document."));
+    } finally {
+      setBusy("");
+    }
+  };
+
   const openConvert = (row) => {
     if (row.isProfileOnly) {
       toast.error("Choose an application before converting a candidate.");
@@ -321,6 +451,9 @@ export default function OperationsHiringCandidates() {
         busy={busy}
         inlineError={inlineError}
         onReview={(row) => setReviewTarget(row)}
+        onInterview={openInterview}
+        onOffer={openOffer}
+        onDocumentRequest={openDocumentRequest}
         onAssign={handleAssignSelf}
         onNext={handleNextStage}
         onApprove={handleApprove}
@@ -332,6 +465,18 @@ export default function OperationsHiringCandidates() {
           reviewForm={reviewForm}
           setReviewForm={setReviewForm}
           onReview={handleReview}
+          interviewTarget={interviewTarget}
+          interviewForm={interviewForm}
+          setInterviewForm={setInterviewForm}
+          onInterview={handleInterview}
+          offerTarget={offerTarget}
+          offerForm={offerForm}
+          setOfferForm={setOfferForm}
+          onOffer={handleOffer}
+          documentTarget={documentTarget}
+          documentForm={documentForm}
+          setDocumentForm={setDocumentForm}
+          onDocumentRequest={handleDocumentRequest}
           rejectTarget={rejectTarget}
           rejectForm={rejectForm}
           setRejectForm={setRejectForm}
@@ -409,6 +554,9 @@ export default function OperationsHiringCandidates() {
             row={row}
             busy={busy}
             onReview={() => setReviewTarget(row)}
+            onInterview={() => openInterview(row)}
+            onOffer={() => openOffer(row)}
+            onDocumentRequest={() => openDocumentRequest(row)}
             onAssign={() => handleAssignSelf(row)}
             onNext={() => handleNextStage(row)}
             onApprove={() => handleApprove(row)}
@@ -423,6 +571,18 @@ export default function OperationsHiringCandidates() {
         reviewForm={reviewForm}
         setReviewForm={setReviewForm}
         onReview={handleReview}
+        interviewTarget={interviewTarget}
+        interviewForm={interviewForm}
+        setInterviewForm={setInterviewForm}
+        onInterview={handleInterview}
+        offerTarget={offerTarget}
+        offerForm={offerForm}
+        setOfferForm={setOfferForm}
+        onOffer={handleOffer}
+        documentTarget={documentTarget}
+        documentForm={documentForm}
+        setDocumentForm={setDocumentForm}
+        onDocumentRequest={handleDocumentRequest}
         rejectTarget={rejectTarget}
         rejectForm={rejectForm}
         setRejectForm={setRejectForm}
@@ -441,7 +601,7 @@ export default function OperationsHiringCandidates() {
   );
 }
 
-function CandidateRow({ row, busy, onReview, onAssign, onNext, onApprove, onReject, onConvert }) {
+function CandidateRow({ row, busy, onReview, onInterview, onOffer, onDocumentRequest, onAssign, onNext, onApprove, onReject, onConvert }) {
   const next = row.candidateApprovalStatus === "rejected" ? "" : getNextHiringStage(row.workflowStage);
   const canApprove = row.workflowStage === "hr_contract_review" || row.workflowStage === "approved";
   return (
@@ -474,6 +634,9 @@ function CandidateRow({ row, busy, onReview, onAssign, onNext, onApprove, onReje
           {busy === `${row.key}-assign` ? "Assigning..." : row.assignedEmployeeId ? "Reassign to me" : "Assign to me"}
         </button>
         <button onClick={onReview} disabled={row.isProfileOnly} className={smallButtonClass}>Add Review</button>
+        <button onClick={onInterview} disabled={row.isProfileOnly} className={smallButtonClass}>Schedule</button>
+        <button onClick={onOffer} disabled={row.isProfileOnly} className={smallButtonClass}>Offer</button>
+        <button onClick={onDocumentRequest} disabled={row.isProfileOnly} className={smallButtonClass}>Request Doc</button>
         <button onClick={onNext} disabled={!next || row.isProfileOnly || busy === `${row.key}-next`} className={smallButtonClass}>
           {busy === `${row.key}-next` ? "Moving..." : "Next Stage"}
         </button>
@@ -487,7 +650,7 @@ function CandidateRow({ row, busy, onReview, onAssign, onNext, onApprove, onReje
   );
 }
 
-function CandidateDetail({ row, data, busy, inlineError, onReview, onAssign, onNext, onApprove, onReject, onConvert, children }) {
+function CandidateDetail({ row, data, busy, inlineError, onReview, onInterview, onOffer, onDocumentRequest, onAssign, onNext, onApprove, onReject, onConvert, children }) {
   if (!row) {
     return (
       <div className="space-y-5">
@@ -517,6 +680,9 @@ function CandidateDetail({ row, data, busy, inlineError, onReview, onAssign, onN
           <>
             <button onClick={() => onAssign(row)} className={smallButtonClass}>Assign to me</button>
             <button onClick={() => onReview(row)} disabled={row.isProfileOnly} className={smallButtonClass}><Plus className="h-3.5 w-3.5" /> Add Review</button>
+            <button onClick={() => onInterview(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Schedule Interview</button>
+            <button onClick={() => onOffer(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Generate Offer</button>
+            <button onClick={() => onDocumentRequest(row)} disabled={row.isProfileOnly} className={smallButtonClass}>Request Document</button>
             <button onClick={() => onNext(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "rejected" || busy === `${row.key}-next`} className={smallButtonClass}>Move to Next Stage</button>
             {(row.workflowStage === "hr_contract_review" || row.workflowStage === "approved") && (
               <button onClick={() => onApprove(row)} disabled={row.isProfileOnly || row.candidateApprovalStatus === "approved"} className="inline-flex h-10 items-center gap-2 rounded-md bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"><CheckCircle2 className="h-3.5 w-3.5" /> Approve</button>
@@ -613,6 +779,18 @@ function WorkflowModals(props) {
     reviewForm,
     setReviewForm,
     onReview,
+    interviewTarget,
+    interviewForm,
+    setInterviewForm,
+    onInterview,
+    offerTarget,
+    offerForm,
+    setOfferForm,
+    onOffer,
+    documentTarget,
+    documentForm,
+    setDocumentForm,
+    onDocumentRequest,
     rejectTarget,
     rejectForm,
     setRejectForm,
@@ -655,6 +833,95 @@ function WorkflowModals(props) {
             <textarea className={`${inputClass} h-28 py-3`} value={reviewForm.notes} onChange={(event) => setReviewForm((form) => ({ ...form, notes: event.target.value }))} />
           </Field>
           <ModalActions busy={busy?.endsWith("-review")} onCancel={clearModals} confirmLabel="Save review" />
+        </form>
+      </PanelModal>
+
+      <PanelModal open={Boolean(interviewTarget)} title="Schedule interview" onClose={clearModals}>
+        <form onSubmit={onInterview} className="space-y-4">
+          <Field label="Candidate">
+            <input className={inputClass} value={interviewTarget?.name || ""} disabled />
+          </Field>
+          <Field label="Date and time">
+            <input type="datetime-local" className={inputClass} value={interviewForm.startsAt} onChange={(event) => setInterviewForm((form) => ({ ...form, startsAt: event.target.value }))} />
+          </Field>
+          <Field label="Interview type">
+            <input className={inputClass} value={interviewForm.interviewType} onChange={(event) => setInterviewForm((form) => ({ ...form, interviewType: event.target.value }))} />
+          </Field>
+          <Field label="Interviewer">
+            <input className={inputClass} value={interviewForm.interviewerName} onChange={(event) => setInterviewForm((form) => ({ ...form, interviewerName: event.target.value }))} />
+          </Field>
+          <Field label="Meeting link">
+            <input className={inputClass} value={interviewForm.meetingLink} onChange={(event) => setInterviewForm((form) => ({ ...form, meetingLink: event.target.value }))} />
+          </Field>
+          <Field label="Notes">
+            <textarea className={`${inputClass} h-24 py-3`} value={interviewForm.notes} onChange={(event) => setInterviewForm((form) => ({ ...form, notes: event.target.value }))} />
+          </Field>
+          <ModalActions busy={busy?.endsWith("-interview")} onCancel={clearModals} confirmLabel="Schedule and email" />
+        </form>
+      </PanelModal>
+
+      <PanelModal open={Boolean(offerTarget)} title="Generate offer letter" onClose={clearModals} wide>
+        <form onSubmit={onOffer} className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <div className="font-semibold text-slate-900">{offerTarget?.name}</div>
+            <div className="mt-1 text-slate-500">{offerTarget?.email}</div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Role title">
+              <input className={inputClass} value={offerForm.roleTitle} onChange={(event) => setOfferForm((form) => ({ ...form, roleTitle: event.target.value }))} />
+            </Field>
+            <Field label="Consultant type">
+              <select className={inputClass} value={offerForm.consultantType} onChange={(event) => setOfferForm((form) => ({ ...form, consultantType: event.target.value }))}>
+                {CONSULTANT_TYPES.map((type) => <option key={type}>{type}</option>)}
+              </select>
+            </Field>
+            <Field label="Client name">
+              <input className={inputClass} value={offerForm.clientName} onChange={(event) => setOfferForm((form) => ({ ...form, clientName: event.target.value }))} />
+            </Field>
+            <Field label="Start date">
+              <input type="date" className={inputClass} value={offerForm.startDate} onChange={(event) => setOfferForm((form) => ({ ...form, startDate: event.target.value }))} />
+            </Field>
+            <Field label="Work location">
+              <input className={inputClass} value={offerForm.workLocation} onChange={(event) => setOfferForm((form) => ({ ...form, workLocation: event.target.value }))} />
+            </Field>
+            {canEditSensitive ? (
+              <Field label="Compensation / rate">
+                <input className={inputClass} value={offerForm.compensation} onChange={(event) => setOfferForm((form) => ({ ...form, compensation: event.target.value }))} />
+              </Field>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Compensation is admin-only and will be omitted from this offer draft.
+              </div>
+            )}
+            <Field label="Offer notes" className="md:col-span-2">
+              <textarea className={`${inputClass} h-24 py-3`} value={offerForm.notes} onChange={(event) => setOfferForm((form) => ({ ...form, notes: event.target.value }))} />
+            </Field>
+          </div>
+          <ModalActions busy={busy?.endsWith("-offer")} onCancel={clearModals} confirmLabel="Generate PDF and email" />
+        </form>
+      </PanelModal>
+
+      <PanelModal open={Boolean(documentTarget)} title="Request onboarding document" onClose={clearModals}>
+        <form onSubmit={onDocumentRequest} className="space-y-4">
+          <Field label="Document type">
+            <select
+              className={inputClass}
+              value={documentForm.type}
+              onChange={(event) => {
+                const label = DOCUMENT_REQUEST_TYPES.find(([value]) => value === event.target.value)?.[1] || event.target.value;
+                setDocumentForm((form) => ({ ...form, type: event.target.value, title: label }));
+              }}
+            >
+              {DOCUMENT_REQUEST_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </Field>
+          <Field label="Display title">
+            <input className={inputClass} value={documentForm.title} onChange={(event) => setDocumentForm((form) => ({ ...form, title: event.target.value }))} />
+          </Field>
+          <Field label="Instructions">
+            <textarea className={`${inputClass} h-24 py-3`} value={documentForm.details} onChange={(event) => setDocumentForm((form) => ({ ...form, details: event.target.value }))} />
+          </Field>
+          <ModalActions busy={busy?.endsWith("-document-request")} onCancel={clearModals} confirmLabel="Request and email" />
         </form>
       </PanelModal>
 

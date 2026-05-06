@@ -100,7 +100,41 @@ Candidate sign-up creates `candidate` role documents automatically. Employee,
 admin, and consultant role documents are created manually until you add a
 trusted backend or Cloud Function for privileged account creation.
 
-## 7. What lights up automatically
+## 7. Enable workflow email delivery
+
+Custom SaturnMax workflow emails use the official **Firebase Trigger Email**
+extension. Firebase Auth still sends password setup/reset links because those
+credential links must stay inside Firebase Auth.
+
+Install the extension from Firebase Console → Extensions → **Trigger Email from
+Firestore**, or with:
+
+```bash
+firebase ext:install firebase/firestore-send-email --project=saturnmaxtechnologies
+```
+
+Use these settings when the installer asks:
+
+```txt
+Email documents collection: mail
+Templates collection: emailTemplates
+Users collection: users
+Default FROM address: SaturnMax <notifications@saturnmax.com>
+Default REPLY-TO address: hr@saturnmax.com
+SMTP provider: your verified SMTP provider
+```
+
+After deploying Functions, seed the default lifecycle templates from
+Admin Portal → **Email** → **Seed defaults**, or run the callable
+`seedEmailTemplates` from an admin session. The templates cover application
+received, internal alerts, interview scheduling, offer available, signed
+document received, review results, onboarding requests, consultant conversion,
+and consultant/employee access instructions.
+
+Client apps cannot create `mail` documents. Only Cloud Functions/Admin SDK
+writes to `mail`, which prevents arbitrary email abuse from public browsers.
+
+## 8. What lights up automatically
 
 Once Firebase is configured:
 - ✅ Login page Google button works (real popup)
@@ -108,6 +142,11 @@ Once Firebase is configured:
 - ✅ Forgot password sends a real reset email
 - ✅ Employees can post, publish, pause, close, and delete jobs
 - ✅ Candidates can apply to published jobs and track lifecycle status
+- ✅ Candidate applications queue candidate confirmation and internal HR emails
+- ✅ Employees can schedule interviews and queue candidate/team emails
+- ✅ Employees can generate offer PDFs in Storage and notify candidates
+- ✅ Candidates can upload signed offer/onboarding PDFs for employee review
+- ✅ Review decisions queue signed offer, onboarding, bank, and compliance emails
 - ✅ `/dashboard/messages` becomes **real-time Firestore** (send & receive)
 - ✅ Employee dashboard can receive and reply to candidate message threads
 - ✅ `/dashboard/profile` resume upload writes to Firebase Storage
@@ -128,7 +167,7 @@ deploy the callable functions:
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:submitLead,functions:manageLead,functions:manageJob,functions:updateHiringWorkflow,functions:resolveReviewDecision,functions:sendPortalPasswordSetup,functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,firestore:rules,firestore:indexes,storage
+firebase deploy --only functions:submitLead,functions:submitCandidateApplication,functions:manageLead,functions:manageJob,functions:updateHiringWorkflow,functions:scheduleInterview,functions:generateOfferLetter,functions:requestOnboardingDocument,functions:recordCandidateDocumentSubmission,functions:resolveReviewDecision,functions:sendPortalPasswordSetup,functions:convertCandidateToConsultant,functions:createManualConsultantInvite,functions:adminUpsertPortalUser,functions:adminDeactivatePortalUser,functions:seedEmailTemplates,functions:syncMailDeliveryEvent,firestore:rules,firestore:indexes,storage
 ```
 
 After that deployment, checking **Send invitation email to create password and
@@ -171,7 +210,7 @@ Regards,
 Consultant and employee login pages do not expose website password reset links;
 they direct users to `hr@saturnmax.com` for password assistance.
 
-## 8. Is a backend needed?
+## 9. Is a backend needed?
 
 Firebase can store the normal app data:
 
@@ -193,7 +232,7 @@ The historical `backend/` service is deprecated and is not part of the active
 production architecture. Use Firebase Security Rules for direct client access
 and Firebase Cloud Functions for privileged server-side work.
 
-## 9. Sending yourself a test message (real-time)
+## 10. Sending yourself a test message (real-time)
 
 1. Sign in as your test user.
 2. Open `/dashboard/messages` → type in the composer → send.

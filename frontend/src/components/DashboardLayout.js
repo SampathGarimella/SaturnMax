@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   Bell,
   ArrowRight,
+  CalendarDays,
 } from "lucide-react";
 import Logo from "./Logo";
 import LoginMenu from "./LoginMenu";
@@ -21,6 +22,7 @@ const NAV_MAIN = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", testId: "nav-dashboard", exact: true },
   { to: "/dashboard/jobs", icon: Briefcase, label: "Browse jobs", testId: "nav-jobs" },
   { to: "/dashboard/applications", icon: FileText, label: "My applications", testId: "nav-applications" },
+  { to: "/dashboard/interviews", icon: CalendarDays, label: "Interviews", testId: "nav-interviews" },
   { to: "/dashboard/messages", icon: MessageSquare, label: "Messages", testId: "nav-messages" },
 ];
 

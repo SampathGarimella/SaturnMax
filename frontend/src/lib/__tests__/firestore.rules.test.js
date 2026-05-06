@@ -131,6 +131,42 @@ beforeEach(async () => {
         notes: "Strong technical interview",
         createdAt: 1,
       }),
+      setDoc(doc(db, "mail", "mail-1"), {
+        to: ["candidate@saturnmax.com"],
+        template: { name: "application_received", data: { candidateName: "Candidate" } },
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "emailTemplates", "application_received"), {
+        subject: "Application received",
+        text: "Hi {{candidateName}}",
+        active: true,
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "emailEvents", "email-event-1"), {
+        templateId: "application_received",
+        to: ["candidate@saturnmax.com"],
+        status: "queued",
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "interviews", "interview-scheduled-1"), {
+        candidate_uid: "candidate-1",
+        application_id: "app-1",
+        startsAt: "2026-06-01T15:00:00.000Z",
+        status: "scheduled",
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "offerTemplates", "standard"), {
+        name: "Standard offer",
+        body: "Offer for {{candidateName}}",
+        createdAt: 1,
+      }),
+      setDoc(doc(db, "offerLetters", "offer-1"), {
+        candidate_uid: "candidate-1",
+        application_id: "app-1",
+        file_url: "https://example.com/offer.pdf",
+        status: "sent",
+        createdAt: 1,
+      }),
     ]);
   });
 });
@@ -474,6 +510,91 @@ describe("Firestore security rules", () => {
         type: "signed_offer",
         status: "approved",
         createdAt: 2,
+      })
+    );
+  });
+
+  test("mail queue and email audit collections are protected from client writes", async () => {
+    const candidate = authedDb("candidate-1");
+    const employee = authedDb("employee-1");
+    const admin = authedDb("admin-1");
+
+    await assertFails(
+      setDoc(doc(candidate, "mail", "candidate-mail"), {
+        to: ["hr@saturnmax.com"],
+        message: { subject: "Bad", text: "Arbitrary email" },
+      })
+    );
+    await assertFails(
+      setDoc(doc(employee, "mail", "employee-mail"), {
+        to: ["candidate@saturnmax.com"],
+        message: { subject: "Bad", text: "Arbitrary email" },
+      })
+    );
+    await assertSucceeds(getDoc(doc(employee, "mail", "mail-1")));
+    await assertSucceeds(getDoc(doc(admin, "emailEvents", "email-event-1")));
+    await assertFails(getDoc(doc(candidate, "emailEvents", "email-event-1")));
+    await assertFails(
+      setDoc(doc(employee, "emailEvents", "employee-event"), {
+        status: "queued",
+        templateId: "application_received",
+      })
+    );
+  });
+
+  test("template management is admin-only while employees can read configured templates", async () => {
+    const candidate = authedDb("candidate-1");
+    const employee = authedDb("employee-1");
+    const admin = authedDb("admin-1");
+
+    await assertSucceeds(getDoc(doc(employee, "emailTemplates", "application_received")));
+    await assertFails(getDoc(doc(candidate, "emailTemplates", "application_received")));
+    await assertFails(
+      setDoc(doc(employee, "emailTemplates", "new_template"), {
+        subject: "No",
+        text: "No",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(admin, "emailTemplates", "new_template"), {
+        subject: "Yes",
+        text: "Yes",
+      })
+    );
+    await assertSucceeds(getDoc(doc(employee, "offerTemplates", "standard")));
+    await assertFails(
+      setDoc(doc(employee, "offerTemplates", "employee_offer"), {
+        name: "Employee edit",
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(admin, "offerTemplates", "admin_offer"), {
+        name: "Admin edit",
+      })
+    );
+  });
+
+  test("candidate can read only their own interviews and offer letters", async () => {
+    const candidate = authedDb("candidate-1");
+    const otherCandidate = authedDb("candidate-2");
+    const employee = authedDb("employee-1");
+
+    await assertSucceeds(getDoc(doc(candidate, "interviews", "interview-scheduled-1")));
+    await assertSucceeds(getDoc(doc(candidate, "offerLetters", "offer-1")));
+    await assertFails(getDoc(doc(otherCandidate, "interviews", "interview-scheduled-1")));
+    await assertFails(getDoc(doc(otherCandidate, "offerLetters", "offer-1")));
+    await assertSucceeds(getDoc(doc(employee, "interviews", "interview-scheduled-1")));
+    await assertSucceeds(getDoc(doc(employee, "offerLetters", "offer-1")));
+    await assertFails(
+      setDoc(doc(candidate, "interviews", "bad-interview-write"), {
+        candidate_uid: "candidate-1",
+        status: "scheduled",
+      })
+    );
+    await assertFails(
+      setDoc(doc(employee, "offerLetters", "employee-offer-write"), {
+        candidate_uid: "candidate-1",
+        status: "sent",
       })
     );
   });

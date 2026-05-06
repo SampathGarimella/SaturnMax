@@ -16,11 +16,13 @@ import OperationsJobs from "./pages/operations/OperationsJobs";
 import OperationsLeads from "./pages/operations/OperationsLeads";
 import OperationsManualConsultant from "./pages/operations/OperationsManualConsultant";
 import OperationsMessages from "./pages/operations/OperationsMessages";
+import OperationsNotifications from "./pages/operations/OperationsNotifications";
 import OperationsReviews from "./pages/operations/OperationsReviews";
 import DashboardLayout from "./components/DashboardLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardHome from "./pages/DashboardHome";
 import BrowseJobs from "./pages/BrowseJobs";
+import CandidateInterviews from "./pages/CandidateInterviews";
 import MyApplications from "./pages/MyApplications";
 import Messages from "./pages/Messages";
 import MyProfile from "./pages/MyProfile";
@@ -93,6 +95,7 @@ function App() {
             <Route path="leads" element={<OperationsLeads />} />
             <Route path="applications" element={<Navigate to="/employee-dashboard/hiring/candidates" replace />} />
             <Route path="messages" element={<OperationsMessages />} />
+            <Route path="notifications" element={<OperationsNotifications />} />
             <Route path="consultants" element={<Navigate to="/employee-dashboard/hiring/consultants" replace />} />
             <Route path="reviews" element={<OperationsReviews />} />
             <Route path="hiring/candidates" element={<OperationsHiringCandidates />} />
@@ -114,6 +117,7 @@ function App() {
             <Route index element={<DashboardHome />} />
             <Route path="jobs" element={<BrowseJobs />} />
             <Route path="applications" element={<MyApplications />} />
+            <Route path="interviews" element={<CandidateInterviews />} />
             <Route path="messages" element={<Messages />} />
             <Route path="profile" element={<MyProfile />} />
             <Route path="settings" element={<Settings />} />

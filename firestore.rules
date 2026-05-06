@@ -463,6 +463,40 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /mail/{mailId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if false;
+    }
+
+    match /emailTemplates/{templateId} {
+      allow read: if isEmployee();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /emailEvents/{eventId} {
+      allow read: if isEmployee();
+      allow create, update, delete: if false;
+    }
+
+    match /interviews/{interviewId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    match /offerTemplates/{templateId} {
+      allow read: if isEmployee();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /offerLetters/{offerLetterId} {
+      allow read: if isEmployee()
+        || (signedIn() && resource.data.candidate_uid == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
     match /messages/{uid}/thread/{messageId} {
       allow read: if ownsOwner(uid) || isEmployee();
       allow create: if (ownsOwner(uid)

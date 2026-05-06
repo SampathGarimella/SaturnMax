@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   BriefcaseBusiness,
   KeyRound,
+  MailCheck,
   Plus,
   RefreshCw,
   Save,
@@ -32,6 +33,8 @@ import {
   deleteJob,
   fetchOperationsData,
   saveJob,
+  saveEmailTemplate,
+  seedEmailTemplates,
   updateJobStatus,
 } from "../lib/api";
 import { PERMISSION_MATRIX } from "../lib/constants";
@@ -46,6 +49,8 @@ const EMPTY_DATA = {
   activityLogs: [],
   messageThreads: [],
   leads: [],
+  emailTemplates: [],
+  emailEvents: [],
 };
 
 const EMPTY_USER = {
@@ -78,10 +83,19 @@ const EMPTY_JOB = {
   status: "published",
 };
 
+const EMPTY_EMAIL_TEMPLATE = {
+  id: "",
+  subject: "",
+  text: "",
+  html: "",
+  active: true,
+};
+
 const TABS = [
   { id: "users", label: "Accounts", Icon: Users },
   { id: "consultants", label: "Consultants", Icon: UserCog },
   { id: "jobs", label: "Jobs", Icon: BriefcaseBusiness },
+  { id: "email", label: "Email", Icon: MailCheck },
   { id: "activity", label: "Activity", Icon: ShieldCheck },
   { id: "permissions", label: "Permissions", Icon: BookOpenCheck },
 ];
@@ -95,6 +109,7 @@ export default function AdminDashboard() {
   const [query, setQuery] = useState("");
   const [userForm, setUserForm] = useState(EMPTY_USER);
   const [jobForm, setJobForm] = useState(EMPTY_JOB);
+  const [emailTemplateForm, setEmailTemplateForm] = useState(EMPTY_EMAIL_TEMPLATE);
   const [deleteJobTarget, setDeleteJobTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
 
@@ -128,6 +143,14 @@ export default function AdminDashboard() {
   const jobs = useMemo(() => {
     return data.jobs.filter((item) => [item.title, item.department, item.status].join(" ").toLowerCase().includes(query.toLowerCase()));
   }, [data.jobs, query]);
+
+  const emailTemplates = useMemo(() => {
+    return data.emailTemplates.filter((item) => [item.id, item.subject, item.text].join(" ").toLowerCase().includes(query.toLowerCase()));
+  }, [data.emailTemplates, query]);
+
+  const emailEvents = useMemo(() => {
+    return data.emailEvents.filter((item) => [item.templateId, item.type, item.entityType, item.status, (item.to || []).join(" ")].join(" ").toLowerCase().includes(query.toLowerCase()));
+  }, [data.emailEvents, query]);
 
   const stats = [
     { label: "Employees", value: data.users.filter((u) => u.role === "employee").length },
@@ -211,6 +234,47 @@ export default function AdminDashboard() {
       await load();
     } catch (err) {
       toast.error(err?.message || "Could not save job.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const editEmailTemplate = (template) => {
+    setTab("email");
+    setEmailTemplateForm({
+      id: template.id || "",
+      subject: template.subject || "",
+      text: template.text || "",
+      html: template.html || "",
+      active: template.active !== false,
+    });
+  };
+
+  const saveEmailTemplateRecord = async (event) => {
+    event.preventDefault();
+    setBusy("email-template");
+    try {
+      await saveEmailTemplate(emailTemplateForm);
+      toast.success("Email template saved.");
+      setEmailTemplateForm(EMPTY_EMAIL_TEMPLATE);
+      await load();
+    } catch (err) {
+      toast.error(err?.message || "Could not save email template.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const seedTemplates = async () => {
+    setBusy("seed-email-templates");
+    try {
+      const result = await seedEmailTemplates();
+      toast.success("Default email templates seeded.", {
+        description: `${result?.count || "All"} lifecycle templates are ready for Trigger Email.`,
+      });
+      await load();
+    } catch (err) {
+      toast.error(err?.message || "Could not seed email templates.");
     } finally {
       setBusy("");
     }
@@ -328,6 +392,18 @@ export default function AdminDashboard() {
                     setBusy("");
                   }
                 }}
+              />
+            )}
+            {tab === "email" && (
+              <EmailTemplatesPanel
+                templates={emailTemplates}
+                events={emailEvents}
+                form={emailTemplateForm}
+                setForm={setEmailTemplateForm}
+                busy={busy}
+                onSave={saveEmailTemplateRecord}
+                onEdit={editEmailTemplate}
+                onSeed={seedTemplates}
               />
             )}
             {tab === "activity" && <ActivityPanel logs={data.activityLogs} />}
@@ -521,6 +597,128 @@ function JobsPanel({ jobs, form, setForm, busy, onSave, onDelete, onStatus }) {
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function EmailTemplatesPanel({ templates, events, form, setForm, busy, onSave, onEdit, onSeed }) {
+  return (
+    <section className="space-y-5">
+      <SectionHeader
+        eyebrow="Email"
+        title="Lifecycle email templates"
+        description="Seed and edit the Firestore templates used by the Firebase Trigger Email extension. Function code is the only sender for workflow emails."
+        actions={
+          <button
+            type="button"
+            onClick={onSeed}
+            disabled={busy === "seed-email-templates"}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <MailCheck className="h-4 w-4" />
+            {busy === "seed-email-templates" ? "Seeding..." : "Seed defaults"}
+          </button>
+        }
+      />
+
+      <form onSubmit={onSave} className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Field label="Template ID">
+            <input
+              className={inputClass}
+              value={form.id}
+              onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
+              placeholder="application_received"
+            />
+          </Field>
+          <Field label="Subject">
+            <input
+              className={inputClass}
+              value={form.subject}
+              onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+              placeholder="We received your application"
+            />
+          </Field>
+          <Field label="Plain text body" className="md:col-span-2">
+            <textarea
+              className={`${inputClass} h-36 resize-none py-3 font-mono text-xs leading-relaxed`}
+              value={form.text}
+              onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
+              placeholder="Hi {{candidateName}}, ..."
+            />
+          </Field>
+          <Field label="HTML body" className="md:col-span-2">
+            <textarea
+              className={`${inputClass} h-36 resize-none py-3 font-mono text-xs leading-relaxed`}
+              value={form.html}
+              onChange={(e) => setForm((f) => ({ ...f, html: e.target.value }))}
+              placeholder="<p>Hi {{candidateName}},</p>"
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.active}
+              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+            />
+            Active template
+          </label>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {form.id && (
+            <button type="button" onClick={() => setForm(EMPTY_EMAIL_TEMPLATE)} className={smallButtonClass}>
+              Clear edit
+            </button>
+          )}
+          <button disabled={busy === "email-template"} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60">
+            <Save className="h-4 w-4" />
+            {busy === "email-template" ? "Saving..." : "Save template"}
+          </button>
+        </div>
+      </form>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.8fr]">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {templates.length === 0 && <EmptyState title="No email templates" body="Seed the default lifecycle templates, then edit copy as needed." className="m-4" />}
+          {templates.map((template) => (
+            <article key={template.id} className="border-b border-slate-100 p-4 last:border-b-0">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="font-semibold text-slate-900">{template.id}</div>
+                  <div className="mt-1 text-sm text-slate-600">{template.subject || "Subject not set"}</div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusBadge value={template.active === false ? "inactive" : "active"} withIcon={false} />
+                  <button type="button" onClick={() => onEdit(template)} className={smallButtonClass}>Edit</button>
+                </div>
+              </div>
+              <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                {template.text || template.html || "No body content."}
+              </p>
+            </article>
+          ))}
+        </div>
+
+        <aside className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="font-heading text-lg font-semibold text-slate-900">Recent email events</div>
+          <p className="mt-1 text-sm text-slate-500">Queued, skipped, and failed workflow email attempts.</p>
+          <div className="mt-4 space-y-3">
+            {events.length === 0 && <EmptyState title="No email events" body="Workflow email audit rows will appear here." />}
+            {events.slice(0, 12).map((event) => (
+              <div key={event.id} className="rounded-xl border border-slate-200 p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold text-slate-900">{event.templateId || event.type || "email"}</div>
+                  <StatusBadge value={event.status || "queued"} withIcon={false} />
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {Array.isArray(event.to) ? event.to.join(", ") : event.to || "recipient not set"}
+                </div>
+                {event.error && <div className="mt-2 text-xs text-rose-700">{event.error}</div>}
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
     </section>
   );

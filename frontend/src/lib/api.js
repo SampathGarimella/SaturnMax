@@ -378,17 +378,6 @@ export async function submitApplication(payload) {
   if (!payload.full_name || !payload.email || !payload.phone || !payload.position_title) {
     throw new Error("Please complete name, email, phone, and position.");
   }
-  const applicationPayload = {
-    ...payload,
-    email: user.email || payload.email,
-  };
-
-  const userRef = doc(db, COLLECTIONS.USERS, user.uid);
-  const userSnap = await getDoc(userRef);
-  const existingUser = userSnap.exists() ? userSnap.data() : null;
-  if (existingUser?.role && existingUser.role !== ROLES.CANDIDATE) {
-    throw new Error("Please use a candidate account to apply for jobs.");
-  }
 
   if (payload.position_id) {
     const duplicateSnap = await getDocs(
@@ -403,51 +392,10 @@ export async function submitApplication(payload) {
       throw new Error("You already applied to this job. Open My Applications to track the existing application.");
     }
   }
-
-  const candidateProfile = {
-    uid: user.uid,
-    email: applicationPayload.email,
-    name: applicationPayload.full_name,
-    phone: applicationPayload.phone,
-    current_location: applicationPayload.current_location || "",
-    current_company: applicationPayload.current_company || "",
-    portfolio_url: applicationPayload.portfolio_url || "",
-    resume_url: applicationPayload.resume_url || "",
-    primary_skills: applicationPayload.primary_skills || "",
-    role_label: "Job Candidate",
-    ...updateMeta(user),
-  };
-
-  await setDoc(
-    userRef,
-    {
-      ...buildSafeCandidateUserData(existingUser, {
-        email: applicationPayload.email,
-        name: applicationPayload.full_name,
-      }),
-      ...(userSnap.exists() ? {} : createMeta(user)),
-      ...updateMeta(user),
-    },
-    { merge: true }
-  );
-  await setDoc(
-    doc(db, COLLECTIONS.CANDIDATES, user.uid),
-    { ...candidateProfile, ...createMeta(user) },
-    { merge: true }
-  );
-
-  const appRef = doc(collection(db, COLLECTIONS.APPLICATIONS));
-  await setDoc(appRef, {
-    id: appRef.id,
-    ...applicationPayload,
-    candidate_uid: user.uid,
-    candidate_name: applicationPayload.full_name,
-    status: "applied",
-    lifecycle_stage: "applied",
-    public_status: "submitted",
-    ...createMeta(user),
+  return callRequiredFunction("submitCandidateApplication", {
+    ...payload,
+    email: user.email || payload.email,
   });
-  return { id: appRef.id, ...applicationPayload, status: "applied" };
 }
 
 export async function submitContact(payload) {
@@ -707,7 +655,22 @@ export async function fetchOwnUserProfile(uid = auth?.currentUser?.uid) {
 
 export async function fetchOperationsData() {
   requireFirestore();
-  const [jobs, apps, usersSnap, candidatesSnap, consultantsSnap, reviewsSnap, docsSnap, leadsSnap, activitySnap] = await Promise.all([
+  const [
+    jobs,
+    apps,
+    usersSnap,
+    candidatesSnap,
+    consultantsSnap,
+    reviewsSnap,
+    docsSnap,
+    leadsSnap,
+    activitySnap,
+    emailTemplatesSnap,
+    emailEventsSnap,
+    interviewsSnap,
+    offerTemplatesSnap,
+    offerLettersSnap,
+  ] = await Promise.all([
     fetchJobs({ includeAll: true }),
     getDocs(query(collection(db, COLLECTIONS.APPLICATIONS), orderBy("updatedAt", "desc"), limit(150))),
     getDocs(query(collection(db, COLLECTIONS.USERS), limit(250))),
@@ -717,6 +680,11 @@ export async function fetchOperationsData() {
     getDocs(query(collection(db, COLLECTIONS.DOCUMENTS), orderBy("updatedAt", "desc"), limit(200))),
     getDocs(query(collection(db, COLLECTIONS.LEADS), limit(120))),
     getDocs(query(collection(db, COLLECTIONS.ACTIVITY_LOGS), orderBy("createdAt", "desc"), limit(80))),
+    getDocs(query(collection(db, COLLECTIONS.EMAIL_TEMPLATES), limit(120))),
+    getDocs(query(collection(db, COLLECTIONS.EMAIL_EVENTS), orderBy("createdAt", "desc"), limit(120))),
+    getDocs(query(collection(db, COLLECTIONS.INTERVIEWS), orderBy("updatedAt", "desc"), limit(150))),
+    getDocs(query(collection(db, COLLECTIONS.OFFER_TEMPLATES), limit(50))),
+    getDocs(query(collection(db, COLLECTIONS.OFFER_LETTERS), orderBy("updatedAt", "desc"), limit(150))),
   ]);
   const applications = apps.docs.map(mapDoc).map(normalizeApplication);
   const users = usersSnap.docs.map(mapDoc);
@@ -781,6 +749,11 @@ export async function fetchOperationsData() {
     documents: docsSnap.docs.map(mapDoc),
     leads: leadsSnap.docs.map(mapDoc),
     activityLogs: activitySnap.docs.map(mapDoc),
+    emailTemplates: emailTemplatesSnap.docs.map(mapDoc),
+    emailEvents: emailEventsSnap.docs.map(mapDoc),
+    interviews: interviewsSnap.docs.map(mapDoc),
+    offerTemplates: offerTemplatesSnap.docs.map(mapDoc),
+    offerLetters: offerLettersSnap.docs.map(mapDoc),
     messageThreads: buildMessageThreads(messageDocs, candidateByUid),
   };
 }
@@ -917,6 +890,53 @@ export async function sendOfferLetter(application, file) {
   return uploaded;
 }
 
+export async function generateOfferLetter(application, offer = {}) {
+  requireFirestore();
+  requireAuthUser();
+  if (!application?.id) throw new Error("Choose a candidate application first.");
+  if (!offer.roleTitle?.trim()) throw new Error("Add a role title.");
+  if (!offer.startDate) throw new Error("Add a start date.");
+  if (!offer.workLocation?.trim()) throw new Error("Add a work location.");
+  return callRequiredFunction("generateOfferLetter", {
+    applicationId: application.id,
+    roleTitle: offer.roleTitle.trim(),
+    consultantType: offer.consultantType || "Contract",
+    clientName: offer.clientName || "",
+    startDate: offer.startDate,
+    workLocation: offer.workLocation,
+    compensation: offer.compensation || offer.rate || "",
+    notes: offer.notes || "",
+  });
+}
+
+export async function scheduleInterview(application, interview = {}) {
+  requireFirestore();
+  requireAuthUser();
+  if (!application?.id) throw new Error("Choose a candidate application first.");
+  if (!interview.startsAt) throw new Error("Add interview date and time.");
+  return callRequiredFunction("scheduleInterview", {
+    applicationId: application.id,
+    startsAt: interview.startsAt,
+    interviewType: interview.interviewType || "Technical interview",
+    interviewerName: interview.interviewerName || "SaturnMax hiring team",
+    meetingLink: interview.meetingLink || "",
+    notes: interview.notes || "",
+  });
+}
+
+export async function requestOnboardingDocument(application, request = {}) {
+  requireFirestore();
+  requireAuthUser();
+  if (!application?.id) throw new Error("Choose a candidate application first.");
+  if (!request.type) throw new Error("Choose a document type.");
+  return callRequiredFunction("requestOnboardingDocument", {
+    applicationId: application.id,
+    type: request.type,
+    title: request.title || request.type.replace(/_/g, " "),
+    details: request.details || "",
+  });
+}
+
 export async function uploadOnboardingDocument(application, file, docType = "onboarding") {
   const ext = file.name.split(".").pop() || "pdf";
   return uploadTrackedFile({
@@ -944,14 +964,10 @@ export async function uploadSignedCandidateDocument(application, file, type = "s
     title: type === "signed_offer" ? "Signed offer letter" : `Signed ${readableType}`,
     status: "pending_review",
   });
-  await updateApplicationStatus(application, type === "signed_offer" ? "offer_signed" : "onboarding");
-  await createReview({
-    owner_uid: user.uid,
-    application_id: application.id,
+  await callRequiredFunction("recordCandidateDocumentSubmission", {
+    applicationId: application.id,
+    documentId: uploaded.id,
     type,
-    title: uploaded.title || "Document review",
-    status: "pending_review",
-    details: "Candidate uploaded a signed document for review.",
   });
   return uploaded;
 }
@@ -1151,17 +1167,12 @@ async function createManualConsultantWithFunction(payload) {
 }
 
 export async function sendConsultantPasswordInvite(email) {
-  if (!auth) throw new Error("Firebase Auth is not configured.");
   const address = normalizeEmail(email);
   if (!isValidEmail(address)) throw new Error("Enter a valid consultant email.");
   await callRequiredFunction("sendPortalPasswordSetup", {
     email: address,
     role: ROLES.CONSULTANT,
     url: "https://saturnmax.com/consultant-login",
-  });
-  await sendPasswordResetEmail(auth, address, {
-    url: "https://saturnmax.com/consultant-login",
-    handleCodeInApp: false,
   });
 }
 
@@ -1237,11 +1248,38 @@ export async function adminSendPasswordReset(email, url = "https://saturnmax.com
   if (!isValidEmail(address)) throw new Error("Enter a valid email.");
   if (role !== ROLES.CANDIDATE) {
     await callRequiredFunction("sendPortalPasswordSetup", { email: address, role, url });
+    return;
   }
   await sendPasswordResetEmail(auth, address, {
     url,
     handleCodeInApp: false,
   });
+}
+
+export async function saveEmailTemplate(template = {}) {
+  requireFirestore();
+  const user = requireAuthUser();
+  if (!template.id?.trim()) throw new Error("Template ID is required.");
+  if (!template.subject?.trim()) throw new Error("Subject is required.");
+  if (!template.text?.trim() && !template.html?.trim()) throw new Error("Add text or HTML body.");
+  await setDoc(
+    doc(db, COLLECTIONS.EMAIL_TEMPLATES, template.id.trim()),
+    {
+      id: template.id.trim(),
+      subject: template.subject.trim(),
+      text: template.text || "",
+      html: template.html || "",
+      active: template.active !== false,
+      ...updateMeta(user),
+    },
+    { merge: true }
+  );
+}
+
+export async function seedEmailTemplates() {
+  requireFirestore();
+  requireAuthUser();
+  return callRequiredFunction("seedEmailTemplates");
 }
 
 async function adminUpsertPortalUserWithFunction(payload) {
