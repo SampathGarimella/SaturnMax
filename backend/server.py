@@ -76,7 +76,7 @@ RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "12"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
-RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "careers@saturnmax.com").strip()
+RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "info@saturnmax.com").strip()
 
 if resend is not None and RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY

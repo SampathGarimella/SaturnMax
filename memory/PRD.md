@@ -16,7 +16,7 @@
 
 ## User personas
 - **Candidate** — browses jobs, applies, tracks status, chats with HR, uploads resume.
-- **HR / Hiring team** (`careers@saturnmax.com`) — receives applications + contact emails, replies via Firestore messages.
+- **HR / Hiring team** (`info@saturnmax.com`) — receives applications + contact emails, replies via Firestore messages.
 - **US client** — reaches out via contact form.
 
 ## What's been implemented
