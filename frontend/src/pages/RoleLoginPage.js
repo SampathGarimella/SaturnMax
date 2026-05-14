@@ -30,6 +30,9 @@ const CONFIG = {
   },
 };
 
+const ROLE_LOGIN_SUPPORT_MESSAGE =
+  "Please contact hr@saturnmax.com for portal access or any login issues.";
+
 export default function RoleLoginPage({ role = "consultant" }) {
   const config = CONFIG[role] || CONFIG.consultant;
   const [email, setEmail] = useState("");
@@ -77,7 +80,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFirebaseConfigured) {
-      toast.error("Sign-in is temporarily unavailable.");
+      toast.error(ROLE_LOGIN_SUPPORT_MESSAGE);
       return;
     }
     setBusy(true);
@@ -109,6 +112,8 @@ export default function RoleLoginPage({ role = "consultant" }) {
     } catch (err) {
       if (err?.code === "auth/user-disabled") {
         toast.error("Your account is inactive. Contact hr@saturnmax.com.");
+      } else if (err?.code === "auth/operation-not-allowed") {
+        toast.error(ROLE_LOGIN_SUPPORT_MESSAGE);
       } else {
         toast.error(err?.message || "Sign-in failed. Please verify your credentials.");
       }
@@ -216,10 +221,10 @@ export default function RoleLoginPage({ role = "consultant" }) {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href="mailto:info@saturnmax.com" className="font-semibold underline">
-                    info@saturnmax.com
+                  <a href="mailto:hr@saturnmax.com" className="font-semibold underline">
+                    hr@saturnmax.com
                   </a>{" "}
-                  for access support.
+                  for portal access or any login issues.
                 </div>
               </div>
             </div>
