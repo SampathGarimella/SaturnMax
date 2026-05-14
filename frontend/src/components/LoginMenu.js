@@ -19,7 +19,7 @@ const LOGIN_OPTIONS = [
   },
   {
     to: "/employee-login",
-    label: "Employee/Admin Login",
+    label: "Employee Login",
     Icon: UserCog,
   },
 ];

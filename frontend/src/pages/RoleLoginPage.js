@@ -119,10 +119,10 @@ export default function RoleLoginPage({ role = "consultant" }) {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-xl">
+      <header className="relative z-[60] border-b border-slate-200 bg-white/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Link
               to="/"
               className="inline-flex items-center gap-2 text-sm text-[#2563EB] hover:text-[#1D4ED8] font-medium"
