@@ -18,6 +18,9 @@ const TABS = [
   { id: "signup", label: "Create account" },
 ];
 
+const AUTH_DISABLED_MESSAGE =
+  "Please share your resume and contact details to info@saturnmax.com.";
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(searchParams.get("mode") === "signup" ? "signup" : "signin");
@@ -81,6 +84,7 @@ export default function LoginPage() {
       "auth/popup-blocked": "Browser blocked the sign-in popup. Please allow popups.",
       "auth/popup-closed-by-user": "Sign-in popup closed before completing.",
       "auth/unauthorized-domain": "This sign-in domain is not authorized.",
+      "auth/operation-not-allowed": AUTH_DISABLED_MESSAGE,
     };
     toast.error(map[code] || err?.message || "Something went wrong. Try again.");
   };
@@ -161,11 +165,7 @@ export default function LoginPage() {
       });
       navigate(candidateTarget);
     } catch (err) {
-      if (err?.code === "auth/operation-not-allowed" && provider === "LinkedIn") {
-        toast.error("LinkedIn sign-in is not enabled for this account.");
-      } else {
-        handleError(err);
-      }
+      handleError(err);
     } finally {
       setBusy(false);
     }
