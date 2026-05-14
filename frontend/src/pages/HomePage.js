@@ -455,7 +455,7 @@ export default function HomePage() {
             )}
             {!jobsLoading && jobs.length === 0 && (
               <div className="p-8 text-center text-slate-500 text-sm">
-                No open roles are published right now. Please check back soon or contact careers@saturnmax.com.
+                No open roles are published right now. Please check back soon or contact info@saturnmax.com.
               </div>
             )}
             {jobs.map((job) => (
@@ -654,18 +654,8 @@ export default function HomePage() {
                   />
                   <InfoRow
                     Icon={Mail}
-                    label="General enquiries"
-                    value="hello@saturnmax.com"
-                  />
-                  <InfoRow
-                    Icon={Mail}
-                    label="Careers"
-                    value="careers@saturnmax.com"
-                  />
-                  <InfoRow
-                    Icon={Mail}
-                    label="US client partnerships"
-                    value="us@saturnmax.com"
+                    label="Email"
+                    value="info@saturnmax.com"
                   />
                   <InfoRow
                     Icon={Linkedin}

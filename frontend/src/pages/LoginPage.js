@@ -416,8 +416,8 @@ export default function LoginPage() {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href="mailto:hello@saturnmax.com" className="font-semibold underline">
-                    hello@saturnmax.com
+                  <a href="mailto:info@saturnmax.com" className="font-semibold underline">
+                    info@saturnmax.com
                   </a>{" "}
                   for immediate access support.
                 </div>
