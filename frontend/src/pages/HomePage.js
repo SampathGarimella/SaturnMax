@@ -650,7 +650,7 @@ export default function HomePage() {
                   <InfoRow
                     Icon={MapPin}
                     label="Address"
-                    value="SaturnMax Technologies"
+                    value="SaturnMax Technologies, Andhra Pradesh, India"
                   />
                   <InfoRow
                     Icon={Mail}
