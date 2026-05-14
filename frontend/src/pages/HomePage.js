@@ -13,6 +13,7 @@ import {
   Rocket,
   Phone,
   Mail,
+  Linkedin,
   MapPin,
   Clock,
   Check,
@@ -148,6 +149,7 @@ const TAG_STYLES = {
 };
 
 const EXPERIENCE_TAG_RE = /yrs?\s*exp|Any exp/i;
+const LINKEDIN_URL = "https://www.linkedin.com/company/saturnmax/";
 
 function tagClass(tag) {
   if (TAG_STYLES[tag]) return TAG_STYLES[tag];
@@ -665,6 +667,12 @@ export default function HomePage() {
                     label="US client partnerships"
                     value="us@saturnmax.com"
                   />
+                  <InfoRow
+                    Icon={Linkedin}
+                    label="LinkedIn"
+                    value="SaturnMax on LinkedIn"
+                    href={LINKEDIN_URL}
+                  />
                 </div>
               </div>
             </div>
@@ -826,6 +834,15 @@ export default function HomePage() {
             <a href="#contact" className="hover:text-slate-800">Terms</a>
             <a href="#careers" className="hover:text-slate-800">Careers</a>
             <a href="#contact" className="hover:text-slate-800">Contact</a>
+            <a
+              href={LINKEDIN_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-slate-800"
+            >
+              <Linkedin className="h-3.5 w-3.5" />
+              LinkedIn
+            </a>
           </div>
         </div>
       </footer>
@@ -846,7 +863,15 @@ function Field({ label, children, className = "" }) {
   );
 }
 
-function InfoRow({ Icon, label, value }) {
+function InfoRow({ Icon, label, value, href }) {
+  const valueNode = href ? (
+    <a href={href} target="_blank" rel="noreferrer" className="hover:text-[#2563EB]">
+      {value}
+    </a>
+  ) : (
+    value
+  );
+
   return (
     <div className="flex items-start gap-3">
       <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2563EB]/10 text-[#2563EB]">
@@ -854,7 +879,7 @@ function InfoRow({ Icon, label, value }) {
       </span>
       <div className="min-w-0">
         <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-sm text-slate-900 break-words">{value}</div>
+        <div className="text-sm text-slate-900 break-words">{valueNode}</div>
       </div>
     </div>
   );
