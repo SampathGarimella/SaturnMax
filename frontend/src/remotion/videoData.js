@@ -51,29 +51,36 @@ export const HERO_SCENES = [
     eyebrow: "US delivery pressure",
     headline: "Scale senior engineering without hiring drag",
     body: "SaturnMax helps US teams add vetted consultants, AI delivery capacity, and dedicated squads fast.",
-    metric: "48hr",
-    metricLabel: "pilot kickoff",
   },
   {
     eyebrow: "Global delivery model",
     headline: "US-ready rhythm, India-based execution",
     body: "Overlap hours, weekly demos, written updates, and senior technical screening before every placement.",
-    metric: "3x",
-    metricLabel: "cost leverage",
   },
   {
     eyebrow: "Services that map to demand",
     headline: "Contract consultants, dev squads, AI, cloud, and data",
     body: "Start with a practical pilot, then expand into the team shape your roadmap actually needs.",
-    metric: "20+",
-    metricLabel: "consultants placed",
   },
   {
     eyebrow: "Outcome focus",
     headline: "From intro call to live team in days",
     body: "A low-friction path from scoped need to staffed delivery, with the option to scale after proof.",
-    metric: "10+",
-    metricLabel: "projects delivered",
+  },
+];
+
+export const HERO_METRICS = [
+  {
+    metric: "48 HR",
+    label: "Pilot kickoff",
+  },
+  {
+    metric: "3X",
+    label: "Cost leverage",
+  },
+  {
+    metric: "20+",
+    label: "Consultants placed",
   },
 ];
 

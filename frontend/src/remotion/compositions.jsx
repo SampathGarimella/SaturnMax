@@ -10,6 +10,7 @@ import {
   BRAND,
   DELIVERY_STEPS,
   HERO_EXPLAINER_DURATION,
+  HERO_METRICS,
   HERO_SCENES,
   LINKEDIN_DURATION,
   LINKEDIN_VARIANTS,
@@ -184,26 +185,40 @@ function SceneTitle({ eyebrow, headline, body, style }) {
   );
 }
 
-function MetricBadge({ metric, label, progress }) {
+function MetricsStrip({ progress }) {
   return (
     <div
       style={{
         position: "absolute",
-        right: 116,
-        bottom: 110,
-        width: 310,
-        borderRadius: 28,
-        padding: 30,
+        left: 82,
+        bottom: 112,
+        display: "flex",
+        gap: 14,
+        borderRadius: 24,
+        padding: "18px 20px",
         background: "rgba(255,255,255,0.92)",
         border: `1px solid ${BRAND.line}`,
-        boxShadow: "0 24px 80px rgba(15,23,42,0.14)",
+        boxShadow: "0 18px 54px rgba(15,23,42,0.12)",
         fontFamily,
         transform: `translateY(${(1 - progress) * 18}px) scale(${0.96 + progress * 0.04})`,
         opacity: progress,
       }}
     >
-      <div style={{ color: BRAND.blue, fontSize: 78, fontWeight: 900, lineHeight: 1 }}>{metric}</div>
-      <div style={{ color: BRAND.ink, marginTop: 10, fontSize: 23, fontWeight: 800 }}>{label}</div>
+      {HERO_METRICS.map((item, index) => (
+        <div
+          key={item.label}
+          style={{
+            minWidth: 170,
+            paddingRight: index === HERO_METRICS.length - 1 ? 0 : 16,
+            borderRight: index === HERO_METRICS.length - 1 ? "none" : `1px solid ${BRAND.line}`,
+          }}
+        >
+          <div style={{ color: BRAND.blue, fontSize: 44, fontWeight: 900, lineHeight: 1 }}>{item.metric}</div>
+          <div style={{ color: BRAND.ink, marginTop: 6, fontSize: 17, fontWeight: 800 }}>
+            {item.label}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -331,7 +346,7 @@ export function HeroExplainerVideo() {
         }}
       />
       <DeliveryFlow activeIndex={activeFlowIndex} />
-      <MetricBadge metric={scene.metric} label={scene.metricLabel} progress={progress} />
+      <MetricsStrip progress={progress} />
       <FooterCta />
     </AbsoluteFill>
   );

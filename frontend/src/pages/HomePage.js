@@ -375,21 +375,20 @@ export default function HomePage() {
 
           {/* metric strip */}
           <div
-            className="motion-reveal mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+            className="motion-reveal mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
             data-testid="hero-metrics"
             data-motion
           >
             {[
-              { v: "3x", l: "Cost savings vs US hiring" },
-              { v: "48hr", l: "Pilot kickoff time" },
-              { v: "10+", l: "Projects delivered" },
-              { v: "20+", l: "Consultants placed with clients", accent: true },
+              { v: "48 HR", l: "Pilot kickoff" },
+              { v: "3X", l: "Cost leverage" },
+              { v: "20+", l: "Consultants placed", accent: true },
             ].map((m, i) => (
               <div
                 key={m.l}
                 className={`p-6 md:p-8 text-center ${
-                  i < 3 ? "md:border-r md:border-slate-200" : ""
-                } ${i < 2 ? "border-b md:border-b-0 border-slate-200" : ""}`}
+                  i < 2 ? "sm:border-r sm:border-slate-200" : ""
+                } ${i < 2 ? "border-b sm:border-b-0 border-slate-200" : ""}`}
               >
                 <div
                   className={`font-heading text-3xl md:text-4xl font-bold tracking-tight ${
