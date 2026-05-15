@@ -32,9 +32,10 @@ export default function Logo({ compact = false, className = "" }) {
         className="h-9 w-9 sm:h-11 sm:w-11 shrink-0 rounded-lg object-contain shadow-sm transition-transform group-hover:-rotate-3"
       />
       {!compact && (
-        <div className="block min-w-0 leading-tight">
-          <div className="max-w-[9.5rem] truncate font-heading text-[12px] font-semibold text-slate-900 sm:max-w-none sm:text-[14px] md:text-[15px]">
-            SaturnMax Technologies
+        <div className="block w-[5.4rem] shrink-0 leading-[1.05] sm:w-auto sm:min-w-0 sm:leading-tight">
+          <div className="font-heading text-[11px] font-semibold text-slate-900 sm:text-[14px] md:text-[15px]">
+            <span className="block sm:inline">SaturnMax</span>
+            <span className="block sm:inline"> Technologies</span>
           </div>
         </div>
       )}
