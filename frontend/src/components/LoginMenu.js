@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BriefcaseBusiness, ChevronDown, Home, LogIn, LogOut, UserCog, UserRound } from "lucide-react";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ export default function LoginMenu() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
   const portalHome = ROLE_HOME[user?.role] || "/";
   const portalName = ROLE_PORTAL_NAME[user?.role] || "Portal";
   const portalRoot = ROLE_PORTAL_ROOT[user?.role] || portalHome;
@@ -45,19 +46,47 @@ export default function LoginMenu() {
     setOpen(false);
   };
 
+  const supportsHover = () =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) setOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
   return (
     <div
+      ref={menuRef}
       className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onMouseEnter={() => {
+        if (supportsHover()) setOpen(true);
+      }}
+      onMouseLeave={() => {
+        if (supportsHover()) setOpen(false);
+      }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
     >
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => (supportsHover() ? true : !value));
+        }}
         className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 sm:px-4 text-sm font-semibold text-slate-900 shadow-sm transition-colors hover:border-[#2563EB]/40 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
         aria-haspopup="menu"
         aria-expanded={open}
