@@ -1,10 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
 
-export default function Logo({ compact = false, to = "/", className = "" }) {
+export default function Logo({ compact = false, className = "" }) {
+  const goHomeTop = () => {
+    window.setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    }, 0);
+  };
+
   return (
     <Link
-      to={to}
+      to="/"
+      onClick={goHomeTop}
       className={`flex items-center gap-3 group ${className}`}
       data-testid="brand-logo-link"
     >
