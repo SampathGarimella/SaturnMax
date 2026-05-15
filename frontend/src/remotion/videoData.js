@@ -84,6 +84,13 @@ export const HERO_METRICS = [
   },
 ];
 
+export const HERO_DETAILS = [
+  "US overlap",
+  "Senior screening",
+  "Weekly demos",
+  "Flexible squads",
+];
+
 export const LINKEDIN_VARIANTS = {
   devTeams: {
     id: "SaturnMaxLinkedInDevTeams",

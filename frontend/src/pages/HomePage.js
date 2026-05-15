@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Player } from "@remotion/player";
 import { toast } from "sonner";
@@ -163,6 +163,12 @@ const TAG_STYLES = {
 
 const EXPERIENCE_TAG_RE = /yrs?\s*exp|Any exp/i;
 const LINKEDIN_URL = "https://www.linkedin.com/company/saturnmax/";
+const VIDEO_DETAIL_POINTS = [
+  "48 HR pilot kickoff",
+  "US overlap delivery",
+  "Senior screening",
+  "Weekly demo cadence",
+];
 
 function tagClass(tag) {
   if (TAG_STYLES[tag]) return TAG_STYLES[tag];
@@ -173,6 +179,7 @@ function tagClass(tag) {
 export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const heroPlayerRef = useRef(null);
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [contactForm, setContactForm] = useState({
@@ -224,6 +231,19 @@ export default function HomePage() {
     elements.forEach((element) => observer.observe(element));
     return () => observer.disconnect();
   }, [jobs.length, jobsLoading]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const player = heroPlayerRef.current;
+      if (!player) return;
+      player.mute?.();
+      if (!player.isPlaying?.()) {
+        player.play?.();
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleApplyToJob = (job) => {
     const target = `/dashboard/jobs?applyJob=${encodeURIComponent(job.id)}`;
@@ -420,8 +440,16 @@ export default function HomePage() {
               A short animated snapshot of how SaturnMax moves from discovery to pilot, team match, weekly demos, and scalable delivery.
             </p>
           </div>
+          <div className="mb-5 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+            {VIDEO_DETAIL_POINTS.map((point) => (
+              <span key={point} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+                {point}
+              </span>
+            ))}
+          </div>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-xl" data-motion>
             <Player
+              ref={heroPlayerRef}
               component={HeroExplainerVideo}
               durationInFrames={HERO_EXPLAINER_DURATION}
               compositionWidth={1920}
@@ -429,8 +457,12 @@ export default function HomePage() {
               fps={VIDEO_FPS}
               loop
               autoPlay
-              muted
-              controls
+              initiallyMuted
+              controls={false}
+              clickToPlay={false}
+              doubleClickToFullscreen={false}
+              spaceKeyToPlayOrPause={false}
+              allowFullscreen={false}
               style={{ width: "100%" }}
             />
           </div>

@@ -11,6 +11,7 @@ import {
   BRAND,
   DELIVERY_STEPS,
   HERO_EXPLAINER_DURATION,
+  HERO_DETAILS,
   HERO_METRICS,
   HERO_SCENES,
   LINKEDIN_DURATION,
@@ -226,6 +227,55 @@ function MetricsStrip({ progress }) {
   );
 }
 
+function HeroDetailPanel({ progress }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 92,
+        top: 622,
+        width: 760,
+        borderRadius: 26,
+        padding: "24px 26px",
+        background: "rgba(255,255,255,0.78)",
+        border: `1px solid ${BRAND.line}`,
+        boxShadow: "0 18px 54px rgba(15,23,42,0.1)",
+        fontFamily,
+        opacity: progress,
+        transform: `translateY(${(1 - progress) * 14}px)`,
+      }}
+    >
+      <div
+        style={{
+          color: BRAND.ink,
+          fontSize: 24,
+          fontWeight: 900,
+          lineHeight: 1.12,
+        }}
+      >
+        World-class tech teams for US businesses
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 16 }}>
+        {HERO_DETAILS.map((detail) => (
+          <div
+            key={detail}
+            style={{
+              borderRadius: 999,
+              padding: "10px 14px",
+              background: BRAND.softBlue,
+              color: BRAND.blueDark,
+              fontSize: 17,
+              fontWeight: 850,
+            }}
+          >
+            {detail}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DeliveryFlow({ activeIndex = 0, compact = false }) {
   return (
     <div
@@ -304,11 +354,7 @@ function FooterCta({ children = "saturnmax.com | info@saturnmax.com" }) {
       style={{
         position: "absolute",
         left: 82,
-        right: 82,
         bottom: 58,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
         color: BRAND.muted,
         fontFamily,
         fontSize: 22,
@@ -316,7 +362,6 @@ function FooterCta({ children = "saturnmax.com | info@saturnmax.com" }) {
       }}
     >
       <span>{children}</span>
-      <span style={{ color: BRAND.blue }}>World-class tech teams for US businesses</span>
     </div>
   );
 }
@@ -349,6 +394,7 @@ export function HeroExplainerVideo() {
         }}
       />
       <DeliveryFlow activeIndex={activeFlowIndex} />
+      <HeroDetailPanel progress={progress} />
       <MetricsStrip progress={progress} />
       <FooterCta />
     </AbsoluteFill>
