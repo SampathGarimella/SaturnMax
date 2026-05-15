@@ -31,6 +31,24 @@ import {
   VIDEO_FPS,
 } from "../remotion/compositions";
 
+function HeroVideoFallback() {
+  return (
+    <div className="hero-video-fallback">
+      <div className="hero-video-fallback__kicker">Delivery model</div>
+      <div className="hero-video-fallback__title">
+        Pressure to pilot to team scale
+      </div>
+      <div className="hero-video-fallback__grid">
+        {["Scope", "Pilot", "Team", "Rhythm", "Scale"].map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const renderHeroVideoLoading = () => <HeroVideoFallback />;
+
 const SERVICE_ICONS = {
   "Consultants on contract": Handshake,
   "Dedicated dev squads": Users,
@@ -181,6 +199,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const heroPlayerRef = useRef(null);
+  const heroVideoShellRef = useRef(null);
   const [jobs, setJobs] = useState([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [contactForm, setContactForm] = useState({
@@ -234,16 +253,69 @@ export default function HomePage() {
   }, [jobs.length, jobsLoading]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let playTimer;
+    let observer;
+
+    const playVideo = () => {
       const player = heroPlayerRef.current;
       if (!player) return;
       player.mute?.();
       if (!player.isPlaying?.()) {
-        player.play?.();
+        Promise.resolve(player.play?.()).catch(() => {
+          // Mobile browsers may defer autoplay until the player is ready.
+        });
       }
-    }, 250);
+    };
 
-    return () => window.clearTimeout(timer);
+    const pauseVideo = () => {
+      const player = heroPlayerRef.current;
+      if (player?.isPlaying?.()) {
+        player.pause?.();
+      }
+    };
+
+    const schedulePlay = (delay = 160) => {
+      window.clearTimeout(playTimer);
+      playTimer = window.setTimeout(playVideo, delay);
+    };
+
+    if (reducedMotion) {
+      pauseVideo();
+      return () => window.clearTimeout(playTimer);
+    }
+
+    const shell = heroVideoShellRef.current;
+    if ("IntersectionObserver" in window && shell) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            schedulePlay();
+          } else {
+            pauseVideo();
+          }
+        },
+        { rootMargin: "160px 0px", threshold: 0.12 }
+      );
+      observer.observe(shell);
+    } else {
+      schedulePlay(250);
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseVideo();
+      } else {
+        schedulePlay(220);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearTimeout(playTimer);
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const handleApplyToJob = (job) => {
@@ -299,7 +371,7 @@ export default function HomePage() {
   return (
     <div className="app-shell bg-white">
       {/* ---- Header --------------------------------------------------- */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-slate-200">
+      <header className="sticky top-0 z-40 bg-white/95 border-b border-slate-200 md:bg-white/85 md:backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 min-h-16 py-2 flex items-center justify-between gap-3">
           <Logo className="min-w-0" />
           <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm text-slate-600">
@@ -448,7 +520,11 @@ export default function HomePage() {
               </span>
             ))}
           </div>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-xl" data-motion>
+          <div
+            ref={heroVideoShellRef}
+            className="hero-video-shell overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-xl"
+            data-motion
+          >
             <Player
               ref={heroPlayerRef}
               component={HeroExplainerVideo}
@@ -464,7 +540,18 @@ export default function HomePage() {
               doubleClickToFullscreen={false}
               spaceKeyToPlayOrPause={false}
               allowFullscreen={false}
-              style={{ width: "100%" }}
+              showPosterWhenUnplayed
+              showPosterWhenBuffering
+              showPosterWhenBufferingAndPaused
+              renderLoading={renderHeroVideoLoading}
+              renderPoster={renderHeroVideoLoading}
+              numberOfSharedAudioTags={0}
+              style={{
+                width: "100%",
+                aspectRatio: "16 / 9",
+                display: "block",
+                backgroundColor: "#0f172a",
+              }}
             />
           </div>
         </div>
