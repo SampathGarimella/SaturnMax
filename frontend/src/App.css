@@ -88,6 +88,30 @@
   animation-delay: calc(var(--motion-index) * 0.22s);
 }
 
+@media (max-width: 639px) {
+  .pipeline-track {
+    display: none;
+  }
+
+  .pipeline-step {
+    display: grid;
+    grid-template-columns: minmax(5.25rem, auto) 1fr;
+    align-items: center;
+    column-gap: 0.875rem;
+    min-height: 4rem;
+  }
+
+  .pipeline-step > div:first-child {
+    margin: 0;
+    white-space: nowrap;
+  }
+
+  .pipeline-step > div:last-child {
+    margin-top: 0;
+    line-height: 1.2;
+  }
+}
+
 .motion-reveal,
 [data-motion] {
   opacity: 0;

@@ -351,16 +351,16 @@ export default function HomePage() {
           </div>
 
           <div
-            className="motion-pipeline mt-14 rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm backdrop-blur md:p-5"
+            className="motion-pipeline mt-14 rounded-2xl border border-slate-200 bg-white/85 p-3 shadow-sm backdrop-blur sm:p-4 md:p-5"
             aria-label="SaturnMax delivery pipeline"
             data-motion
           >
             <div className="pipeline-track" />
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-4">
               {DELIVERY_SIGNAL.map((item, index) => (
                 <div
                   key={item.label}
-                  className="pipeline-step rounded-xl border border-slate-200 bg-white p-4"
+                  className="pipeline-step rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4"
                   style={{ "--motion-index": index }}
                 >
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB]">
