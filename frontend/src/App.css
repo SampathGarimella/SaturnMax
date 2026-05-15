@@ -26,6 +26,101 @@
   animation-delay: 0.45s;
 }
 
+.motion-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(10, 25, 47, 0.045) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 76%);
+  animation: grid-drift 18s linear infinite;
+}
+
+.motion-pipeline {
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+
+.motion-pipeline.is-visible,
+.motion-reveal.is-visible,
+[data-motion].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pipeline-track {
+  position: absolute;
+  left: 2rem;
+  right: 2rem;
+  top: 50%;
+  height: 2px;
+  background:
+    linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.2), transparent),
+    repeating-linear-gradient(90deg, rgba(37, 99, 235, 0.52) 0 18px, transparent 18px 32px);
+  background-size: 100% 100%, 64px 100%;
+  transform: translateY(-50%);
+  animation: pipeline-flow 2.8s linear infinite;
+}
+
+.pipeline-step {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fade-in-up 0.65s ease-out forwards;
+  animation-delay: calc(0.18s + var(--motion-index) * 0.09s);
+}
+
+.pipeline-node {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  animation: node-signal 2.4s ease-in-out infinite;
+  animation-delay: calc(var(--motion-index) * 0.22s);
+}
+
+.motion-reveal,
+[data-motion] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+[data-motion].is-visible:nth-child(2n) {
+  transition-delay: 0.04s;
+}
+
+[data-motion].is-visible:nth-child(3n) {
+  transition-delay: 0.08s;
+}
+
+.motion-icon {
+  transition: transform 0.28s ease, background-color 0.28s ease;
+}
+
+[data-motion]:hover .motion-icon {
+  transform: translateY(-2px) rotate(-3deg);
+  background-color: rgba(37, 99, 235, 0.16);
+}
+
+.motion-process-step span {
+  animation: process-step-pulse 3s ease-in-out infinite;
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -34,6 +129,46 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes grid-drift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 96px 48px, 48px 96px;
+  }
+}
+
+@keyframes pipeline-flow {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 0 0, 64px 0;
+  }
+}
+
+@keyframes node-signal {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.07);
+  }
+}
+
+@keyframes process-step-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
   }
 }
 

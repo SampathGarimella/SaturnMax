@@ -135,6 +135,13 @@ const APPLICATION_STEPS = [
   "Offer and onboarding",
 ];
 
+const DELIVERY_SIGNAL = [
+  { label: "Scope", detail: "Pilot plan" },
+  { label: "Staff", detail: "Vetted engineers" },
+  { label: "Ship", detail: "Weekly demos" },
+  { label: "Scale", detail: "Flexible teams" },
+];
+
 const TAG_STYLES = {
   "Full-time": "bg-slate-100 text-slate-700",
   Remote: "bg-emerald-50 text-emerald-700",
@@ -185,6 +192,32 @@ export default function HomePage() {
       })
       .finally(() => setJobsLoading(false));
   }, []);
+
+  useEffect(() => {
+    const elements = Array.from(document.querySelectorAll("[data-motion]"));
+    if (elements.length === 0) return undefined;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion || !("IntersectionObserver" in window)) {
+      elements.forEach((element) => element.classList.add("is-visible"));
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.18 }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [jobs.length, jobsLoading]);
 
   const handleApplyToJob = (job) => {
     const target = `/dashboard/jobs?applyJob=${encodeURIComponent(job.id)}`;
@@ -275,7 +308,7 @@ export default function HomePage() {
       </header>
 
       {/* ---- Hero ----------------------------------------------------- */}
-      <section className="relative overflow-hidden">
+      <section className="motion-hero relative overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(60%_60%_at_50%_0%,#EEF4FF_0%,#FFFFFF_60%)]" />
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-20 md:py-28">
           <div className="stagger text-center max-w-4xl mx-auto">
@@ -311,10 +344,34 @@ export default function HomePage() {
 
           </div>
 
+          <div
+            className="motion-pipeline mt-14 rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm backdrop-blur md:p-5"
+            aria-label="SaturnMax delivery pipeline"
+            data-motion
+          >
+            <div className="pipeline-track" />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {DELIVERY_SIGNAL.map((item, index) => (
+                <div
+                  key={item.label}
+                  className="pipeline-step rounded-xl border border-slate-200 bg-white p-4"
+                  style={{ "--motion-index": index }}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#2563EB]">
+                    <span className="pipeline-node" />
+                    {item.label}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-slate-900">{item.detail}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* metric strip */}
           <div
-            className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+            className="motion-reveal mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
             data-testid="hero-metrics"
+            data-motion
           >
             {[
               { v: "3x", l: "Cost savings vs US hiring" },
@@ -361,8 +418,9 @@ export default function HomePage() {
                   key={s.title}
                   className="group relative bg-white border border-slate-200 rounded-2xl p-7 hover:border-[#2563EB]/30 hover:shadow-lg transition-all"
                   data-testid={`service-${s.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  data-motion
                 >
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB] mb-5">
+                  <div className="motion-icon inline-flex h-11 w-11 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB] mb-5">
                     <Icon className="h-5 w-5" />
                   </div>
                   <h3 className="font-heading text-xl font-semibold text-slate-900">
@@ -404,6 +462,7 @@ export default function HomePage() {
                   <div
                     key={promise}
                     className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4"
+                    data-motion
                   >
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
                     <span className="text-sm text-slate-700 leading-snug">{promise}</span>
@@ -417,6 +476,7 @@ export default function HomePage() {
                   key={item.client}
                   className="rounded-lg border border-slate-200 bg-white p-6 hover:border-[#2563EB]/30 hover:shadow-md transition-all"
                   data-testid={`case-study-${item.client.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  data-motion
                 >
                   <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] font-bold text-[#2563EB]">
                     <ShieldCheck className="h-3.5 w-3.5" />
@@ -463,6 +523,7 @@ export default function HomePage() {
                 key={job.id}
                 className="p-6 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-5 hover:bg-slate-50/60 transition-colors"
                 data-testid={`job-row-${job.id}`}
+                data-motion
               >
                 <div>
                   <h3 className="font-heading text-lg md:text-xl font-semibold text-slate-900">
@@ -531,7 +592,8 @@ export default function HomePage() {
                 {APPLICATION_STEPS.map((step, index) => (
                   <div
                     key={step}
-                    className="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
+                    className="motion-process-step flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
+                    data-motion
                   >
                     <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563EB] text-[11px] font-bold text-white">
                       {index + 1}
@@ -558,7 +620,7 @@ export default function HomePage() {
                 body: "Follow stage updates, messages, document requests, offer steps, and onboarding from your dashboard.",
               },
             ].map((item) => (
-              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" data-motion>
                 <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#2563EB]/10 text-[#2563EB]">
                   <ClipboardCheck className="h-5 w-5" />
                 </div>
@@ -607,6 +669,7 @@ export default function HomePage() {
                 key={step.n}
                 className="relative bg-white border border-slate-200 rounded-2xl p-7 hover:border-[#2563EB]/30 hover:shadow-md transition-all"
                 data-testid={`how-step-${step.n}`}
+                data-motion
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
@@ -642,7 +705,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* left: offices */}
             <div className="space-y-5">
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-7">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-7" data-motion>
                 <div className="text-sm font-semibold text-slate-900">
                   Headquarters
                 </div>
@@ -672,6 +735,7 @@ export default function HomePage() {
               onSubmit={handleContactSubmit}
               className="bg-white rounded-2xl border border-slate-200 p-6 md:p-7 space-y-5"
               data-testid="contact-form"
+              data-motion
             >
               <div className="text-sm font-semibold text-slate-900">Send us a message</div>
               {contactSubmitted && (
