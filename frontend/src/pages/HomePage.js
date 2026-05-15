@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Player } from "@remotion/player";
 import { toast } from "sonner";
 import {
   ArrowRight,
@@ -24,6 +25,11 @@ import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import { fetchJobs, submitContact } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import {
+  HERO_EXPLAINER_DURATION,
+  HeroExplainerVideo,
+  VIDEO_FPS,
+} from "../remotion/compositions";
 
 const SERVICE_ICONS = {
   "Consultants on contract": Handshake,
@@ -395,6 +401,39 @@ export default function HomePage() {
                 <div className="mt-1 text-xs text-slate-500">{m.l}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Remotion explainer -------------------------------------- */}
+      <section className="py-16 md:py-24 bg-white border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 md:px-10">
+          <div className="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+            <div>
+              <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
+                Delivery model
+              </div>
+              <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
+                From scoped need to staffed delivery
+              </h2>
+            </div>
+            <p className="text-sm md:text-base text-slate-600 leading-relaxed">
+              A short animated snapshot of how SaturnMax moves from discovery to pilot, team match, weekly demos, and scalable delivery.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-xl" data-motion>
+            <Player
+              component={HeroExplainerVideo}
+              durationInFrames={HERO_EXPLAINER_DURATION}
+              compositionWidth={1920}
+              compositionHeight={1080}
+              fps={VIDEO_FPS}
+              loop
+              autoPlay
+              muted
+              controls
+              style={{ width: "100%" }}
+            />
           </div>
         </div>
       </section>
