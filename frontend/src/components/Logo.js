@@ -9,9 +9,9 @@ export default function Logo({ compact = false, to = "/", className = "" }) {
       data-testid="brand-logo-link"
     >
       <img
-        src="/logo.png"
+        src="/favicon.png"
         alt="SaturnMax Technologies"
-        className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-lg object-cover shadow-sm transition-transform group-hover:-rotate-3"
+        className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-lg object-contain shadow-sm transition-transform group-hover:-rotate-3"
       />
       {!compact && (
         <div className="hidden sm:block min-w-0 leading-tight">

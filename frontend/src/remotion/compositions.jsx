@@ -3,6 +3,7 @@ import {
   AbsoluteFill,
   interpolate,
   spring,
+  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
@@ -114,12 +115,14 @@ function BrandHeader({ label = "SaturnMax Technologies" }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-        <div
+        <img
+          src={staticFile("favicon.png")}
+          alt=""
           style={{
             width: 52,
             height: 52,
             borderRadius: 14,
-            background: `linear-gradient(135deg, ${BRAND.navy}, ${BRAND.blue})`,
+            objectFit: "contain",
             boxShadow: "0 16px 40px rgba(37,99,235,0.22)",
           }}
         />
