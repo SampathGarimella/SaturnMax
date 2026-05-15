@@ -164,10 +164,11 @@ const TAG_STYLES = {
 const EXPERIENCE_TAG_RE = /yrs?\s*exp|Any exp/i;
 const LINKEDIN_URL = "https://www.linkedin.com/company/saturnmax/";
 const VIDEO_DETAIL_POINTS = [
-  "48 HR pilot kickoff",
-  "US overlap delivery",
-  "Senior screening",
-  "Weekly demo cadence",
+  "Pressure to plan",
+  "48 HR pilot brief",
+  "Vetted team match",
+  "Weekly delivery rhythm",
+  "Scale after proof",
 ];
 
 function tagClass(tag) {
@@ -433,11 +434,11 @@ export default function HomePage() {
                 Delivery model
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-                From scoped need to staffed delivery
+                What happens after you contact SaturnMax
               </h2>
             </div>
             <p className="text-sm md:text-base text-slate-600 leading-relaxed">
-              A short animated snapshot of how SaturnMax moves from discovery to pilot, team match, weekly demos, and scalable delivery.
+              A silent five-part explainer that shows the buyer journey: pressure, scope, team match, delivery rhythm, and scale.
             </p>
           </div>
           <div className="mb-5 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">

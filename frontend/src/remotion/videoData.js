@@ -46,26 +46,61 @@ export const DELIVERY_STEPS = [
   },
 ];
 
-export const HERO_SCENES = [
+export const HERO_STORY_SCENES = [
   {
+    id: "pressure",
     eyebrow: "US delivery pressure",
-    headline: "Scale senior engineering without hiring drag",
-    body: "SaturnMax helps US teams add vetted consultants, AI delivery capacity, and dedicated squads fast.",
+    headline: "Your roadmap needs senior capacity before hiring catches up",
+    body: "SaturnMax turns urgent product, AI, cloud, and data work into a staffed delivery path without a long recruiting cycle.",
+    chapter: "Pressure",
+    visualTitle: "Demand signals",
+    visualSubtitle: "From signal to delivery path",
+    visualItems: ["Hiring delay", "AI backlog", "Cloud and data roadmap"],
+    proof: ["48 HR pilot kickoff", "3X cost leverage", "20+ consultants placed"],
   },
   {
-    eyebrow: "Global delivery model",
-    headline: "US-ready rhythm, India-based execution",
-    body: "Overlap hours, weekly demos, written updates, and senior technical screening before every placement.",
+    id: "scope",
+    eyebrow: "Step 01 - Scope",
+    headline: "A discovery call becomes a practical pilot brief",
+    body: "We clarify outcomes, skills, timeline, overlap hours, and success criteria before you commit to a larger team.",
+    chapter: "Scope",
+    visualTitle: "Pilot brief",
+    visualSubtitle: "Pilot plan in 48 hours",
+    visualItems: ["Outcome", "Role mix", "Start date"],
+    proof: ["Free discovery call", "Pilot plan", "Clear acceptance criteria"],
   },
   {
-    eyebrow: "Services that map to demand",
-    headline: "Contract consultants, dev squads, AI, cloud, and data",
-    body: "Start with a practical pilot, then expand into the team shape your roadmap actually needs.",
+    id: "team",
+    eyebrow: "Step 02 - Team",
+    headline: "Vetted consultants and squads match the work",
+    body: "Senior engineers are screened for the role, then embedded with US overlap and clear ownership from day one.",
+    chapter: "Team",
+    visualTitle: "Matched capacity",
+    visualSubtitle: "Screened roles, ready to embed",
+    visualItems: ["React + Python", "AI workflows", "AWS + data"],
+    proof: ["Senior screening", "US overlap", "Flexible contracts"],
   },
   {
-    eyebrow: "Outcome focus",
-    headline: "From intro call to live team in days",
-    body: "A low-friction path from scoped need to staffed delivery, with the option to scale after proof.",
+    id: "rhythm",
+    eyebrow: "Step 03 - Ship",
+    headline: "Weekly demos keep progress visible",
+    body: "You get a simple operating cadence: demo, status, risks, next milestone, and decisions that unblock delivery.",
+    chapter: "Rhythm",
+    visualTitle: "Delivery cadence",
+    visualSubtitle: "Demo cadence and risk visibility",
+    visualItems: ["Monday plan", "Midweek build", "Friday demo"],
+    proof: ["Written updates", "Demo cadence", "Delivery governance"],
+  },
+  {
+    id: "scale",
+    eyebrow: "Step 04 - Scale",
+    headline: "Grow or flex the team after proof",
+    body: "Start with a focused pilot, then expand into consultants, a dedicated squad, or AI/cloud/data delivery as demand grows.",
+    chapter: "Scale",
+    visualTitle: "Capacity options",
+    visualSubtitle: "Capacity that grows after proof",
+    visualItems: ["1 consultant", "2-5 engineer squad", "AI and cloud delivery"],
+    proof: ["Scale up or down", "Cost-efficient model", "Long-term partner"],
   },
 ];
 
@@ -82,13 +117,6 @@ export const HERO_METRICS = [
     metric: "20+",
     label: "Consultants placed",
   },
-];
-
-export const HERO_DETAILS = [
-  "US overlap",
-  "Senior screening",
-  "Weekly demos",
-  "Flexible squads",
 ];
 
 export const LINKEDIN_VARIANTS = {
