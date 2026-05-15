@@ -1,11 +1,22 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Logo({ compact = false, className = "" }) {
-  const goHomeTop = () => {
-    window.setTimeout(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-    }, 0);
+  const navigate = useNavigate();
+
+  const scrollHomeTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+
+  const goHomeTop = (event) => {
+    event.preventDefault();
+    navigate("/");
+    window.requestAnimationFrame(() => {
+      scrollHomeTop();
+      window.requestAnimationFrame(scrollHomeTop);
+    });
   };
 
   return (
