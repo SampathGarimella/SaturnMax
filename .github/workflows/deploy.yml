@@ -61,6 +61,12 @@ jobs:
           CI: "false" # CRA treats warnings as errors in CI — silence that.
         run: yarn build
 
+      - name: Preserve custom domain
+        run: |
+          if [ -f ../CNAME ]; then
+            cp ../CNAME build/CNAME
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
