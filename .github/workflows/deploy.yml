@@ -58,7 +58,7 @@ jobs:
           REACT_APP_FIREBASE_APP_ID: ${{ secrets.REACT_APP_FIREBASE_APP_ID }}
           REACT_APP_FIREBASE_MEASUREMENT_ID: ${{ secrets.REACT_APP_FIREBASE_MEASUREMENT_ID }}
           REACT_APP_BRAND_NAME: ${{ vars.REACT_APP_BRAND_NAME || 'Company' }}
-	  REACT_APP_LEGAL_NAME: ${{ vars.REACT_APP_LEGAL_NAME || 'Company Private Limited' }}
+          REACT_APP_LEGAL_NAME: ${{ vars.REACT_APP_LEGAL_NAME || 'Company Private Limited' }}
           REACT_APP_PUBLIC_DOMAIN: ${{ vars.REACT_APP_PUBLIC_DOMAIN || 'example.com' }}
           REACT_APP_APP_BASE_URL: ${{ vars.REACT_APP_APP_BASE_URL || 'https://example.com' }}
           REACT_APP_SUPPORT_EMAIL: ${{ vars.REACT_APP_SUPPORT_EMAIL || 'support@example.com' }}
@@ -69,7 +69,6 @@ jobs:
         run: yarn build
 
       - name: Generate custom domain file
-	working-directory: frontend
         run: |
           if [ -n "${{ vars.REACT_APP_PUBLIC_DOMAIN }}" ]; then
             printf "%s\n" "${{ vars.REACT_APP_PUBLIC_DOMAIN }}" > build/CNAME
