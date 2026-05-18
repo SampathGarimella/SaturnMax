@@ -18,7 +18,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db, isFirebaseConfigured } from "../lib/firebase";
 import { ensureCandidateUser } from "../lib/api";
 import { ROLE_STATUS } from "../lib/constants";
-import { BRAND_NAME, portalUrl } from "../lib/brand";
 import { resolveRoleDocument } from "../lib/validators";
 
 const AuthContext = createContext(null);
@@ -35,7 +34,7 @@ function mapFirebaseUser(fbUser, role) {
 }
 
 const AUTH_UNAVAILABLE =
-  `Sign in is temporarily unavailable. Please contact ${BRAND_NAME} support.`;
+  "Sign in is temporarily unavailable. Please contact SaturnMax Technologies support.";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // {email, name, uid?, photoURL?}
@@ -159,7 +158,7 @@ export function AuthProvider({ children }) {
       await ensureCandidateUser({ ...cred.user, name });
       try {
         await sendEmailVerification(cred.user, {
-          url: portalUrl("/dashboard"),
+          url: "https://saturnmax.com/dashboard",
           handleCodeInApp: false,
         });
       } catch (e) {

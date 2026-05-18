@@ -51,7 +51,7 @@ export const HERO_STORY_SCENES = [
     id: "pressure",
     eyebrow: "US delivery pressure",
     headline: "Your roadmap needs senior capacity before hiring catches up",
-    body: "Company turns urgent product, AI, cloud, and data work into a staffed delivery path without a long recruiting cycle.",
+    body: "SaturnMax turns urgent product, AI, cloud, and data work into a staffed delivery path without a long recruiting cycle.",
     chapter: "Pressure",
     visualTitle: "Demand signals",
     visualSubtitle: "From signal to delivery path",
@@ -121,25 +121,25 @@ export const HERO_METRICS = [
 
 export const LINKEDIN_VARIANTS = {
   devTeams: {
-    id: "CompanyLinkedInDevTeams",
+    id: "SaturnMaxLinkedInDevTeams",
     title: "Dedicated dev squads for US teams",
     subtitle: "2-5 engineers embedded into your roadmap",
     points: ["React, Python, cloud, data", "US morning overlap", "Weekly demos"],
     cta: "Book a free discovery call",
   },
   aiAutomation: {
-    id: "CompanyLinkedInAIAutomation",
+    id: "SaturnMaxLinkedInAIAutomation",
     title: "AI automation that ships",
     subtitle: "LLM workflows, RAG pipelines, and practical agents",
     points: ["Scoped pilot first", "Production-minded builds", "Cost-efficient delivery"],
     cta: "Build your AI pilot",
   },
   consultants: {
-    id: "CompanyLinkedInConsultants",
+    id: "SaturnMaxLinkedInConsultants",
     title: "Vetted consultants on contract",
     subtitle: "Senior engineers for 3-12 month capacity needs",
     points: ["Fast matching", "Flexible contracts", "Clear ownership"],
-    cta: "Scale with Company",
+    cta: "Scale with SaturnMax",
   },
 };
 
@@ -149,13 +149,13 @@ export const SAMPLE_JOB = {
   type: "Contract",
   skills: ["React", "Python", "AWS", "AI workflows"],
   pitch: "Join US-aligned delivery squads solving real product and automation problems.",
-  cta: "Share resume and contact details: info@example.com",
+  cta: "Share resume and contact details: info@saturnmax.com",
 };
 
 export const SAMPLE_PROPOSAL = {
   client: "US SaaS product team",
   challenge: "Support teams need faster answers without adding headcount.",
-  solution: "A Company squad connects product docs, CRM data, and ticket history into an AI workflow.",
+  solution: "A SaturnMax squad connects product docs, CRM data, and ticket history into an AI workflow.",
   outcomes: ["RAG assistant pilot", "Admin review workflow", "Weekly demo cadence"],
   cta: "Start with a scoped pilot",
 };

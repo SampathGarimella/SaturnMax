@@ -1,6 +1,6 @@
 # Email Setup
 
-Company currently uses Firebase Authentication email templates for password setup and reset links.
+SaturnMax currently uses Firebase Authentication email templates for password setup and reset links.
 
 ## Current Production Email Flows
 
@@ -22,15 +22,15 @@ Use the link below to set or reset the password for %EMAIL%.
 %LINK%
 
 Candidate Portal:
-https://example.com/login
+https://saturnmax.com/login
 
 Consultant Portal:
-https://example.com/consultant-login
+https://saturnmax.com/consultant-login
 
 Employee/Admin Portal:
-https://example.com/employee-login
+https://saturnmax.com/employee-login
 
-If you did not request this email, contact hr@example.com.
+If you did not request this email, contact hr@saturnmax.com.
 
 Regards,
 %APP_NAME%
@@ -40,7 +40,7 @@ Regards,
 
 Firebase Console -> Authentication -> Templates -> Password reset.
 
-Also confirm `example.com` is listed in Firebase Console -> Authentication -> Settings -> Authorized domains.
+Also confirm `saturnmax.com` is listed in Firebase Console -> Authentication -> Settings -> Authorized domains.
 
 ## What Is Not Active Yet
 

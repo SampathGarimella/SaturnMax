@@ -1,4 +1,4 @@
-# Firebase setup - Company
+# Firebase setup - SaturnMax Technologies
 
 This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code is already wired - you just need to provide config and enable the services in the Firebase Console.
 
@@ -6,19 +6,19 @@ This guide gets Firebase Auth + Firestore + Storage working end-to-end. The code
 
 ## 1. Create the Firebase project
 
-1. Go to https://console.firebase.google.com → **Add project** → name it `company-project` (or anything).
+1. Go to https://console.firebase.google.com → **Add project** → name it `saturn-max` (or anything).
 2. Disable Google Analytics if you don't need it.
 
 ## 2. Register a Web app and grab the config
 
-1. Project Overview → click the **Web (`</>`) icon** → register the app (nickname `company-web`).
+1. Project Overview → click the **Web (`</>`) icon** → register the app (nickname `saturn-max-web`).
 2. Firebase shows a `firebaseConfig` object. Copy the values into `frontend/.env` for local testing and into GitHub repository secrets for the Pages build:
 
 ```dotenv
 REACT_APP_FIREBASE_API_KEY=AIzaSy...
-REACT_APP_FIREBASE_AUTH_DOMAIN=company-project.firebaseapp.com
-REACT_APP_FIREBASE_PROJECT_ID=company-project
-REACT_APP_FIREBASE_STORAGE_BUCKET=company-project.appspot.com
+REACT_APP_FIREBASE_AUTH_DOMAIN=saturn-max.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=saturn-max
+REACT_APP_FIREBASE_STORAGE_BUCKET=saturn-max.appspot.com
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=1234567890
 REACT_APP_FIREBASE_APP_ID=1:1234567890:web:abcdef
 REACT_APP_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
@@ -42,7 +42,7 @@ Firebase Console → **Build → Authentication → Sign-in method**:
 
 **Authorized domains** → add your production domain and `localhost`:
 - `localhost`
-- `example.com` (once live)
+- `saturnmax.com` (once live)
 
 ## 4. Enable Firestore
 
@@ -79,10 +79,10 @@ role checks.
 Authentication → **Users → Add user**:
 
 ```txt
-admin.test@example.com       role: admin
-employee.test@example.com    role: employee
-candidate.test@example.com   role: candidate
-consultant.test@example.com  role: consultant
+admin.test@saturnmax.com       role: admin
+employee.test@saturnmax.com    role: employee
+candidate.test@saturnmax.com   role: candidate
+consultant.test@saturnmax.com  role: consultant
 ```
 
 For each Auth user, copy the Firebase UID and create Firestore document
@@ -102,7 +102,7 @@ trusted backend or Cloud Function for privileged account creation.
 
 ## 7. Enable workflow email delivery
 
-Custom Company workflow emails use the official **Firebase Trigger Email**
+Custom SaturnMax workflow emails use the official **Firebase Trigger Email**
 extension. Firebase Auth still sends password setup/reset links because those
 credential links must stay inside Firebase Auth.
 
@@ -110,7 +110,7 @@ Install the extension from Firebase Console → Extensions → **Trigger Email f
 Firestore**, or with:
 
 ```bash
-firebase ext:install firebase/firestore-send-email --project=example-project
+firebase ext:install firebase/firestore-send-email --project=saturnmaxtechnologies
 ```
 
 Use these settings when the installer asks:
@@ -119,8 +119,8 @@ Use these settings when the installer asks:
 Email documents collection: mail
 Templates collection: emailTemplates
 Users collection: users
-Default FROM address: Company <notifications@example.com>
-Default REPLY-TO address: hr@example.com
+Default FROM address: SaturnMax <notifications@saturnmax.com>
+Default REPLY-TO address: hr@saturnmax.com
 SMTP provider: your verified SMTP provider
 ```
 
@@ -196,19 +196,19 @@ Use the link below to set or reset the password for %EMAIL%.
 %LINK%
 
 Candidate Portal:
-https://example.com/login
+https://saturnmax.com/login
 
 Consultant Portal:
-https://example.com/consultant-login
+https://saturnmax.com/consultant-login
 
-If you did not request this email, contact hr@example.com.
+If you did not request this email, contact hr@saturnmax.com.
 
 Regards,
 %APP_NAME%
 ```
 
 Consultant and employee login pages do not expose website password reset links;
-they direct users to `hr@example.com` for password assistance.
+they direct users to `hr@saturnmax.com` for password assistance.
 
 ## 9. Is a backend needed?
 

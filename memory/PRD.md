@@ -1,4 +1,4 @@
-# Company — Product Requirements Document
+# Saturn Max Technologies — Product Requirements Document
 
 ## Original problem statement
 > "implement home page, implement Candidate login page, implement candidate dashboard page and push. make it interactive if i miss anything add it to link page to page link it and i will add firebase for all login and all and let me know how to setup emails and setup everything for dashboard and all."
@@ -16,7 +16,7 @@
 
 ## User personas
 - **Candidate** — browses jobs, applies, tracks status, chats with HR, uploads resume.
-- **HR / Hiring team** (`info@example.com`) — receives applications + contact emails, replies via Firestore messages.
+- **HR / Hiring team** (`info@saturnmax.com`) — receives applications + contact emails, replies via Firestore messages.
 - **US client** — reaches out via contact form.
 
 ## What's been implemented
@@ -56,7 +56,7 @@
 ### P0
 - Add real `REACT_APP_FIREBASE_*` config + `RESEND_API_KEY` to respective `.env` files (pending user).
 - Verify Firebase Console: Auth providers enabled, Firestore rules pasted, Storage rules pasted, authorized domains set.
-- Final domain confirmed as `example.com`; keep product copy, contact emails, and Firebase authorized domains aligned to it.
+- Final domain confirmed as `saturnmax.com`; keep product copy, contact emails, and Firebase authorized domains aligned to it.
 
 ### P1
 - Persist profile edits (name/phone/portfolio) to Firestore under `candidates/{uid}` once Firebase is live.

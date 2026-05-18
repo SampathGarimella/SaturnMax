@@ -1,14 +1,14 @@
-# Deploying Company To GitHub Pages
+# Deploying SaturnMax To GitHub Pages
 
 The React frontend deploys to GitHub Pages and uses Firebase for Auth, Firestore, Storage, and Cloud Functions.
 
-Production URL: `https://example.com`
+Production URL: `https://saturnmax.com`
 
 ## GitHub Pages Setup
 
 1. Repo -> Settings -> Pages.
 2. Set **Build and deployment -> Source** to **GitHub Actions**.
-3. Set **Custom domain** to `example.com`.
+3. Set **Custom domain** to `saturnmax.com`.
 4. Enable **Enforce HTTPS** after DNS passes.
 
 The deployed build includes `frontend/public/CNAME`, so GitHub Pages should publish the custom domain automatically.
@@ -63,28 +63,28 @@ firebase deploy --only functions:submitLead,functions:manageLead,functions:manag
 
 Push to `main`, then re-run the GitHub Actions workflow if needed:
 
-[Deploy frontend to GitHub Pages](https://github.com/SampathGarimella/Company/actions/workflows/deploy.yml)
+[Deploy frontend to GitHub Pages](https://github.com/SampathGarimella/SaturnMax/actions/workflows/deploy.yml)
 
 ## Verify
 
 ```bash
-curl -I https://example.com
-curl https://example.com/CNAME
+curl -I https://saturnmax.com
+curl https://saturnmax.com/CNAME
 ```
 
 Open these routes:
-- `https://example.com/login`
-- `https://example.com/dashboard`
-- `https://example.com/consultant-login`
-- `https://example.com/employee-login`
-- `https://example.com/admin-dashboard`
+- `https://saturnmax.com/login`
+- `https://saturnmax.com/dashboard`
+- `https://saturnmax.com/consultant-login`
+- `https://saturnmax.com/employee-login`
+- `https://saturnmax.com/admin-dashboard`
 
 ## Common Issues
 
 | Symptom | Fix |
 |---|---|
-| GitHub default page appears | Confirm Pages source is GitHub Actions and `frontend/public/CNAME` contains `example.com`. |
+| GitHub default page appears | Confirm Pages source is GitHub Actions and `frontend/public/CNAME` contains `saturnmax.com`. |
 | HTTPS toggle is disabled | Wait for DNS verification, then enable Enforce HTTPS. |
-| Firebase sign-in says unauthorized domain | Add `example.com` in Firebase Authentication -> Settings -> Authorized domains. |
+| Firebase sign-in says unauthorized domain | Add `saturnmax.com` in Firebase Authentication -> Settings -> Authorized domains. |
 | Consultant/admin actions fail | Deploy the Cloud Functions and Firestore/Storage rules listed above. |
 | Candidate cannot apply | Verify their email first; application writes require verified Firebase email. |

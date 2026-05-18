@@ -3,7 +3,6 @@ import { Link, useLocation } from "react-router-dom";
 import { BriefcaseBusiness, ChevronDown, Home, LogIn, LogOut, UserCog, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
-import { PUBLIC_DOMAIN } from "../lib/brand";
 import { ROLE_HOME, ROLE_PORTAL_NAME, ROLE_PORTAL_ROOT } from "../lib/constants";
 
 const LOGIN_OPTIONS = [
@@ -165,7 +164,7 @@ export default function LoginMenu() {
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">Home page</span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
-                      Return to {PUBLIC_DOMAIN}
+                      Return to saturnmax.com
                     </span>
                   </span>
                 </Link>

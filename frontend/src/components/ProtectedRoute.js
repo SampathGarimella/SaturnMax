@@ -1,7 +1,6 @@
 import React from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { BRAND_NAME, SUPPORT_EMAIL } from "../lib/brand";
 import { ROLE_HOME, ROLE_STATUS } from "../lib/constants";
 
 export default function ProtectedRoute({ children, allowedRoles }) {
@@ -20,7 +19,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
     return (
       <AccessState
         title="Account role needs setup"
-        body={roleError || `Your account exists, but a ${BRAND_NAME} role has not been assigned yet.`}
+        body={roleError || "Your account exists, but a SaturnMax Technologies role has not been assigned yet."}
       />
     );
   }
@@ -70,7 +69,7 @@ function AccessState({ title, body, home = "/" }) {
           </Link>
         </div>
         <a
-          href={`mailto:${SUPPORT_EMAIL}`}
+          href="mailto:info@saturnmax.com"
           className="mt-5 inline-flex text-sm font-semibold text-[#2563EB] hover:text-[#1D4ED8]"
         >
           Contact access support

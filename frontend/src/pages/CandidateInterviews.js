@@ -2,7 +2,6 @@ import React from "react";
 import { useOutletContext } from "react-router-dom";
 import { CalendarDays, ExternalLink } from "lucide-react";
 import { EmptyState, SectionHeader, StatusBadge } from "../components/ui";
-import { BRAND_NAME } from "../lib/brand";
 
 export default function CandidateInterviews() {
   const { data, loading } = useOutletContext();
@@ -16,7 +15,7 @@ export default function CandidateInterviews() {
       positionTitle: application.position_title || "Application",
       status: application.interviewStatus || (application.status === "interview" ? "scheduled" : "not scheduled"),
       startsAt: application.interview_date || application.interviewTime || "",
-      interviewer: application.interviewer || `${BRAND_NAME} hiring team`,
+      interviewer: application.interviewer || "SaturnMax hiring team",
       meetingLink: application.meeting_link || "",
       nextAction: application.status_next_action || "Watch this page for interview updates.",
     }));

@@ -35,7 +35,6 @@ import {
   getNextHiringStage,
   normalizeHiringStage,
 } from "../../lib/workflow";
-import { BRAND_NAME } from "../../lib/brand";
 import { useOperations } from "./OperationsContext";
 import { humanDate, sortRecent, textIncludes } from "./operationsUtils";
 
@@ -52,7 +51,7 @@ const EMPTY_REJECT = {
 const EMPTY_INTERVIEW = {
   startsAt: "",
   interviewType: "Technical interview",
-  interviewerName: `${BRAND_NAME} hiring team`,
+  interviewerName: "SaturnMax hiring team",
   meetingLink: "",
   notes: "",
 };

@@ -19,7 +19,6 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { auth, db, functions, isFirebaseConfigured, storage } from "./firebase";
-import { BRAND_NAME, portalUrl } from "./brand";
 import {
   COLLECTIONS,
   JOB_STATUSES,
@@ -211,7 +210,7 @@ function buildMessageThreads(messageDocs, candidateByUid = {}) {
         "Candidate",
       candidateEmail: candidate.email || data.candidate_email || "",
       latestText: data.text || "",
-      latestAuthor: data.authorName || BRAND_NAME,
+      latestAuthor: data.authorName || "SaturnMax Technologies",
       latestAt: data.createdAt || data.created_at,
       latestAtLabel: formatMessageTime(data.createdAt || data.created_at),
       unreadCount: data.unreadForEmployee ? 1 : 0,
@@ -927,7 +926,7 @@ export async function scheduleInterview(application, interview = {}) {
     positionTitle: application.position_title || "Tech profile",
     startsAt: interview.startsAt,
     interviewType: interview.interviewType || "Technical interview",
-    interviewerName: interview.interviewerName || `${BRAND_NAME} hiring team`,
+    interviewerName: interview.interviewerName || "SaturnMax hiring team",
     meetingLink: interview.meetingLink || "",
     notes: interview.notes || "",
   });
@@ -1108,7 +1107,7 @@ export async function convertToConsultant(application, profile = {}, context = {
     invite: buildConsultantInviteMessage({
       name: consultant.name,
       email: consultant.email,
-      consultantLoginUrl: portalUrl("/consultant-login"),
+      consultantLoginUrl: "https://saturnmax.com/consultant-login",
     }),
   };
 }
@@ -1186,7 +1185,7 @@ export async function sendConsultantPasswordInvite(email) {
   await callRequiredFunction("sendPortalPasswordSetup", {
     email: address,
     role: ROLES.CONSULTANT,
-    url: portalUrl("/consultant-login"),
+    url: "https://saturnmax.com/consultant-login",
   });
 }
 
@@ -1272,7 +1271,7 @@ export async function manuallyAddConsultant(payload = {}) {
       invite: buildConsultantInviteMessage({
         name: functionResult.name,
         email: functionResult.email,
-        consultantLoginUrl: portalUrl("/consultant-login"),
+        consultantLoginUrl: "https://saturnmax.com/consultant-login",
       }),
     };
   }
@@ -1280,7 +1279,7 @@ export async function manuallyAddConsultant(payload = {}) {
   throw new Error("Consultant invite function did not return a consultant record.");
 }
 
-export async function adminSendPasswordReset(email, url = portalUrl("/login"), role = ROLES.CANDIDATE) {
+export async function adminSendPasswordReset(email, url = "https://saturnmax.com/login", role = ROLES.CANDIDATE) {
   if (!auth) throw new Error("Firebase Auth is not configured.");
   const address = normalizeEmail(email);
   if (!isValidEmail(address)) throw new Error("Enter a valid email.");
@@ -1356,9 +1355,9 @@ export async function adminUpsertPortalUser(payload = {}) {
 }
 
 function portalResetUrl(role) {
-  if (role === ROLES.CONSULTANT) return portalUrl("/consultant-login");
-  if (role === ROLES.EMPLOYEE || role === ROLES.ADMIN) return portalUrl("/employee-login");
-  return portalUrl("/login");
+  if (role === ROLES.CONSULTANT) return "https://saturnmax.com/consultant-login";
+  if (role === ROLES.EMPLOYEE || role === ROLES.ADMIN) return "https://saturnmax.com/employee-login";
+  return "https://saturnmax.com/login";
 }
 
 export async function adminDeactivatePortalUser(target = {}) {
@@ -1538,7 +1537,7 @@ export async function sendHiringMessage({ candidateUid, text, employee }) {
       employee?.name ||
       current.displayName ||
       current.email?.split("@")[0] ||
-      `${BRAND_NAME} hiring team`,
+      "SaturnMax Technologies hiring team",
     candidate_uid: candidateUid,
     text: body,
     unreadForEmployee: false,

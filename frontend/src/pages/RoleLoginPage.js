@@ -12,7 +12,6 @@ import {
   ROLE_PORTAL_NAME,
   ROLE_STATUS,
 } from "../lib/constants";
-import { BRAND_NAME, HR_EMAIL } from "../lib/brand";
 
 const CONFIG = {
   consultant: {
@@ -32,7 +31,7 @@ const CONFIG = {
 };
 
 const ROLE_LOGIN_SUPPORT_MESSAGE =
-  `Please contact ${HR_EMAIL} for portal access or any login issues.`;
+  "Please contact hr@saturnmax.com for portal access or any login issues.";
 
 export default function RoleLoginPage({ role = "consultant" }) {
   const config = CONFIG[role] || CONFIG.consultant;
@@ -112,7 +111,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
       navigate(ROLE_HOME[signedUser.role] || config.destination);
     } catch (err) {
       if (err?.code === "auth/user-disabled") {
-        toast.error(`Your account is inactive. Contact ${HR_EMAIL}.`);
+        toast.error("Your account is inactive. Contact hr@saturnmax.com.");
       } else if (err?.code === "auth/operation-not-allowed") {
         toast.error(ROLE_LOGIN_SUPPORT_MESSAGE);
       } else {
@@ -153,7 +152,7 @@ export default function RoleLoginPage({ role = "consultant" }) {
               {config.title}
             </h1>
             <p className="mt-4 text-sm md:text-base text-white/70 leading-relaxed">
-              Sign in with your assigned {BRAND_NAME} work account.
+              Sign in with your assigned SaturnMax work account.
             </p>
           </div>
         </section>
@@ -167,8 +166,8 @@ export default function RoleLoginPage({ role = "consultant" }) {
           </p>
           <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
             Use your invitation email to set your password. Contact{" "}
-            <a href={`mailto:${HR_EMAIL}`} className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
-              {HR_EMAIL}
+            <a href="mailto:hr@saturnmax.com" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+              hr@saturnmax.com
             </a>{" "}
             if you need a new invite or password setup link.
           </p>
@@ -222,8 +221,8 @@ export default function RoleLoginPage({ role = "consultant" }) {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href={`mailto:${HR_EMAIL}`} className="font-semibold underline">
-                    {HR_EMAIL}
+                  <a href="mailto:hr@saturnmax.com" className="font-semibold underline">
+                    hr@saturnmax.com
                   </a>{" "}
                   for portal access or any login issues.
                 </div>

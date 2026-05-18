@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { ArrowRight, Briefcase, UploadCloud, X } from "lucide-react";
 import { fetchJobs, markResumeUploaded, submitApplication, validateUploadFile } from "../lib/api";
-import { APPLICATION_DRAFT_STORAGE_PREFIX, BRAND_NAME, PENDING_APPLY_STORAGE_KEY } from "../lib/brand";
 import { useAuth } from "../context/AuthContext";
 
 const TAG_STYLES = {
@@ -36,7 +35,7 @@ export default function BrowseJobs() {
   const [submitting, setSubmitting] = useState(false);
   const candidate = data?.candidate || {};
   const [form, setForm] = useState(() => buildApplicationForm(candidate));
-  const draftKey = selectedJob?.id && user?.uid ? `${APPLICATION_DRAFT_STORAGE_PREFIX}.${user.uid}.${selectedJob.id}` : "";
+  const draftKey = selectedJob?.id && user?.uid ? `saturnmax.applicationDraft.${user.uid}.${selectedJob.id}` : "";
 
   useEffect(() => {
     fetchJobs()
@@ -68,7 +67,7 @@ export default function BrowseJobs() {
   );
 
   const openApply = (job) => {
-    const savedDraftKey = user?.uid ? `${APPLICATION_DRAFT_STORAGE_PREFIX}.${user.uid}.${job.id}` : "";
+    const savedDraftKey = user?.uid ? `saturnmax.applicationDraft.${user.uid}.${job.id}` : "";
     let savedDraft = {};
     if (savedDraftKey) {
       try {
@@ -145,7 +144,7 @@ export default function BrowseJobs() {
       });
       toast.success("Application submitted.");
       if (draftKey) window.localStorage.removeItem(draftKey);
-      window.sessionStorage.removeItem(PENDING_APPLY_STORAGE_KEY);
+      window.sessionStorage.removeItem("saturnmax.pendingApplyJob");
       closeApply();
       reload?.();
     } catch (err) {
@@ -162,7 +161,7 @@ export default function BrowseJobs() {
           Browse jobs
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Open positions curated for you by {BRAND_NAME}.
+          Open positions curated for you by SaturnMax Technologies.
         </p>
       </div>
       {loading ? (
@@ -281,7 +280,7 @@ export default function BrowseJobs() {
               <Field label="Brief introduction" className="md:col-span-2"><textarea rows={4} className={`${inputClass} h-28 resize-none py-3`} value={form.introduction} onChange={(e) => updateForm("introduction", e.target.value)} /></Field>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-slate-500">
-              By applying, you agree that {BRAND_NAME} may use your profile, resume, application, and contact details for hiring, consulting, and communication purposes. Your draft is saved on this device until submitted.
+              By applying, you agree that SaturnMax Technologies may use your profile, resume, application, and contact details for hiring, consulting, and communication purposes. Your draft is saved on this device until submitted.
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
               <button type="button" onClick={closeApply} disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">

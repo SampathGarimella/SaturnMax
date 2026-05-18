@@ -85,12 +85,12 @@ describe("hiring workflow source", () => {
   test("builds consultant invite text without sending email", () => {
     const invite = buildConsultantInviteMessage({
       name: "Priya",
-      email: "priya@example.com",
-      consultantLoginUrl: "https://example.com/consultant-login",
+      email: "priya@saturnmax.com",
+      consultantLoginUrl: "https://saturnmax.com/consultant-login",
     });
-    expect(invite.subject).toBe("Welcome to Company Consultant Portal");
+    expect(invite.subject).toBe("Welcome to SaturnMax Consultant Portal");
     expect(invite.body).toContain("Priya");
-    expect(invite.body).toContain("priya@example.com");
+    expect(invite.body).toContain("priya@saturnmax.com");
   });
 });
 

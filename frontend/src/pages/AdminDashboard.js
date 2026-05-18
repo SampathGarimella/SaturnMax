@@ -38,7 +38,6 @@ import {
   updateJobStatus,
 } from "../lib/api";
 import { PERMISSION_MATRIX } from "../lib/constants";
-import { BRAND_NAME, PUBLIC_DOMAIN, portalUrl } from "../lib/brand";
 
 const EMPTY_DATA = {
   jobs: [],
@@ -200,12 +199,7 @@ export default function AdminDashboard() {
     setBusy(`${item.id}-reset`);
     try {
       const role = item.role || "";
-      const url =
-        role === "consultant"
-          ? portalUrl("/consultant-login")
-          : role === "employee" || role === "admin"
-          ? portalUrl("/employee-login")
-          : portalUrl("/login");
+      const url = role === "consultant" ? "https://saturnmax.com/consultant-login" : role === "employee" || role === "admin" ? "https://saturnmax.com/employee-login" : "https://saturnmax.com/login";
       await adminSendPasswordReset(item.email, url, role || "candidate");
       toast.success(`Password setup/reset email sent to ${item.email}.`);
     } catch (err) {
@@ -448,7 +442,7 @@ function AccountsPanel({ users, form, setForm, busy, onSave, onEdit, onReset, on
       <SectionHeader eyebrow="Accounts" title="Manage portal users and roles" description="Choose the account type first, then create or update only the fields needed for that portal role. Setup/reset emails use the neutral Firebase password template." />
       <form onSubmit={onSave} className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
         <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-950">
-          Candidates may self-sign up. Consultants, employees, and admins should be created or invited by {BRAND_NAME} from this admin page.
+          Candidates may self-sign up. Consultants, employees, and admins should be created or invited by SaturnMax from this admin page.
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Field label="Account type">
@@ -543,7 +537,7 @@ function ConsultantsPanel({ consultants, onEdit }) {
 function JobsPanel({ jobs, form, setForm, busy, onSave, onDelete, onStatus }) {
   return (
     <section className="space-y-5">
-      <SectionHeader eyebrow="Jobs" title="Post and modify jobs" description={`Published roles appear on ${PUBLIC_DOMAIN} and in the Candidate Portal.`} />
+      <SectionHeader eyebrow="Jobs" title="Post and modify jobs" description="Published roles appear on saturnmax.com and in the Candidate Portal." />
       <form onSubmit={onSave} className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label="Job title"><input className={inputClass} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} /></Field>
