@@ -24,6 +24,7 @@ import {
 import Logo from "../components/Logo";
 import LoginMenu from "../components/LoginMenu";
 import { fetchJobs, submitContact } from "../lib/api";
+import { BRAND_NAME, LEGAL_NAME, LINKEDIN_URL, PENDING_APPLY_STORAGE_KEY, SUPPORT_EMAIL } from "../lib/brand";
 import { useAuth } from "../context/AuthContext";
 import {
   HERO_EXPLAINER_DURATION,
@@ -126,8 +127,7 @@ const CASE_STUDIES = [
   {
     client: "US SaaS platform",
     result: "Launched an AI support workflow in 21 days",
-    detail:
-      "A two-person SaturnMax Technologies squad connected product docs, CRM data, and ticket history into a RAG assistant for customer workflows.",
+    detail: `${BRAND_NAME} connected product docs, CRM data, and ticket history into a RAG assistant for customer workflows.`,
   },
   {
     client: "Fintech data team",
@@ -180,7 +180,6 @@ const TAG_STYLES = {
 };
 
 const EXPERIENCE_TAG_RE = /yrs?\s*exp|Any exp/i;
-const LINKEDIN_URL = "https://www.linkedin.com/company/saturnmax/";
 const VIDEO_DETAIL_POINTS = [
   "Pressure to plan",
   "48 HR pilot brief",
@@ -320,7 +319,7 @@ export default function HomePage() {
 
   const handleApplyToJob = (job) => {
     const target = `/dashboard/jobs?applyJob=${encodeURIComponent(job.id)}`;
-    window.sessionStorage.setItem("saturnmax.pendingApplyJob", job.id);
+    window.sessionStorage.setItem(PENDING_APPLY_STORAGE_KEY, job.id);
     if (!user?.uid) {
       navigate(`/login?mode=signin&applyJob=${encodeURIComponent(job.id)}`);
       return;
@@ -445,7 +444,7 @@ export default function HomePage() {
 
           <div
             className="motion-pipeline mt-14 rounded-2xl border border-slate-200 bg-white/85 p-3 shadow-sm backdrop-blur sm:p-4 md:p-5"
-            aria-label="SaturnMax delivery pipeline"
+            aria-label={` delivery pipeline`}
             data-motion
           >
             <div className="pipeline-track" />
@@ -506,7 +505,7 @@ export default function HomePage() {
                 Delivery model
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-                What happens after you contact SaturnMax
+                What happens after you contact {BRAND_NAME}
               </h2>
             </div>
             <p className="text-sm md:text-base text-slate-600 leading-relaxed">
@@ -605,7 +604,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-10 lg:gap-14 items-start">
             <div>
               <div className="text-xs tracking-[0.2em] uppercase text-[#2563EB] font-bold">
-                Why SaturnMax Technologies
+                Why {BRAND_NAME}
               </div>
               <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
                 Global engineering with US-ready operating rhythm
@@ -661,7 +660,7 @@ export default function HomePage() {
               Careers
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Open positions at SaturnMax Technologies
+              Open positions at {BRAND_NAME}
             </h2>
           </div>
 
@@ -673,7 +672,7 @@ export default function HomePage() {
             )}
             {!jobsLoading && jobs.length === 0 && (
               <div className="p-8 text-center text-slate-500 text-sm">
-                No open roles are published right now. Please check back soon or contact info@saturnmax.com.
+                No open roles are published right now. Please check back soon or contact {SUPPORT_EMAIL}.
               </div>
             )}
             {jobs.map((job) => (
@@ -857,7 +856,7 @@ export default function HomePage() {
               Get in touch
             </div>
             <h2 className="mt-3 font-heading text-3xl md:text-5xl font-semibold tracking-tight text-slate-900">
-              Contact SaturnMax Technologies
+              Contact {BRAND_NAME}
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -871,17 +870,17 @@ export default function HomePage() {
                   <InfoRow
                     Icon={MapPin}
                     label="Address"
-                    value="SaturnMax Technologies, Andhra Pradesh, India"
+                    value={`${BRAND_NAME}, India`}
                   />
                   <InfoRow
                     Icon={Mail}
                     label="Email"
-                    value="info@saturnmax.com"
+                    value={SUPPORT_EMAIL}
                   />
                   <InfoRow
                     Icon={Linkedin}
                     label="LinkedIn"
-                    value="SaturnMax on LinkedIn"
+                    value={`${BRAND_NAME} on LinkedIn`}
                     href={LINKEDIN_URL}
                   />
                 </div>
@@ -898,7 +897,7 @@ export default function HomePage() {
               <div className="text-sm font-semibold text-slate-900">Send us a message</div>
               {contactSubmitted && (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">
-                  Thanks, our team will contact you soon. Your enquiry is now in the SaturnMax lead queue.
+                  Thanks, our team will contact you soon. Your enquiry is now in the {BRAND_NAME} lead queue.
                 </div>
               )}
               <Field label="Your name">
@@ -999,7 +998,7 @@ export default function HomePage() {
                 />
               </Field>
               <p className="text-xs leading-relaxed text-slate-500">
-                By submitting this form, you agree that SaturnMax Technologies may use your details for hiring, consulting, and communication purposes.
+                By submitting this form, you agree that {BRAND_NAME} may use your details for hiring, consulting, and communication purposes.
               </p>
               <button
                 type="submit"
@@ -1039,7 +1038,7 @@ export default function HomePage() {
       <footer className="py-8 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6 md:px-10 flex flex-col md:flex-row gap-3 md:items-center md:justify-between text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} SaturnMax Technologies Private Limited, India
+            © {new Date().getFullYear()} {LEGAL_NAME}, India
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <a href="#contact" className="hover:text-slate-800">Privacy</a>

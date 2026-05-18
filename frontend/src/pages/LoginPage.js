@@ -12,6 +12,7 @@ import {
   ROLE_STATUS,
   ROLES,
 } from "../lib/constants";
+import { BRAND_NAME, HR_EMAIL, PENDING_APPLY_STORAGE_KEY, SUPPORT_EMAIL } from "../lib/brand";
 
 const TABS = [
   { id: "signin", label: "Sign in" },
@@ -19,7 +20,7 @@ const TABS = [
 ];
 
 const AUTH_DISABLED_MESSAGE =
-  "Please share your resume and contact details to info@saturnmax.com.";
+  `Please share your resume and contact details to ${SUPPORT_EMAIL}.`;
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
@@ -31,7 +32,7 @@ export default function LoginPage() {
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
-  const applyJob = searchParams.get("applyJob") || window.sessionStorage.getItem("saturnmax.pendingApplyJob") || "";
+  const applyJob = searchParams.get("applyJob") || window.sessionStorage.getItem(PENDING_APPLY_STORAGE_KEY) || "";
   const candidateTarget = applyJob ? `/dashboard/jobs?applyJob=${encodeURIComponent(applyJob)}` : "/dashboard";
   const linkedInEnabled = process.env.REACT_APP_ENABLE_LINKEDIN_LOGIN === "true";
   const {
@@ -77,7 +78,7 @@ export default function LoginPage() {
       "auth/invalid-credential": "Wrong email or password.",
       "auth/invalid-email": "That email address isn't valid.",
       "auth/user-not-found": "No account found with that email.",
-      "auth/user-disabled": "Your account is inactive. Contact hr@saturnmax.com.",
+      "auth/user-disabled": `Your account is inactive. Contact ${HR_EMAIL}.`,
       "auth/wrong-password": "Wrong email or password.",
       "auth/email-already-in-use": "An account with that email already exists.",
       "auth/weak-password": "Password must be at least 6 characters.",
@@ -126,7 +127,7 @@ export default function LoginPage() {
           description: "Please verify your email from the link we sent. Opening Candidate Portal.",
         });
       }
-      if (applyJob) window.sessionStorage.setItem("saturnmax.pendingApplyJob", applyJob);
+      if (applyJob) window.sessionStorage.setItem(PENDING_APPLY_STORAGE_KEY, applyJob);
       navigate(candidateTarget);
     } catch (err) {
       handleError(err);
@@ -234,7 +235,7 @@ export default function LoginPage() {
                   Welcome back
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Sign in to your SaturnMax Technologies account to manage applications and messages.
+                  Sign in to your {BRAND_NAME} account to manage applications and messages.
                 </p>
               </>
             ) : (
@@ -243,7 +244,7 @@ export default function LoginPage() {
                   Create your account
                 </h1>
                 <p className="mt-2 text-sm text-slate-500">
-                  Join SaturnMax Technologies as a candidate. Track applications, interviews, and messages in one place.
+                  Join {BRAND_NAME} as a candidate. Track applications, interviews, and messages in one place.
                 </p>
               </>
             )}
@@ -360,7 +361,7 @@ export default function LoginPage() {
 
               {tab === "signup" && (
                 <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
-                  By creating a candidate account, you agree that SaturnMax Technologies may use your submitted profile, resume, application, and contact details for hiring, consulting, and communication purposes.
+                  By creating a candidate account, you agree that {BRAND_NAME} may use your submitted profile, resume, application, and contact details for hiring, consulting, and communication purposes.
                 </p>
               )}
 
@@ -375,7 +376,7 @@ export default function LoginPage() {
                     ? "Signing in..."
                     : "Creating account..."
                   : tab === "signin"
-                  ? "Sign in to SaturnMax"
+                  ? `Sign in to ${BRAND_NAME}`
                   : "Create account"}
               </button>
             </form>
@@ -416,8 +417,8 @@ export default function LoginPage() {
                 <div className="font-semibold">Sign-in service unavailable</div>
                 <div className="text-xs mt-0.5">
                   Please contact{" "}
-                  <a href="mailto:info@saturnmax.com" className="font-semibold underline">
-                    info@saturnmax.com
+                  <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold underline">
+                    {SUPPORT_EMAIL}
                   </a>{" "}
                   for immediate access support.
                 </div>

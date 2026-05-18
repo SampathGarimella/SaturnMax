@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
+import { THEME_STORAGE_KEY } from "../lib/brand";
 
 export function getStoredDashboardTheme() {
   if (typeof window === "undefined") return "light";
-  return window.localStorage.getItem("saturnmax-dashboard-theme") || "light";
+  return window.localStorage.getItem(THEME_STORAGE_KEY) || "light";
 }
 
 export default function DashboardThemeToggle({ className = "" }) {
@@ -11,7 +12,7 @@ export default function DashboardThemeToggle({ className = "" }) {
 
   useEffect(() => {
     document.documentElement.dataset.dashboardTheme = theme;
-    window.localStorage.setItem("saturnmax-dashboard-theme", theme);
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   const dark = theme === "dark";

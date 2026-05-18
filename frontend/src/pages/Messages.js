@@ -11,6 +11,7 @@ import {
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { mapMessageForUi, markCandidateThreadRead, sendCandidateMessage } from "../lib/api";
+import { BRAND_NAME } from "../lib/brand";
 
 export default function Messages() {
   const { user, mode } = useAuth();
@@ -90,7 +91,7 @@ export default function Messages() {
           Messages
         </h2>
         <p className="text-sm text-slate-500 mt-1">
-          Conversations with the SaturnMax Technologies hiring team.{" "}
+          Conversations with the {BRAND_NAME} hiring team.{" "}
           {live ? (
             <span className="text-emerald-600 font-medium">Live</span>
           ) : (
@@ -142,7 +143,7 @@ export default function Messages() {
                       <span className="h-2 w-2 rounded-full bg-[#2563EB] shrink-0" />
                     )}
                     <div className="font-semibold text-sm text-slate-900 truncate">
-                      {mine ? "You" : m.authorName || "SaturnMax Technologies"}
+                      {mine ? "You" : m.authorName || BRAND_NAME}
                     </div>
                     <span className="ml-auto text-xs text-slate-400 shrink-0">
                       {m.time}

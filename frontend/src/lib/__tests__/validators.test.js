@@ -39,12 +39,12 @@ describe("role validators", () => {
 
   test("preserves existing privileged role in candidate profile merge", () => {
     const merged = buildSafeCandidateUserData(
-      { role: ROLES.ADMIN, email: "admin@saturnmax.com", name: "Admin", status: "active" },
-      { role: ROLES.CANDIDATE, email: "candidate@saturnmax.com", name: "Candidate" }
+      { role: ROLES.ADMIN, email: "admin@example.com", name: "Admin", status: "active" },
+      { role: ROLES.CANDIDATE, email: "candidate@example.com", name: "Candidate" }
     );
     expect(merged.role).toBe(ROLES.ADMIN);
     expect(merged.status).toBe("active");
-    expect(merged.email).toBe("candidate@saturnmax.com");
+    expect(merged.email).toBe("candidate@example.com");
   });
 });
 

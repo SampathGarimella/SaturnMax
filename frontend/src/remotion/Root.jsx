@@ -18,7 +18,7 @@ export function RemotionRoot() {
   return (
     <>
       <Composition
-        id="SaturnMaxHeroExplainer"
+        id="CompanyHeroExplainer"
         component={HeroExplainerVideo}
         durationInFrames={HERO_EXPLAINER_DURATION}
         fps={VIDEO_FPS}
@@ -26,7 +26,7 @@ export function RemotionRoot() {
         height={1080}
       />
       <Composition
-        id="SaturnMaxLinkedInDevTeams"
+        id="CompanyLinkedInDevTeams"
         component={LinkedInMarketingVideo}
         durationInFrames={LINKEDIN_DURATION}
         fps={VIDEO_FPS}
@@ -35,7 +35,7 @@ export function RemotionRoot() {
         defaultProps={{ variant: "devTeams" }}
       />
       <Composition
-        id="SaturnMaxLinkedInAIAutomation"
+        id="CompanyLinkedInAIAutomation"
         component={LinkedInMarketingVideo}
         durationInFrames={LINKEDIN_DURATION}
         fps={VIDEO_FPS}
@@ -44,7 +44,7 @@ export function RemotionRoot() {
         defaultProps={{ variant: "aiAutomation" }}
       />
       <Composition
-        id="SaturnMaxLinkedInConsultants"
+        id="CompanyLinkedInConsultants"
         component={LinkedInMarketingVideo}
         durationInFrames={LINKEDIN_DURATION}
         fps={VIDEO_FPS}
@@ -53,7 +53,7 @@ export function RemotionRoot() {
         defaultProps={{ variant: "consultants" }}
       />
       <Composition
-        id="SaturnMaxRecruitingClip"
+        id="CompanyRecruitingClip"
         component={RecruitingClip}
         durationInFrames={RECRUITING_DURATION}
         fps={VIDEO_FPS}
@@ -61,7 +61,7 @@ export function RemotionRoot() {
         height={1920}
       />
       <Composition
-        id="SaturnMaxClientProposalSnippet"
+        id="CompanyClientProposalSnippet"
         component={ClientProposalSnippet}
         durationInFrames={PROPOSAL_DURATION}
         fps={VIDEO_FPS}

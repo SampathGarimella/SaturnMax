@@ -1,3 +1,5 @@
+import { BRAND_NAME, portalUrl } from "./brand";
+
 export const APPLICATION_STAGES = Object.freeze([
   "applied",
   "screening",
@@ -39,7 +41,7 @@ export const APPLICATION_STATUS_META = Object.freeze({
     label: APPLICATION_LABELS.applied,
     className: "bg-slate-100 text-slate-700",
     tone: "slate",
-    nextAction: "SaturnMax Technologies will screen your profile.",
+    nextAction: `${BRAND_NAME} will screen your profile.`,
   },
   screening: {
     label: APPLICATION_LABELS.screening,
@@ -378,13 +380,13 @@ export function isCandidateApprovedForConversion(candidate = {}, application = {
 export function buildConsultantInviteMessage({
   name = "Consultant",
   email = "",
-  consultantLoginUrl = "https://saturnmax.com/consultant-login",
+  consultantLoginUrl = portalUrl("/consultant-login"),
 } = {}) {
   return {
-    subject: "Welcome to SaturnMax Consultant Portal",
+    subject: `Welcome to ${BRAND_NAME} Consultant Portal`,
     body: `Hi ${name || "Consultant"},
 
-Your consultant profile has been created with SaturnMax Technologies.
+Your consultant profile has been created with ${BRAND_NAME}.
 
 Consultant Portal:
 ${consultantLoginUrl}
@@ -395,7 +397,7 @@ ${email}
 Please log in and complete or verify your profile.
 
 Regards,
-SaturnMax Technologies`,
+${BRAND_NAME}`,
   };
 }
 

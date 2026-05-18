@@ -1,4 +1,5 @@
 import { ROLE_STATUS, ROLE_VALUES, ROLES } from "./constants";
+import { HR_EMAIL } from "./brand";
 
 const INDIA_MOBILE_RE = /^(?:\+91[-\s]?|0)?[6-9]\d{9}$/;
 const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
@@ -42,7 +43,7 @@ export function resolveRoleDocument(data) {
     return {
       role: null,
       status: ROLE_STATUS.ERROR,
-      message: "Your account is inactive. Contact hr@saturnmax.com.",
+      message: `Your account is inactive. Contact ${HR_EMAIL}.`,
     };
   }
 

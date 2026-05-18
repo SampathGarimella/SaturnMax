@@ -11,9 +11,11 @@ const bucket = admin.storage().bucket();
 
 const CONSULTANT_TYPES = new Set(["Contract", "Full-time", "Bench", "Client-assigned"]);
 const ROLES = new Set(["candidate", "consultant", "employee", "admin"]);
-const APP_BASE_URL = "https://saturnmax.com";
-const DEFAULT_REPLY_TO = "hr@saturnmax.com";
-const OPS_EMAIL = "hr@saturnmax.com";
+const BRAND_NAME = process.env.BRAND_NAME || "Company";
+const LEGAL_NAME = process.env.LEGAL_NAME || `${BRAND_NAME} Private Limited`;
+const APP_BASE_URL = process.env.APP_BASE_URL || "https://example.com";
+const DEFAULT_REPLY_TO = process.env.DEFAULT_REPLY_TO || "hr@example.com";
+const OPS_EMAIL = process.env.OPS_EMAIL || DEFAULT_REPLY_TO;
 const MAIL_COLLECTION = "mail";
 const EMAIL_TEMPLATES_COLLECTION = "emailTemplates";
 const EMAIL_EVENTS_COLLECTION = "emailEvents";
@@ -135,28 +137,28 @@ const REVIEW_TASK_BY_TYPE = {
 };
 const DEFAULT_EMAIL_TEMPLATES = {
   candidate_signup_verification_reminder: {
-    subject: "Verify your SaturnMax candidate account",
-    text: "Hi {{candidateName}},\n\nPlease verify your email before applying to roles. Open your candidate portal when you are ready.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    subject: "Verify your {{brandName}} candidate account",
+    text: "Hi {{candidateName}},\n\nPlease verify your email before applying to roles. Open your candidate portal when you are ready.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   application_received: {
     subject: "Application received: {{positionTitle}}",
-    text: "Hi {{candidateName}},\n\nWe received your application for {{positionTitle}}. You can track status, messages, interviews, and documents from your Candidate Portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nWe received your application for {{positionTitle}}. You can track status, messages, interviews, and documents from your Candidate Portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   internal_new_application: {
     subject: "New candidate application: {{positionTitle}}",
     text: "{{candidateName}} applied for {{positionTitle}}.\n\nEmail: {{candidateEmail}}\nSkills: {{skills}}\n\nOpen Operations: {{operationsUrl}}",
   },
   lead_received_internal: {
-    subject: "New SaturnMax website lead: {{subject}}",
+    subject: "New {{brandName}} website lead: {{subject}}",
     text: "{{name}} submitted a website enquiry.\n\nEmail: {{email}}\nCompany: {{company}}\nMessage: {{message}}\n\nOpen Leads: {{leadsUrl}}",
   },
   application_status_update: {
     subject: "Application update: {{publicStatus}}",
-    text: "Hi {{candidateName}},\n\nYour application for {{positionTitle}} is now {{publicStatus}}.\n\nNext step: {{nextAction}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nYour application for {{positionTitle}} is now {{publicStatus}}.\n\nNext step: {{nextAction}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   interview_scheduled: {
     subject: "Interview scheduled: {{positionTitle}}",
-    text: "Hi {{candidateName}},\n\nYour {{interviewType}} interview for {{positionTitle}} is scheduled.\n\nDate/time: {{startsAt}}\nInterviewer: {{interviewerName}}\nMeeting link: {{meetingLink}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nYour {{interviewType}} interview for {{positionTitle}} is scheduled.\n\nDate/time: {{startsAt}}\nInterviewer: {{interviewerName}}\nMeeting link: {{meetingLink}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   internal_interview_scheduled: {
     subject: "Interview scheduled for {{candidateName}}",
@@ -164,11 +166,11 @@ const DEFAULT_EMAIL_TEMPLATES = {
   },
   offer_letter_available: {
     subject: "Offer letter available: {{positionTitle}}",
-    text: "Hi {{candidateName}},\n\nYour offer letter for {{positionTitle}} is available in the Candidate Portal. Please download, sign, and upload the signed PDF for review.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nYour offer letter for {{positionTitle}} is available in the Candidate Portal. Please download, sign, and upload the signed PDF for review.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   signed_document_received: {
     subject: "Document received for review",
-    text: "Hi {{candidateName}},\n\nWe received your {{documentTitle}} and our team will review it. You can track the review result in your portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nWe received your {{documentTitle}} and our team will review it. You can track the review result in your portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   internal_signed_document_received: {
     subject: "Document review needed: {{documentTitle}}",
@@ -176,31 +178,31 @@ const DEFAULT_EMAIL_TEMPLATES = {
   },
   review_result: {
     subject: "Document review update: {{documentTitle}}",
-    text: "Hi {{candidateName}},\n\nYour {{documentTitle}} review result is {{reviewStatus}}.\n\n{{nextAction}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nYour {{documentTitle}} review result is {{reviewStatus}}.\n\n{{nextAction}}\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   onboarding_document_requested: {
     subject: "Onboarding document requested: {{documentTitle}}",
-    text: "Hi {{candidateName}},\n\nPlease upload {{documentTitle}} from your Candidate Portal so the SaturnMax team can continue onboarding.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nPlease upload {{documentTitle}} from your Candidate Portal so the {{brandName}} team can continue onboarding.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   onboarding_started: {
     subject: "Onboarding checklist started",
-    text: "Hi {{candidateName}},\n\nYour signed offer has been approved. Please complete the onboarding checklist and upload requested documents in your Candidate Portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{candidateName}},\n\nYour signed offer has been approved. Please complete the onboarding checklist and upload requested documents in your Candidate Portal.\n\nCandidate Portal: {{candidatePortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   consultant_access_instructions: {
-    subject: "Welcome to SaturnMax Consultant Portal",
-    text: "Hi {{name}},\n\nYour consultant profile has been created with SaturnMax Technologies.\n\nConsultant Portal: {{consultantPortalUrl}}\nLogin Email: {{email}}\nPassword setup link: {{setupLink}}\n\nPlease set your password and complete or verify your profile.\n\nRegards,\nSaturnMax Technologies",
+    subject: "Welcome to {{brandName}} Consultant Portal",
+    text: "Hi {{name}},\n\nYour consultant profile has been created with {{legalName}}.\n\nConsultant Portal: {{consultantPortalUrl}}\nLogin Email: {{email}}\nPassword setup link: {{setupLink}}\n\nPlease set your password and complete or verify your profile.\n\nRegards,\n{{brandName}}",
   },
   portal_account_setup: {
-    subject: "Set up your SaturnMax portal account",
-    text: "Hi {{name}},\n\nYour SaturnMax {{roleLabel}} account is ready.\n\nPortal: {{portalUrl}}\nLogin Email: {{email}}\nPassword setup link: {{setupLink}}\n\nRegards,\nSaturnMax Technologies",
+    subject: "Set up your {{brandName}} portal account",
+    text: "Hi {{name}},\n\nYour {{brandName}} {{roleLabel}} account is ready.\n\nPortal: {{portalUrl}}\nLogin Email: {{email}}\nPassword setup link: {{setupLink}}\n\nRegards,\n{{brandName}}",
   },
   consultant_converted: {
     subject: "Consultant profile created",
-    text: "Hi {{name}},\n\nYour SaturnMax consultant profile is ready. Please use the Consultant Portal for project, document, compliance, and account updates.\n\nConsultant Portal: {{consultantPortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{name}},\n\nYour {{brandName}} consultant profile is ready. Please use the Consultant Portal for project, document, compliance, and account updates.\n\nConsultant Portal: {{consultantPortalUrl}}\n\nRegards,\n{{brandName}}",
   },
   compliance_review_result: {
     subject: "Compliance review update: {{documentTitle}}",
-    text: "Hi {{name}},\n\nYour {{documentTitle}} review result is {{reviewStatus}}.\n\n{{nextAction}}\n\nConsultant Portal: {{consultantPortalUrl}}\n\nRegards,\nSaturnMax Technologies",
+    text: "Hi {{name}},\n\nYour {{documentTitle}} review result is {{reviewStatus}}.\n\n{{nextAction}}\n\nConsultant Portal: {{consultantPortalUrl}}\n\nRegards,\n{{brandName}}",
   },
 };
 
@@ -483,8 +485,8 @@ function documentTitle(type = "") {
 
 async function getTemplate(templateId) {
   const fallback = DEFAULT_EMAIL_TEMPLATES[templateId] || {
-    subject: "SaturnMax notification",
-    text: "Open your SaturnMax portal for the latest update.",
+    subject: "{{brandName}} notification",
+    text: "Open your {{brandName}} portal for the latest update.",
   };
   const snap = await db.collection(EMAIL_TEMPLATES_COLLECTION).doc(templateId).get().catch(() => null);
   if (!snap?.exists) return fallback;
@@ -548,15 +550,23 @@ async function queueEmail(templateId, to, data = {}, metadata = {}) {
   }
 
   const template = await getTemplate(templateId);
-  const subject = renderTemplate(template.subject, data);
-  const text = renderTemplate(template.text, data);
-  const html = renderTemplate(template.html || textToHtml(template.text), data);
+  const emailData = {
+    brandName: BRAND_NAME,
+    legalName: LEGAL_NAME,
+    appBaseUrl: APP_BASE_URL,
+    replyTo: DEFAULT_REPLY_TO,
+    opsEmail: OPS_EMAIL,
+    ...data,
+  };
+  const subject = renderTemplate(template.subject, emailData);
+  const text = renderTemplate(template.text, emailData);
+  const html = renderTemplate(template.html || textToHtml(template.text), emailData);
   const now = admin.firestore.FieldValue.serverTimestamp();
   const mailRef = db.collection(MAIL_COLLECTION).doc();
   await mailRef.set({
     to: recipients,
     replyTo: DEFAULT_REPLY_TO,
-    template: { name: templateId, data },
+    template: { name: templateId, data: emailData },
     message: { subject, text, html },
     metadata: {
       templateId,
@@ -619,7 +629,7 @@ function renderOfferPdfBuffer({
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(20).text("SaturnMax Technologies Private Limited", { align: "center" });
+    doc.fontSize(20).text(LEGAL_NAME, { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(11).fillColor("#475569").text("India", { align: "center" });
     doc.moveDown(2);
@@ -630,7 +640,7 @@ function renderOfferPdfBuffer({
     doc.text(`Dear ${candidateName || "Candidate"},`);
     doc.moveDown();
     doc.text(
-      `We are pleased to offer you the role of ${positionTitle || "Consultant"} with SaturnMax Technologies Private Limited. This offer is subject to successful completion of onboarding, compliance checks, and document verification.`
+      `We are pleased to offer you the role of ${positionTitle || "Consultant"} with ${LEGAL_NAME}. This offer is subject to successful completion of onboarding, compliance checks, and document verification.`
     );
     doc.moveDown();
     doc.fontSize(12).text("Engagement Details", { underline: true });
@@ -657,7 +667,7 @@ function renderOfferPdfBuffer({
     doc.text("Please sign this offer letter and upload the signed PDF in your Candidate Portal.");
     doc.moveDown(2);
     doc.text("Regards,");
-    doc.text("SaturnMax Technologies Private Limited");
+    doc.text(LEGAL_NAME);
     doc.moveDown(2);
     doc.text("Candidate signature: ______________________________");
     doc.text("Date: __________________");
@@ -1344,7 +1354,7 @@ exports.scheduleInterview = onCall({ region: "us-central1" }, async (request) =>
   const requestedCandidateUid = cleanString(data.candidateUid, 200);
   const startsAt = requireString(data, "startsAt", "Interview date/time");
   const interviewType = cleanString(data.interviewType || "Technical interview", 120);
-  const interviewerName = cleanString(data.interviewerName || "SaturnMax hiring team", 160);
+  const interviewerName = cleanString(data.interviewerName || `${BRAND_NAME} hiring team`, 160);
   const meetingLink = cleanString(data.meetingLink, 600);
   const notes = cleanString(data.notes, 2000);
   const now = admin.firestore.FieldValue.serverTimestamp();
@@ -1867,7 +1877,7 @@ exports.sendPortalPasswordSetup = onCall({ region: "us-central1" }, async (reque
   const role = cleanString(data.role || "candidate", 40);
   if (!isValidEmail(email)) throw new HttpsError("invalid-argument", "Enter a valid email.");
   const actor = role === "consultant" ? await assertEmployee(request.auth.uid) : await assertAdmin(request.auth.uid);
-  const url = cleanString(data.url || "https://saturnmax.com/login", 300);
+  const url = cleanString(data.url || `${APP_BASE_URL}/login`, 300);
   const setupLink = await admin.auth().generatePasswordResetLink(email, {
     url,
     handleCodeInApp: false,

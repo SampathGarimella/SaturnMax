@@ -31,7 +31,7 @@ const baseData = {
       full_name: "Candidate One",
       candidate_name: "Candidate One",
       candidate_uid: "candidate-1",
-      email: "candidate@saturnmax.com",
+      email: "candidate@example.com",
       position_title: "React Engineer",
       status: "onboarding",
       workflowStage: "approved",
@@ -60,7 +60,7 @@ const baseData = {
     {
       id: "lead-1",
       name: "Client Lead",
-      email: "client@saturnmax.com",
+      email: "client@example.com",
       company: "Acme",
       subject: "I want to hire a dev team",
       message: "Need React engineers",

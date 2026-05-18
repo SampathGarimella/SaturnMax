@@ -1,4 +1,4 @@
-"""SaturnMax Technologies Pvt Ltd - FastAPI backend.
+"""Company Private Limited - FastAPI backend.
 
 Provides:
 - Job listings (seeded on startup)
@@ -40,7 +40,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("saturnmax")
+logger = logging.getLogger("company")
 
 
 def split_csv(value: Optional[str], default: List[str]) -> List[str]:
@@ -56,8 +56,8 @@ CORS_ORIGINS = split_csv(
     [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://saturnmax.com",
-        "https://www.saturnmax.com",
+        "https://example.com",
+        "https://www.example.com",
     ],
 )
 ALLOW_ALL_ORIGINS = "*" in CORS_ORIGINS
@@ -66,8 +66,8 @@ ALLOWED_HOSTS = split_csv(
     [
         "localhost",
         "127.0.0.1",
-        "saturnmax.com",
-        "www.saturnmax.com",
+        "example.com",
+        "www.example.com",
         "*.preview.emergentagent.com",
     ],
 )
@@ -76,7 +76,7 @@ RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("RATE_LIMIT_MAX_REQUESTS", "12"))
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
-RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "info@saturnmax.com").strip()
+RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "info@example.com").strip()
 
 if resend is not None and RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -577,7 +577,7 @@ async def seed_database() -> None:
 # ---------------------------------------------------------------------------
 # FastAPI app
 # ---------------------------------------------------------------------------
-app = FastAPI(title="SaturnMax Technologies Pvt Ltd API", version="1.0.0")
+app = FastAPI(title="Company Private Limited API", version="1.0.0")
 
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 
@@ -632,7 +632,7 @@ async def on_startup() -> None:
 async def health() -> dict:
     return {
         "status": "ok",
-        "service": "saturn-max-api",
+        "service": "company-api",
         "email_provider": "resend",
         "email_configured": bool(RESEND_API_KEY),
         "timestamp": now_iso(),
@@ -666,7 +666,7 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
               <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                 <tr>
                   <td style="background:#0a192f;padding:24px 28px;">
-                    <div style="color:#ffffff;font-size:18px;font-weight:700;">SaturnMax Technologies Pvt Ltd</div>
+                    <div style="color:#ffffff;font-size:18px;font-weight:700;">Company Private Limited</div>
                     <div style="color:#94a3b8;font-size:12px;margin-top:4px;">New candidate application</div>
                   </td>
                 </tr>
@@ -674,7 +674,7 @@ def application_email_html(data: ApplicationCreate, app_id: str) -> str:
                   <td style="padding:28px;">
                     <h2 style="margin:0 0 12px 0;font-size:20px;">New application: {data.position_title}</h2>
                     <p style="margin:0 0 20px 0;color:#475569;font-size:14px;">
-                      A new candidate just applied via saturnmax.com.
+                      A new candidate just applied via example.com.
                     </p>
                     <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;">
                       <tr><td style="color:#64748b;width:150px;">Name</td><td><strong>{data.full_name}</strong></td></tr>
@@ -813,7 +813,7 @@ def contact_email_html(data: ContactCreate, msg_id: str) -> str:
               <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                 <tr>
                   <td style="background:#0a192f;padding:24px 28px;">
-                    <div style="color:#ffffff;font-size:18px;font-weight:700;">SaturnMax Technologies Pvt Ltd</div>
+                    <div style="color:#ffffff;font-size:18px;font-weight:700;">Company Private Limited</div>
                     <div style="color:#94a3b8;font-size:12px;margin-top:4px;">New contact message</div>
                   </td>
                 </tr>
@@ -931,4 +931,4 @@ async def get_dashboard(email: EmailStr) -> DashboardResponse:
 
 @app.get("/")
 async def root() -> dict:
-    return {"service": "saturn-max-api", "docs": "/docs"}
+    return {"service": "company-api", "docs": "/docs"}

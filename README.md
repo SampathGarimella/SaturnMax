@@ -1,4 +1,4 @@
-# SaturnMax
+# Company
 
 Firebase-first web platform for:
 - candidate hiring
@@ -12,7 +12,7 @@ Firebase-first web platform for:
 - Frontend: React + CRACO + Tailwind
 - Backend services: Firebase Auth, Firestore, Storage, and Cloud Functions
 - Hosting: GitHub Pages for the React app
-- Production domain: `saturnmax.com`
+- Production domain: `example.com`
 
 The older `backend/` FastAPI/Mongo service is deprecated and kept only as historical reference. New product work should use Firebase or Cloud Functions.
 
@@ -64,7 +64,7 @@ GitHub Actions runs:
 - frontend build
 - Firestore rules emulator tests
 
-See [.github/workflows/ci.yml](/Users/sampath1/Documents/Github/SaturnMax/.github/workflows/ci.yml).
+See [.github/workflows/ci.yml](/Users/sampath1/Documents/Github/Company/.github/workflows/ci.yml).
 
 ## Production Next Steps
 

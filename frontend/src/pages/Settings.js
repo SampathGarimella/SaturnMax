@@ -6,6 +6,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   DEFAULT_UI_PREFERENCES,
 } from "../lib/validators";
+import { THEME_STORAGE_KEY } from "../lib/brand";
 
 export default function Settings() {
   const { user, sendReset } = useAuth();
@@ -52,7 +53,7 @@ export default function Settings() {
         ? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light")
         : nextTheme;
       document.documentElement.dataset.dashboardTheme = dashboardTheme;
-      window.localStorage.setItem("saturnmax-dashboard-theme", dashboardTheme);
+      window.localStorage.setItem(THEME_STORAGE_KEY, dashboardTheme);
     }
     setSaving(next.kind || "settings");
     try {

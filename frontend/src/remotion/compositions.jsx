@@ -99,7 +99,7 @@ function BrandBackdrop({ accent = BRAND.blue }) {
   );
 }
 
-function BrandHeader({ label = "SaturnMax Technologies" }) {
+function BrandHeader({ label = "Company" }) {
   return (
     <div
       style={{
@@ -471,7 +471,7 @@ function DemandVisual({ scene, localFrame }) {
           transform: `scale(${0.94 + appear(localFrame, 42, 22) * 0.06})`,
         }}
       >
-        SaturnMax
+        Company
         <br />
         delivery
       </div>
@@ -715,14 +715,14 @@ function ScaleVisual({ scene, localFrame }) {
           <div style={{ marginTop: 8, fontSize: 32, fontWeight: 950 }}>Start with a scoped pilot</div>
         </div>
         <div style={{ borderRadius: 999, background: "#ffffff", color: BRAND.navy, padding: "16px 22px", fontSize: 22, fontWeight: 950 }}>
-          saturnmax.com
+          example.com
         </div>
       </div>
     </div>
   );
 }
 
-function FooterCta({ children = "saturnmax.com | info@saturnmax.com" }) {
+function FooterCta({ children = "example.com | info@example.com" }) {
   return (
     <div
       style={{
@@ -770,7 +770,7 @@ export function LinkedInMarketingVideo({ variant = "devTeams" }) {
   return (
     <AbsoluteFill>
       <BrandBackdrop accent={variant === "aiAutomation" ? BRAND.green : BRAND.blue} />
-      <BrandHeader label="SaturnMax" />
+      <BrandHeader label="Company" />
       <div
         style={{
           position: "absolute",
@@ -802,7 +802,7 @@ export function LinkedInMarketingVideo({ variant = "devTeams" }) {
           }}
         />
         <div style={{ color: "#93C5FD", fontSize: 28, fontWeight: 900, letterSpacing: 2 }}>
-          SATURNMAX FOR US BUSINESSES
+          COMPANY FOR US BUSINESSES
         </div>
         <div style={{ marginTop: 34, fontSize: 76, lineHeight: 0.98, fontWeight: 900, maxWidth: 820 }}>
           {data.title}
@@ -868,7 +868,7 @@ export function RecruitingClip({ job = SAMPLE_JOB }) {
       />
       <div style={{ position: "absolute", top: 70, left: 62, right: 62 }}>
         <div style={{ color: "#93C5FD", fontSize: 30, fontWeight: 900, letterSpacing: 2 }}>
-          SATURNMAX CAREERS
+          COMPANY CAREERS
         </div>
         <div
           style={{
@@ -937,7 +937,7 @@ export function RecruitingClip({ job = SAMPLE_JOB }) {
         }}
       />
       <div style={{ position: "absolute", right: 62, top: height - 176, color: "#93C5FD", fontSize: 28, fontWeight: 900 }}>
-        saturnmax.com
+        example.com
       </div>
     </AbsoluteFill>
   );
@@ -990,7 +990,7 @@ export function ClientProposalSnippet({ proposal = SAMPLE_PROPOSAL }) {
           );
         })}
       </div>
-      <FooterCta>{proposal.cta} | info@saturnmax.com</FooterCta>
+      <FooterCta>{proposal.cta} | info@example.com</FooterCta>
     </AbsoluteFill>
   );
 }

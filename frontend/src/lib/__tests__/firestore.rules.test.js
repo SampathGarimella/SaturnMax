@@ -21,7 +21,7 @@ import {
 
 let testEnv;
 
-const projectId = "saturnmax-rules-test";
+const projectId = "company-rules-test";
 const rulesPath = path.resolve(__dirname, "../../../../firestore.rules");
 
 jest.setTimeout(30000);
@@ -53,42 +53,42 @@ beforeEach(async () => {
     await Promise.all([
       setDoc(doc(db, "users", "candidate-1"), {
         role: "candidate",
-        email: "candidate@saturnmax.com",
+        email: "candidate@example.com",
         name: "Candidate",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "candidate-2"), {
         role: "candidate",
-        email: "other@saturnmax.com",
+        email: "other@example.com",
         name: "Other Candidate",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "employee-1"), {
         role: "employee",
-        email: "employee@saturnmax.com",
+        email: "employee@example.com",
         name: "Employee",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "admin-1"), {
         role: "admin",
-        email: "admin@saturnmax.com",
+        email: "admin@example.com",
         name: "Admin",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "users", "consultant-1"), {
         role: "consultant",
-        email: "consultant@saturnmax.com",
+        email: "consultant@example.com",
         name: "Consultant",
         status: "active",
         createdAt: 1,
       }),
       setDoc(doc(db, "consultants", "consultant-1"), {
         uid: "consultant-1",
-        email: "consultant@saturnmax.com",
+        email: "consultant@example.com",
         name: "Consultant",
         bankStatus: "pending_review",
         createdAt: 1,
@@ -132,7 +132,7 @@ beforeEach(async () => {
         createdAt: 1,
       }),
       setDoc(doc(db, "mail", "mail-1"), {
-        to: ["candidate@saturnmax.com"],
+        to: ["candidate@example.com"],
         template: { name: "application_received", data: { candidateName: "Candidate" } },
         createdAt: 1,
       }),
@@ -144,7 +144,7 @@ beforeEach(async () => {
       }),
       setDoc(doc(db, "emailEvents", "email-event-1"), {
         templateId: "application_received",
-        to: ["candidate@saturnmax.com"],
+        to: ["candidate@example.com"],
         status: "queued",
         createdAt: 1,
       }),
@@ -216,12 +216,12 @@ describe("Firestore security rules", () => {
   test("admin rules allow account setup while direct employee role changes are blocked", async () => {
     const employee = authedDb("employee-1");
     const admin = authedDb("admin-1");
-    const candidate = authedDb("candidate-1", { email: "candidate@saturnmax.com" });
+    const candidate = authedDb("candidate-1", { email: "candidate@example.com" });
     const otherCandidate = authedDb("candidate-2");
     await assertFails(
       setDoc(doc(employee, "users", "new-consultant"), {
         role: "consultant",
-        email: "new.consultant@saturnmax.com",
+        email: "new.consultant@example.com",
         name: "New Consultant",
         status: "active",
       })
@@ -229,7 +229,7 @@ describe("Firestore security rules", () => {
     await assertSucceeds(
       setDoc(doc(admin, "users", "new-consultant"), {
         role: "consultant",
-        email: "new.consultant@saturnmax.com",
+        email: "new.consultant@example.com",
         name: "New Consultant",
         status: "active",
       })
@@ -237,14 +237,14 @@ describe("Firestore security rules", () => {
     await assertFails(
       setDoc(doc(employee, "candidates", "new-candidate"), {
         uid: "new-candidate",
-        email: "new.candidate@saturnmax.com",
+        email: "new.candidate@example.com",
         name: "New Candidate",
       })
     );
     await assertSucceeds(
       setDoc(doc(candidate, "candidates", "candidate-1"), {
         uid: "candidate-1",
-        email: "candidate@saturnmax.com",
+        email: "candidate@example.com",
         name: "Candidate",
       })
     );
@@ -270,7 +270,7 @@ describe("Firestore security rules", () => {
     await assertFails(
       setDoc(doc(otherCandidate, "users", "fake-admin"), {
         role: "admin",
-        email: "fake@saturnmax.com",
+        email: "fake@example.com",
       })
     );
   });
@@ -282,7 +282,7 @@ describe("Firestore security rules", () => {
     await assertFails(
       setDoc(doc(employee, "consultants", "candidate-1"), {
         uid: "candidate-1",
-        email: "candidate@saturnmax.com",
+        email: "candidate@example.com",
         name: "Candidate",
         sourceCandidateId: "candidate-1",
         consultantType: "Contract",
@@ -291,21 +291,21 @@ describe("Firestore security rules", () => {
     await assertSucceeds(
       setDoc(doc(admin, "consultants", "candidate-1"), {
         uid: "candidate-1",
-        email: "candidate@saturnmax.com",
+        email: "candidate@example.com",
         name: "Candidate",
         sourceCandidateId: "candidate-1",
         consultantType: "Contract",
       })
     );
     await assertFails(
-      setDoc(doc(employee, "consultantEmailIndex", "candidate@saturnmax.com"), {
-        email: "candidate@saturnmax.com",
+      setDoc(doc(employee, "consultantEmailIndex", "candidate@example.com"), {
+        email: "candidate@example.com",
         uid: "candidate-1",
       })
     );
     await assertSucceeds(
-      setDoc(doc(admin, "consultantEmailIndex", "candidate@saturnmax.com"), {
-        email: "candidate@saturnmax.com",
+      setDoc(doc(admin, "consultantEmailIndex", "candidate@example.com"), {
+        email: "candidate@example.com",
         uid: "candidate-1",
       })
     );
@@ -327,12 +327,12 @@ describe("Firestore security rules", () => {
     await assertFails(
       setDoc(doc(candidate, "consultants", "candidate-2"), {
         uid: "candidate-2",
-        email: "other@saturnmax.com",
+        email: "other@example.com",
       })
     );
     await assertFails(
-      setDoc(doc(candidate, "consultantEmailIndex", "other@saturnmax.com"), {
-        email: "other@saturnmax.com",
+      setDoc(doc(candidate, "consultantEmailIndex", "other@example.com"), {
+        email: "other@example.com",
         uid: "candidate-2",
       })
     );
@@ -414,18 +414,18 @@ describe("Firestore security rules", () => {
 
   test("candidate application create requires verified email", async () => {
     const unverified = authedDb("candidate-1", {
-      email: "candidate@saturnmax.com",
+      email: "candidate@example.com",
       email_verified: false,
     });
     const verified = authedDb("candidate-1", {
-      email: "candidate@saturnmax.com",
+      email: "candidate@example.com",
       email_verified: true,
     });
     const payload = {
       id: "candidate-app-create",
       candidate_uid: "candidate-1",
       candidate_name: "Candidate",
-      email: "candidate@saturnmax.com",
+      email: "candidate@example.com",
       full_name: "Candidate",
       phone: "9876543210",
       position_title: "React Engineer",
@@ -521,13 +521,13 @@ describe("Firestore security rules", () => {
 
     await assertFails(
       setDoc(doc(candidate, "mail", "candidate-mail"), {
-        to: ["hr@saturnmax.com"],
+        to: ["hr@example.com"],
         message: { subject: "Bad", text: "Arbitrary email" },
       })
     );
     await assertFails(
       setDoc(doc(employee, "mail", "employee-mail"), {
-        to: ["candidate@saturnmax.com"],
+        to: ["candidate@example.com"],
         message: { subject: "Bad", text: "Arbitrary email" },
       })
     );

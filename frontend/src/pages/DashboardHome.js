@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { getApplicationStatusMeta } from "../lib/workflow";
+import { BRAND_NAME } from "../lib/brand";
 
 const DOT_COLORS = {
   slate: "bg-slate-500",
@@ -67,7 +68,7 @@ export default function DashboardHome() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 md:p-6">
         {!candidate.emailVerified && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            Verify your email from the link SaturnMax sent after signup. Verified email helps the hiring team contact you reliably.
+            Verify your email from the link {BRAND_NAME} sent after signup. Verified email helps the hiring team contact you reliably.
           </div>
         )}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
